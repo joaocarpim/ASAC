@@ -1,7 +1,7 @@
 # ASAC
 📱 Jogo Educativo de Braille - ASACC Sorocaba
 
-Este projeto é um **aplicativo interativo** criado com o objetivo de **ensinar Braille de forma lúdica e acessível** para pessoas com deficiência visual. Desenvolvido especialmente para a **ASACC (Associação de Surdos e Amigos da Comunidade Cega) de Sorocaba**, o app oferece uma experiência educativa, inclusiva e sensorial.
+Este projeto é um **aplicativo interativo** criado com o objetivo de **ensinar Braille de forma lúdica e acessível** para pessoas com deficiência visual. Desenvolvido especialmente para a **ASAC de Sorocaba**, o app oferece uma experiência educativa, inclusiva e sensorial.
 
 🎯 Objetivo
 
@@ -19,7 +19,7 @@ Oferecer uma ferramenta digital que auxilie **pessoas cegas ou com baixa visão*
 
 - Flutter / React Native (ou tecnologia usada no app)
 - Suporte a acessibilidade (leitores de tela e navegação por voz)
-- Integração com Text-to-Speech
+- Integração com Text
 - Banco de dados local para progresso do jogador
 
 ## 📱 Público-alvo
@@ -30,11 +30,12 @@ Oferecer uma ferramenta digital que auxilie **pessoas cegas ou com baixa visão*
 
 🤝 Instituição Parceira
 
-Este projeto foi desenvolvido em parceria com a **ASACC - Associação de Surdos e Amigos da Comunidade Cega de Sorocaba**, uma entidade que promove a inclusão e a educação de pessoas com deficiência sensorial.
+Este projeto foi desenvolvido em parceria com a **ASACC, uma entidade que promove a inclusão e a educação de pessoas com deficiência visuais.
 
 👩‍💻 Equipe de Desenvolvimento
 
-- Nome 1 – Função
-- Nome 2 – Função
-- Nome 3 – Função
+- Daniel Pereira 1 
+- Iran Camargo 2 
+- Kenui Engler
+- João Souza
 
