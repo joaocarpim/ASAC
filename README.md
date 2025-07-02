@@ -1,86 +1,100 @@
-# 👁️‍🗨️ ASAC - Jogo Educativo de Braille
+# 👁️‍🗨️ ASAC - Aplicativo Educacional de Braille
 
-## 📚 Aplicativo Interativo de Alfabetização em Braille
+## 📚 Aplicativo Mobile Acessível para Alfabetização em Braille
 
-Este projeto é um **aplicativo educacional acessível** desenvolvido para a **ASAC (Associação Sorocabana de Atividades para Deficientes Visuais)**, com o objetivo de ensinar **Braille** de forma **lúdica, interativa e inclusiva** para pessoas com deficiência visual.
+Este projeto é um **aplicativo educacional mobile acessível**, desenvolvido para a **ASAC (Associação Sorocabana de Atividades para Deficientes Visuais)**. Seu objetivo é **ensinar Braille de forma interativa, progressiva e inclusiva**, com suporte completo à **acessibilidade digital**, gamificação e uso de tecnologias modernas de nuvem.
 
-A proposta integra **tecnologia, acessibilidade e gamificação** para criar uma jornada de aprendizado significativa, divertida e sensorial.
+A aplicação conta com **cadastro gerenciado por administradores**, **módulos de conteúdo com suporte multimídia**, e **recursos acessíveis como temas de alto contraste, leitores de tela, áudio e navegação por teclado**.
 
 ---
 
 ## 🧠 Competências Desenvolvidas
 
-Durante o desenvolvimento deste projeto, a equipe aplicou e aprimorou diversas habilidades essenciais:
+### 💻 Técnicas
 
-### 💻 Competências Técnicas
+- Criação de interface nativa com **React Native** e suporte completo a TalkBack (Android) e VoiceOver (iOS)
+- Implementação de **tema dinâmico com 4 esquemas de alto contraste**:
+  - Preto com branco
+  - Branco com preto
+  - Azul com amarelo
+  - Amarelo com azul
+- Integração com **AWS Amplify**:
+  - Autenticação com **Amazon Cognito**
+  - Sincronização de dados com **DataStore**
+  - Banco na nuvem com **Amazon DynamoDB**
+  - Upload de mídias com **Amazon S3**
+- Persistência offline com sincronização automática
+- Estrutura baseada no padrão **MVVM** com gerenciamento de estado via **Zustand**
+- Internacionalização, leitura de tela e suporte a acessibilidade conforme **WCAG 2.1**
 
-- Construção de interfaces acessíveis com **React Native**, aplicando componentes reutilizáveis e suporte completo a leitores de tela.
-- Implementação de rotas e autenticação com **Node.js/Express**, utilizando middlewares e controle de acesso.
-- Integração entre frontend e backend via **API REST**, com consumo assíncrono e tratamento de status HTTP.
-- Persistência de dados estruturados com **PostgreSQL**, aplicando modelos relacionais e queries seguras.
-- Modularização de conteúdo dinâmico com **JSON externo**, permitindo flexibilidade e separação entre dados e lógica.
-- Aplicação de padrões de **acessibilidade digital (WCAG 2.1)**, garantindo usabilidade para usuários com deficiência visual.
+### 🧩 Projetuais
 
-### 🧩 Competências Projetuais
-
-- Aplicação de UX/UI para públicos com deficiência visual
-- Construção de lógica de gamificação adaptada a perfis inclusivos
-- Estruturação modular e escalável do código
+- UX focado em usuários com deficiência visual
+- Estrutura escalável e de fácil manutenção
+- Modularização completa dos conteúdos e lógica
 
 ### 🤝 Soft Skills
 
-- Trabalho em equipe multidisciplinar
-- Comunicação clara com parceiros institucionais (ASAC)
-- Planejamento e entrega de software com impacto social
+- Trabalho em equipe colaborativo
+- Contato direto com instituição parceira (ASAC)
+- Entregas iterativas com foco em impacto social real
 
 ---
 
 ## 🎯 Objetivo
 
-Fornecer uma ferramenta digital inclusiva que apoie **crianças, jovens e adultos cegos ou com baixa visão** no processo de alfabetização em **Braille**, utilizando:
+Prover uma ferramenta digital acessível que ajude **crianças, adolescentes e adultos com deficiência visual** a aprenderem Braille, por meio de:
 
-- **Jogos interativos**
-- **Desafios práticos**
-- **Feedback sonoro em tempo real**
+- **Módulos educacionais com conteúdo interativo**
+- **Exercícios práticos com feedback tátil, sonoro e visual**
+- **Gamificação e ranking de progresso**
+- **Uso offline com sincronização na nuvem**
 
 ---
 
 ## 🧩 Funcionalidades Principais
 
-- 🔤 **Aprendizado de Braille com auxílio sonoro** e validação de respostas.
-- 🎙️ **Interface 100% narrada**, com foco em acessibilidade total.
-- 🧠 **Desafios e fases por nível de dificuldade**, promovendo progressão natural.
-- 🏅 **Sistema de recompensas**, com estímulo à evolução do usuário.
+- 🔐 **Cadastro e autenticação por administrador**
+- 🧑‍🏫 **Gerenciamento de módulos com conteúdo multimídia**
+- 🔤 **Aulas teóricas com célula Braille interativa**
+- 🧠 **Exercícios práticos de leitura e escrita**
+- 📊 **Acompanhamento de progresso com gráficos e conquistas**
+- 🎨 **4 temas de alto contraste com troca dinâmica**
+- 🔊 **Feedback sonoro, suporte a leitores de tela e navegação adaptada**
+- ☁️ **Sincronização com a nuvem e funcionamento offline**
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-- **Frontend:** React Native (mobile-first com suporte completo a acessibilidade)
-- **Backend:** Node.js (servidor leve e escalável)
-- **Banco de Dados:** PostgreSQL (armazenamento local e seguro)
-- **Recursos de Acessibilidade:** Leitores de tela, contraste ajustado, navegação por voz e suporte a gestos
+- **Frontend Mobile:** React Native com TypeScript
+- **Backend Serverless:** AWS Amplify
+- **Banco de Dados:** AWS DynamoDB (via AppSync e DataStore)
+- **Autenticação:** Amazon Cognito
+- **Armazenamento de Mídia:** Amazon S3
+- **Gerenciamento de Estado:** Zustand
+- **Navegação:** React Navigation
+- **Estilo e UI:** NativeWind (Tailwind para React Native)
+- **Acessibilidade:** TalkBack, VoiceOver, feedback tátil, temas de contraste
 
 ---
 
 ## 👥 Público-Alvo
 
-- Pessoas com deficiência visual (cegueira total ou baixa visão)
-- Crianças e adolescentes em processo de alfabetização inclusiva
-- Adultos com interesse em aprender Braille
-- Escolas e instituições que promovem a inclusão educacional
+- Pessoas com deficiência visual (cegueira ou baixa visão)
+- Crianças em processo de alfabetização inclusiva
+- Educadores, terapeutas e familiares
+- Instituições de ensino inclusivo
 
 ---
 
 ## 🤝 Instituição Parceira
 
-Este projeto foi desenvolvido em parceria com a **ASAC – Associação Sorocabana de Atividades para Deficientes Visuais**, referência no atendimento, habilitação e reabilitação de pessoas com deficiência visual desde 1969.
+Projeto realizado com apoio da **ASAC – Associação Sorocabana de Atividades para Deficientes Visuais**, referência em reabilitação visual desde 1969.
 
 ---
 
 ## 👨‍💻 Equipe de Desenvolvimento
-
-Equipe responsável pela lógica, acessibilidade e gamificação do projeto:
 
 - [Daniel Silva](https://github.com/DanielFatec1911)
 - [Iran Camargo](https://github.com/IranFatec2108)
@@ -91,8 +105,8 @@ Equipe responsável pela lógica, acessibilidade e gamificação do projeto:
 
 ## 📢 Licença
 
-Este projeto é de código aberto, disponível sob a licença [MIT](LICENSE).
+Este projeto está licenciado sob a [MIT License](LICENSE).
 
 ---
 
-> **Capacitar sem discriminação a pessoa com deficiência visual na sua luta para ver e vencer sem enxergar. – Missão da ASAC**
+> **"Capacitar sem discriminação a pessoa com deficiência visual na sua luta para ver e vencer sem enxergar." – Missão da ASAC**
