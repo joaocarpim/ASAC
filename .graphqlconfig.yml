@@ -1,0 +1,17 @@
+projects:
+  asacbrilleapp:
+    schemaPath: src/graphql/schema.json
+    includes:
+      - ''
+    excludes:
+      - ./amplify/**
+      - src/API.ts
+    extensions:
+      amplify:
+        codeGenTarget: typescript
+        generatedFileName: src/API.ts
+        docsFilePath: .
+        maxDepth: 2
+extensions:
+  amplify:
+    version: 3

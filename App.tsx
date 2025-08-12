@@ -1,20 +1,17 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+// App.tsx
+import React from "react";
+import { Amplify } from "aws-amplify";
+import outputs from "./amplify_outputs.json";
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+// Importe a nova tela de boas-vindas
+import BemVindoScreen from "./src/screens/BemvindoScreen";
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+// Configure o Amplify (isso já estava correto)
+Amplify.configure(outputs);
+
+const App = () => {
+  // Por enquanto, vamos retornar apenas a tela de boas-vindas
+  return <BemVindoScreen />;
+};
+
+export default App;
