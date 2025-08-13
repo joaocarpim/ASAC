@@ -22,7 +22,7 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
-    "react-native-reanimated": "~3.17.4",
+    "react-native-reanimated": "^3.10.1",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
@@ -35,7 +35,8 @@
   "devDependencies": {
     "@aws-amplify/backend": "^1.16.1",
     "@aws-amplify/backend-cli": "^1.8.0",
-    "@babel/core": "^7.25.2",
+    "@babel/core": "7.23",
+    "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@types/react": "~19.0.10",
     "@types/react-native": "^0.73.0",
     "aws-cdk-lib": "^2.204.0",
