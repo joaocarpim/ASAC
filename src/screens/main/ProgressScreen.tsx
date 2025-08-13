@@ -14,7 +14,7 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 const rocketImg = require("../../assets/images/rocket.png");
 const moleCharacterImg = require("../../assets/images/logo.png");
 
-// 👇 DEFINIÇÃO DE TIPOS
+// DEFINIÇÃO DE TIPOS
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 type StatCardProps = {

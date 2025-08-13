@@ -69,10 +69,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
   scrollContainer: { alignItems: "center", padding: 20 },
   mainImage: {
-    width: 150,
-    height: 150,
+    width: 180,
+    height: 180,
+    marginTop: 5,
     resizeMode: "contain",
     marginVertical: 20,
+    zIndex: 1, 
   },
   card: {
     backgroundColor: "#191970",

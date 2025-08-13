@@ -122,7 +122,6 @@ export default function RankingScreen() {
   );
 }
 
-// Os styles permanecem os mesmos
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
   scrollContainer: { alignItems: "center", paddingBottom: 30 },
@@ -146,7 +145,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  topThree: { backgroundColor: "#FFA500" },
+  // 👇 CORREÇÃO AQUI 👇
+  topThree: { backgroundColor: "#5A4FCF" }, // Tom de azul arroxeado
   rankNumber: {
     fontSize: 20,
     fontWeight: "bold",

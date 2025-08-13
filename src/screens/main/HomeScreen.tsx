@@ -113,7 +113,7 @@ export default function HomeScreen({
         {/* Módulos Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Módulos de Aprendizado</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
             <MaterialCommunityIcons name="cog" size={30} color="#191970" />
           </TouchableOpacity>
         </View>

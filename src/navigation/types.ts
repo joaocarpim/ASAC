@@ -18,6 +18,9 @@ export type RootStackParamList = {
   Ranking: undefined;
   Achievements: undefined;
   Progress: undefined;
+
+  // Settings
+  Settings: undefined;
 };
 
 // Este é um tipo genérico que vamos usar em cada tela
