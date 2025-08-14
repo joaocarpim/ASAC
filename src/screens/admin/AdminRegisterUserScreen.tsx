@@ -10,45 +10,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert, // 👈 Importe o Alert para dar feedback
 } from "react-native";
-
 import { RootStackScreenProps } from "../../navigation/types";
+import ScreenHeader from "../../components/layout/ScreenHeader";
 
 const logo = require("../../assets/images/logo.png");
 
-export default function LoginScreen({
+export default function AdminRegisterUserScreen({
   navigation,
-}: RootStackScreenProps<"Login">) {
+}: RootStackScreenProps<"AdminRegisterUser">) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // 👇 NOVA FUNÇÃO PARA GERENCIAR A LÓGICA DE LOGIN 👇
-  const handleLogin = () => {
-    // Usamos trim() para remover espaços e toLowerCase() para emails
-    const formattedEmail = email.trim().toLowerCase();
-
-    // Validação básica de campos
-    if (!formattedEmail || !password) {
-      Alert.alert("Atenção", "Por favor, preencha o email e a senha.");
-      return;
-    }
-
-    // Verifica se as credenciais são de administrador
-    if (formattedEmail === "adminasac@gmail.com" && password === "asac12345") {
-      // Se for admin, reseta a navegação para o painel de admin
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "AdminDashboard" }],
-      });
-    } else {
-      // Para qualquer outro usuário, reseta a navegação para a Home
-      // (Em um app real, aqui haveria a validação para outros usuários)
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Home" }],
-      });
-    }
+  const handleRegister = () => {
+    // Lógica de registro viria aqui
+    navigation.goBack();
   };
 
   return (
@@ -56,7 +33,8 @@ export default function LoginScreen({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
+      <ScreenHeader title="" />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
           <Image source={logo} style={styles.logo} />
@@ -65,15 +43,20 @@ export default function LoginScreen({
 
         <View style={styles.formContainer}>
           <Text style={styles.promptText}>
-            Acesse o App informando seus dados
+            Realize o registro dos assistidos
           </Text>
-
+          <TextInput
+            style={styles.input}
+            placeholder="Nome"
+            placeholderTextColor="#FFFFFF"
+            value={name}
+            onChangeText={setName}
+          />
           <TextInput
             style={styles.input}
             placeholder="Email"
             placeholderTextColor="#FFFFFF"
             keyboardType="email-address"
-            autoCapitalize="none" // Desativa letra maiúscula automática
             value={email}
             onChangeText={setEmail}
           />
@@ -85,17 +68,10 @@ export default function LoginScreen({
             value={password}
             onChangeText={setPassword}
           />
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("ForgotPassword")}
-          >
-            <Text style={styles.linkText}>Recuperar Senha</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* 👇 O BOTÃO AGORA CHAMA A FUNÇÃO handleLogin 👇 */}
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Logar</Text>
+        <TouchableOpacity style={styles.button} onPress={handleRegister}>
+          <Text style={styles.buttonText}>Registrar</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -103,35 +79,22 @@ export default function LoginScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFC700",
-  },
+  container: { flex: 1, backgroundColor: "#F0EFEA" }, // Fundo consistente
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  logoContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  logo: {
-    width: 150,
-    height: 150,
-    resizeMode: "contain",
-  },
+  logoContainer: { alignItems: "center", marginBottom: 30 },
+  logo: { width: 120, height: 120, resizeMode: "contain" },
   logoText: {
-    fontSize: 52,
+    fontSize: 48,
     fontWeight: "bold",
     color: "#191970",
     marginTop: 10,
   },
-  formContainer: {
-    width: "100%",
-    alignItems: "center",
-  },
+  formContainer: { width: "100%", alignItems: "center" },
   promptText: {
     fontSize: 16,
     color: "#191970",
@@ -148,13 +111,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 15,
   },
-  linkText: {
-    color: "#191970",
-    fontWeight: "bold",
-    fontSize: 14,
-    alignSelf: "flex-start",
-    marginLeft: 5,
-  },
   button: {
     width: "100%",
     backgroundColor: "#191970",
@@ -169,4 +125,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-

@@ -10,11 +10,14 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import ScreenHeader from "../../components/layout/ScreenHeader";
+import { RootStackScreenProps } from '../../navigation/types'; 
 
 const medalImg = require("../../assets/images/medal.png");
 const moleCharacterImg = require("../../assets/images/logo.png");
 
-export default function AchievementsScreen() {
+export default function AchievementsScreen({
+  navigation,
+}: RootStackScreenProps<"Achievements">) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
@@ -52,7 +55,10 @@ export default function AchievementsScreen() {
           <Text style={styles.progressSubtitle}>1 de 3 módulos concluídos</Text>
         </View>
 
-        <TouchableOpacity style={styles.bottomButton}>
+        <TouchableOpacity
+          style={styles.bottomButton}
+          onPress={() => navigation.navigate("Home")}
+        >
           <MaterialCommunityIcons
             name="book-open-variant"
             size={20}

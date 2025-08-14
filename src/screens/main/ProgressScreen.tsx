@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import ScreenHeader from "../../components/layout/ScreenHeader";
+import { RootStackScreenProps } from '../../navigation/types'; // Importe seu tipo
 
 const rocketImg = require("../../assets/images/rocket.png");
 const moleCharacterImg = require("../../assets/images/logo.png");
@@ -23,7 +24,7 @@ type StatCardProps = {
   label: string;
 };
 
-// 👇 APLICAÇÃO DO TIPO
+
 const StatCard = ({ icon, value, label }: StatCardProps) => (
   <View style={styles.statCard}>
     <MaterialCommunityIcons name={icon} size={28} color="#FFC700" />
@@ -32,7 +33,9 @@ const StatCard = ({ icon, value, label }: StatCardProps) => (
   </View>
 );
 
-export default function ProgressScreen() {
+export default function ProgressScreen({
+  navigation,
+}: RootStackScreenProps<"Progress">) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
@@ -82,7 +85,7 @@ export default function ProgressScreen() {
 
         <TouchableOpacity
           style={styles.bottomButton}
-          accessibilityRole="button"
+          onPress={() => navigation.navigate("Home")}
         >
           <MaterialCommunityIcons
             name="book-open-variant"

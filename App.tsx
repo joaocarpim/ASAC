@@ -24,6 +24,18 @@ import ProgressScreen from "./src/screens/main/ProgressScreen";
 import SettingsScreen from "./src/screens/settings/SettingsScreen";
 import { SettingsProvider } from "./src/context/SettingsContext";
 
+// Modules App Screens
+import ModuleContentScreen from "./src/screens/module/ModuleContentScreen";
+import ModulePreQuizScreen from "./src/screens/module/ModulePreQuizScreen";
+import ModuleQuizScreen from "./src/screens/module/ModuleQuizScreen";
+
+
+// Admin App Screens
+import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
+import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
+import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
+import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
@@ -53,6 +65,17 @@ export default function App() {
 
           {/* Settings App Flow */}
           <Stack.Screen name="Settings" component={SettingsScreen} />
+
+          {/* Modules App Flow */}
+          <Stack.Screen name="ModuleContent" component={ModuleContentScreen} />
+          <Stack.Screen name="ModulePreQuiz" component={ModulePreQuizScreen} />
+          <Stack.Screen name="ModuleQuiz" component={ModuleQuizScreen} />
+
+          {/* Admin App Flow */}
+          <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+          <Stack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} />
+          <Stack.Screen name="AdminIncorrectAnswers" component={AdminIncorrectAnswersScreen} />
+          <Stack.Screen name="AdminRegisterUser" component={AdminRegisterUserScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SettingsProvider>

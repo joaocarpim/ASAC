@@ -21,8 +21,18 @@ export type RootStackParamList = {
 
   // Settings
   Settings: undefined;
+
+  // Modules
+  ModuleContent: { moduleId: number };
+  ModulePreQuiz: { moduleId: number };
+  ModuleQuiz: { moduleId: number };
+
+  // Admin
+  AdminDashboard: undefined;
+  AdminUserDetail: { userId: string; userName: string };
+  AdminIncorrectAnswers: { userId: string };
+  AdminRegisterUser: undefined;
 };
 
-// Este é um tipo genérico que vamos usar em cada tela
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;

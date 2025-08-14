@@ -122,26 +122,25 @@ export default function HomeScreen({
             icon="baby-face-outline"
             title="Módulo 1"
             subtitle="Alfabeto Completo"
-            onPress={() => {
-              /* Navegar para o Módulo 1 */
-            }}
-          />
-          {/* 👇 CORREÇÃO AQUI 👇 */}
+            onPress={() =>
+              navigation.navigate("ModuleContent", { moduleId: 1 })
+            } // MUDANÇA
+          />         
           <ModuleItem
             icon="hand-wave"
             title="Módulo 2"
             subtitle="Palavras em Braille"
-            onPress={() => {
-              /* Navegar para o Módulo 2 */
-            }}
+            onPress={() =>
+              navigation.navigate("ModuleContent", { moduleId: 2 })
+            } // MUDANÇA
           />
           <ModuleItem
             icon="account-star"
             title="Módulo 3"
             subtitle="Formule Frases"
-            onPress={() => {
-              /* Navegar para o Módulo 3 */
-            }}
+            onPress={() =>
+              navigation.navigate("ModuleContent", { moduleId: 3 })
+            } // MUDANÇA
           />
         </View>
 
