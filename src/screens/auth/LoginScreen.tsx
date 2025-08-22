@@ -80,11 +80,17 @@ export default function LoginScreen({
     try {
       await signIn({ username: email.trim(), password });
       const { tokens } = await fetchAuthSession();
+      
       const cognitoGroups = tokens?.accessToken.payload["cognito:groups"];
 
+      
       if (Array.isArray(cognitoGroups) && cognitoGroups.includes("Admins")) {
+        
+        console.log('admin');
         navigation.reset({ index: 0, routes: [{ name: "AdminDashboard" }] });
       } else {
+        
+         console.log('home');
         navigation.reset({ index: 0, routes: [{ name: "Home" }] });
       }
     } catch (error) {
