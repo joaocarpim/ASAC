@@ -1,0 +1,27 @@
+# Nosso modelo de usuário com as regras de segurança CORRIGIDAS
+type User
+  @model
+  @auth(
+    rules: [
+      # Regra 1: Permite que um usuário leia/atualize SE o seu ID de login (sub)
+      # for igual ao campo 'id' deste registro.
+      { allow: owner, ownerField: "id", operations: [read, update] }
+      # Regra 2: A regra de Admin continua a mesma.
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
+    ]
+  ) {
+  id: ID!
+  name: String!
+  email: String!
+  role: String!
+  coins: Int
+  points: Int
+  modulesCompleted: String
+  precision: String
+  correctAnswers: Int
+  timeSpent: String
+}

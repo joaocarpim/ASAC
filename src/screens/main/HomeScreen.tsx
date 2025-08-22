@@ -1,5 +1,4 @@
-// src/screens/main/HomeScreen.tsx
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,41 +6,33 @@ import {
   TouchableOpacity,
   StatusBar,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
+import { generateClient } from "aws-amplify/api";
+import { getUser } from "../../graphql/queries";
+import { fetchAuthSession, signOut } from "@aws-amplify/auth";
+import { useFocusEffect } from "@react-navigation/native";
 
-// Dados de exemplo
-const userData = {
-  name: "Ana Silva",
-  coins: 495,
-  points: 36730,
-  modulesCompleted: "3/3",
+// A linha 'const client = generateClient()' foi REMOVIDA DAQUI.
+
+type User = {
+  name: string;
+  coins?: number | null;
+  points?: number | null;
+  modulesCompleted?: string | null;
 };
-
-// DEFINIÇÃO DE TIPOS PARA OS COMPONENTES AUXILIARES
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-
-type StatCardProps = {
-  icon: IconName;
-  value: string | number;
-  label: string;
-};
-
+type StatCardProps = { icon: IconName; value: string | number; label: string };
 type ModuleItemProps = {
   icon: IconName;
   title: string;
   subtitle: string;
   onPress: () => void;
 };
+type ActionButtonProps = { icon: IconName; label: string; onPress: () => void };
 
-type ActionButtonProps = {
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-};
-
-// Componente reutilizável para os cards de estatísticas com tipos
 const StatCard = ({ icon, value, label }: StatCardProps) => (
   <View style={styles.statCard}>
     <MaterialCommunityIcons name={icon} size={24} color="#FFC700" />
@@ -49,8 +40,6 @@ const StatCard = ({ icon, value, label }: StatCardProps) => (
     <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
-
-// Componente reutilizável para os itens de módulo com tipos
 const ModuleItem = ({ icon, title, subtitle, onPress }: ModuleItemProps) => (
   <TouchableOpacity style={styles.moduleItem} onPress={onPress}>
     <MaterialCommunityIcons
@@ -66,8 +55,6 @@ const ModuleItem = ({ icon, title, subtitle, onPress }: ModuleItemProps) => (
     <View style={styles.moduleStatus} />
   </TouchableOpacity>
 );
-
-// Componente reutilizável para os botões de ação inferiores com tipos
 const ActionButton = ({ icon, label, onPress }: ActionButtonProps) => (
   <TouchableOpacity style={styles.actionButton} onPress={onPress}>
     <MaterialCommunityIcons name={icon} size={40} color="#FFC700" />
@@ -78,11 +65,52 @@ const ActionButton = ({ icon, label, onPress }: ActionButtonProps) => (
 export default function HomeScreen({
   navigation,
 }: RootStackScreenProps<"Home">) {
+  const [userData, setUserData] = useState<User | null>(null);
+
+  const fetchUserData = async () => {
+    try {
+      const client = generateClient(); // A linha foi MOVIDA PARA CÁ
+      const { tokens } = await fetchAuthSession();
+      const userId = tokens?.accessToken.payload.sub;
+      if (userId) {
+        const result = await client.graphql({
+          query: getUser,
+          variables: { id: userId },
+        });
+        setUserData(result.data.getUser ?? null);
+      }
+    } catch (e) {
+      console.log("Erro ao buscar dados do usuário na HomeScreen:", e);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserData();
+    }, [])
+  );
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    } catch (error) {
+      console.log("Erro ao fazer logout: ", error);
+    }
+  };
+
+  if (!userData) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#191970" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
       <ScrollView>
-        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>Olá, {userData.name}!</Text>
@@ -90,27 +118,27 @@ export default function HomeScreen({
               Continue aprendendo com ASAC
             </Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.replace("Login")}>
+          <TouchableOpacity onPress={handleLogout}>
             <MaterialCommunityIcons name="logout" size={30} color="#191970" />
           </TouchableOpacity>
         </View>
-
-        {/* Stats Bar */}
         <View style={styles.statsContainer}>
-          <StatCard icon="hand-coin" value={userData.coins} label="Moedas" />
+          <StatCard
+            icon="hand-coin"
+            value={userData.coins ?? 0}
+            label="Moedas"
+          />
           <StatCard
             icon="trophy-variant"
-            value={userData.points.toLocaleString("pt-BR")}
+            value={(userData.points ?? 0).toLocaleString("pt-BR")}
             label="Pontos"
           />
           <StatCard
             icon="book-open-variant"
-            value={userData.modulesCompleted}
+            value={userData.modulesCompleted ?? "0/3"}
             label="Módulos"
           />
         </View>
-
-        {/* Módulos Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Módulos de Aprendizado</Text>
           <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
@@ -124,15 +152,15 @@ export default function HomeScreen({
             subtitle="Alfabeto Completo"
             onPress={() =>
               navigation.navigate("ModuleContent", { moduleId: 1 })
-            } // MUDANÇA
-          />         
+            }
+          />
           <ModuleItem
             icon="hand-wave"
             title="Módulo 2"
             subtitle="Palavras em Braille"
             onPress={() =>
               navigation.navigate("ModuleContent", { moduleId: 2 })
-            } // MUDANÇA
+            }
           />
           <ModuleItem
             icon="account-star"
@@ -140,11 +168,9 @@ export default function HomeScreen({
             subtitle="Formule Frases"
             onPress={() =>
               navigation.navigate("ModuleContent", { moduleId: 3 })
-            } // MUDANÇA
+            }
           />
         </View>
-
-        {/* Bottom Actions */}
         <View style={styles.actionsContainer}>
           <ActionButton
             icon="trophy"
@@ -167,29 +193,18 @@ export default function HomeScreen({
   );
 }
 
-// Os estilos não precisam de alteração
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFC700",
-  },
+  container: { flex: 1, backgroundColor: "#FFC700" },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 40,
     paddingBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#191970",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#191970",
-  },
+  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#191970" },
+  headerSubtitle: { fontSize: 14, color: "#191970" },
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -209,10 +224,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginVertical: 4,
   },
-  statLabel: {
-    color: "#FFFFFF",
-    fontSize: 12,
-  },
+  statLabel: { color: "#FFFFFF", fontSize: 12 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -221,14 +233,8 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 10,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#191970",
-  },
-  modulesList: {
-    paddingHorizontal: 20,
-  },
+  sectionTitle: { fontSize: 20, fontWeight: "bold", color: "#191970" },
+  modulesList: { paddingHorizontal: 20 },
   moduleItem: {
     backgroundColor: "#191970",
     borderRadius: 12,
@@ -237,21 +243,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  moduleIcon: {
-    marginRight: 15,
-  },
-  moduleTextContainer: {
-    flex: 1,
-  },
-  moduleTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  moduleSubtitle: {
-    color: "#FFFFFF",
-    fontSize: 14,
-  },
+  moduleIcon: { marginRight: 15 },
+  moduleTextContainer: { flex: 1 },
+  moduleTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
+  moduleSubtitle: { color: "#FFFFFF", fontSize: 14 },
   moduleStatus: {
     width: 15,
     height: 15,

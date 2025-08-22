@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,60 +9,26 @@ import {
   TextInput,
   StatusBar,
   ImageSourcePropType,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
+import { signOut } from "@aws-amplify/auth";
+import { generateClient } from "aws-amplify/api";
+import { listUsers } from "../../graphql/queries";
+import { useFocusEffect } from "@react-navigation/native";
 
-// DEFINIÇÃO DOS TIPOS
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-
-type UserData = {
+type User = {
   id: string;
   name: string;
-  coins: number;
-  points: number;
-  modules: string;
-  avatar: ImageSourcePropType;
+  coins?: number | null;
+  points?: number | null;
+  modulesCompleted?: string | null;
+  avatar?: ImageSourcePropType;
 };
-
-type StatCardProps = {
-  icon: IconName;
-  value: string;
-  label: string;
-};
-
-type UserListItemProps = {
-  item: UserData;
-  onPress: () => void;
-};
-
-// Dados de exemplo
-const usersData: UserData[] = [
-  {
-    id: "1",
-    name: "Ana Silva Nogueira",
-    coins: 495,
-    points: 36730,
-    modules: "3/3",
-    avatar: require("../../assets/images/avatar1.png"),
-  },
-  {
-    id: "2",
-    name: "Cláudio Silvano Filho",
-    coins: 470,
-    points: 33200,
-    modules: "2/3",
-    avatar: require("../../assets/images/avatar2.png"),
-  },
-  {
-    id: "3",
-    name: "Anderson Pereira Silva",
-    coins: 357,
-    points: 17700,
-    modules: "2/3",
-    avatar: require("../../assets/images/avatar3.png"),
-  },
-];
+type StatCardProps = { icon: IconName; value: string; label: string };
+type UserListItemProps = { item: User; onPress: () => void };
 
 const StatCard = ({ icon, value, label }: StatCardProps) => (
   <View style={styles.statCard}>
@@ -71,15 +37,17 @@ const StatCard = ({ icon, value, label }: StatCardProps) => (
     <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
-
 const UserListItem = ({ item, onPress }: UserListItemProps) => (
   <TouchableOpacity style={styles.userItem} onPress={onPress}>
-    <Image source={item.avatar} style={styles.userAvatar} />
+    <Image
+      source={require("../../assets/images/avatar1.png")}
+      style={styles.userAvatar}
+    />
     <View style={styles.userInfo}>
       <Text style={styles.userName}>{item.name}</Text>
       <View style={styles.userStats}>
         <MaterialCommunityIcons name="hand-coin" color="#FFC700" size={14} />
-        <Text style={styles.userStatText}>{item.coins}</Text>
+        <Text style={styles.userStatText}>{item.coins ?? 0}</Text>
         <MaterialCommunityIcons
           name="trophy-variant"
           color="#FFC700"
@@ -87,7 +55,7 @@ const UserListItem = ({ item, onPress }: UserListItemProps) => (
           style={{ marginLeft: 8 }}
         />
         <Text style={styles.userStatText}>
-          {item.points.toLocaleString("pt-BR")}
+          {(item.points ?? 0).toLocaleString("pt-BR")}
         </Text>
         <MaterialCommunityIcons
           name="book-open-variant"
@@ -95,7 +63,9 @@ const UserListItem = ({ item, onPress }: UserListItemProps) => (
           size={14}
           style={{ marginLeft: 8 }}
         />
-        <Text style={styles.userStatText}>{item.modules}</Text>
+        <Text style={styles.userStatText}>
+          {item.modulesCompleted ?? "0/3"}
+        </Text>
       </View>
     </View>
   </TouchableOpacity>
@@ -104,15 +74,39 @@ const UserListItem = ({ item, onPress }: UserListItemProps) => (
 export default function AdminDashboardScreen({
   navigation,
 }: RootStackScreenProps<"AdminDashboard">) {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 👇 1. FUNÇÃO DE LOGOUT FOI CRIADA
-  const handleLogout = () => {
-    // Em um app real, você limparia tokens de usuário ou estado global aqui
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }], // Redefine a navegação para a tela de Login
-    });
+  const fetchUsers = async () => {
+    if (!loading) setLoading(true);
+    try {
+      const client = generateClient(); // Criado aqui dentro
+      const result = await client.graphql({ query: listUsers });
+      const validUsers = result.data.listUsers.items.filter(
+        (user) => user
+      ) as User[];
+      setUsers(validUsers);
+    } catch (e) {
+      console.log("Erro ao buscar usuários", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUsers();
+    }, [])
+  );
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    } catch (error) {
+      console.log("Erro ao fazer logout: ", error);
+    }
   };
 
   return (
@@ -132,28 +126,28 @@ export default function AdminDashboardScreen({
             </Text>
           </View>
         </View>
-        {/* 👇 2. O onPress FOI ADICIONADO AQUI */}
         <TouchableOpacity onPress={handleLogout}>
           <MaterialCommunityIcons name="logout" size={30} color="#191970" />
         </TouchableOpacity>
       </View>
-
       <View style={styles.statsContainer}>
-        <StatCard icon="account-group" value="53" label="Usuários" />
+        <StatCard
+          icon="account-group"
+          value={users.length.toString()}
+          label="Usuários"
+        />
         <StatCard icon="trophy-award" value="2" label="Mestres" />
         <StatCard icon="chart-donut" value="72%" label="Progresso Médio" />
       </View>
-
       <View style={styles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={24} color="#888" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Ana Silva Nogueira"
+          placeholder="Procurar assistido..."
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
       </View>
-
       <View style={styles.listHeader}>
         <Text style={styles.listTitle}>Lista de assistidos</Text>
         <TouchableOpacity
@@ -163,28 +157,34 @@ export default function AdminDashboardScreen({
           <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
-
-      <FlatList
-        data={usersData}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <UserListItem
-            item={item}
-            onPress={() =>
-              navigation.navigate("AdminUserDetail", {
-                userId: item.id,
-                userName: item.name,
-              })
-            }
-          />
-        )}
-        contentContainerStyle={{ paddingHorizontal: 20 }}
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#191970" style={{ flex: 1 }} />
+      ) : (
+        <FlatList
+          data={users.filter((user) =>
+            user.name.toLowerCase().includes(searchQuery.toLowerCase())
+          )}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <UserListItem
+              item={item}
+              onPress={() =>
+                navigation.navigate("AdminUserDetail", {
+                  userId: item.id,
+                  userName: item.name,
+                })
+              }
+            />
+          )}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+          onRefresh={fetchUsers}
+          refreshing={loading}
+        />
+      )}
     </View>
   );
 }
 
-// Estilos permanecem os mesmos
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0EFEA" },
   header: {

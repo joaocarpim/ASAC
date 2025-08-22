@@ -13,60 +13,58 @@ import {
   Alert,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { confirmResetPassword } from "@aws-amplify/auth";
+import { confirmSignUp, resendSignUpCode } from "@aws-amplify/auth";
 
 const logo = require("../../assets/images/logo.png");
 
-export default function ResetPasswordScreen({
+export default function ConfirmSignUpScreen({
   route,
   navigation,
-}: RootStackScreenProps<"ResetPassword">) {
-  const { email } = route.params;
+}: RootStackScreenProps<"ConfirmSignUp">) {
+  // Recebe o e-mail da tela de Login
+  const [email, _setEmail] = useState(route.params.email);
   const [confirmationCode, setConfirmationCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleConfirmReset = async () => {
+  const handleConfirmSignUp = async () => {
     if (loading) return;
-    if (!confirmationCode.trim() || !newPassword.trim()) {
-      Alert.alert("Erro", "Por favor, preencha todos os campos.");
+    if (!confirmationCode.trim()) {
+      Alert.alert("Erro", "Por favor, insira o código de confirmação.");
       return;
     }
     setLoading(true);
 
     try {
-      await confirmResetPassword({
-        username: email,
+      await confirmSignUp({
+        username: email.trim(),
         confirmationCode,
-        newPassword,
       });
       Alert.alert(
         "Sucesso!",
-        "Sua senha foi alterada. Por favor, faça o login.",
-        [
-          {
-            text: "OK",
-            onPress: () =>
-              navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
-          },
-        ]
+        "Sua conta foi confirmada com sucesso. Por favor, faça o login.",
+        [{ text: "OK", onPress: () => navigation.navigate("Login") }]
       );
     } catch (error) {
-      console.log("Erro ao confirmar nova senha:", error);
-      if (error && typeof error === "object" && "name" in error) {
-        if (error.name === "CodeMismatchException") {
-          Alert.alert("Erro", "O código de confirmação está incorreto.");
-        } else {
-          Alert.alert(
-            "Erro",
-            "Não foi possível alterar sua senha. Verifique o código ou tente novamente."
-          );
-        }
-      } else {
-        Alert.alert("Erro", "Ocorreu um erro desconhecido.");
-      }
+      console.log("Erro ao confirmar conta:", error);
+      Alert.alert("Erro", "O código de confirmação está incorreto ou expirou.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    try {
+      await resendSignUpCode({ username: email.trim() });
+      Alert.alert(
+        "Código Reenviado",
+        "Um novo código foi enviado para o seu e-mail."
+      );
+    } catch (err) {
+      console.log("Erro ao reenviar código:", err);
+      Alert.alert(
+        "Erro",
+        "Não foi possível reenviar o código. Tente novamente mais tarde."
+      );
     }
   };
 
@@ -82,9 +80,15 @@ export default function ResetPasswordScreen({
           <Text style={styles.logoText}>ASAC</Text>
         </View>
         <View style={styles.formContainer}>
-          <Text style={styles.promptText}>
-            Verifique seu e-mail pelo código e defina uma nova senha.
+          <Text style={styles.promptText}>Confirme sua conta</Text>
+          <Text style={styles.infoText}>
+            Enviamos um código de confirmação para o seu e-mail:
           </Text>
+          <TextInput
+            style={[styles.input, styles.inputDisabled]}
+            value={email}
+            editable={false} // O e-mail não pode ser editado aqui
+          />
           <TextInput
             style={styles.input}
             placeholder="Código de Confirmação"
@@ -93,22 +97,17 @@ export default function ResetPasswordScreen({
             value={confirmationCode}
             onChangeText={setConfirmationCode}
           />
-          <TextInput
-            style={styles.input}
-            placeholder="Nova Senha"
-            placeholderTextColor="#FFFFFF"
-            secureTextEntry
-            value={newPassword}
-            onChangeText={setNewPassword}
-          />
+          <TouchableOpacity onPress={handleResendCode}>
+            <Text style={styles.linkText}>Reenviar Código</Text>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity
           style={styles.button}
-          onPress={handleConfirmReset}
+          onPress={handleConfirmSignUp}
           disabled={loading}
         >
           <Text style={styles.buttonText}>
-            {loading ? "Salvando..." : "Salvar"}
+            {loading ? "Confirmando..." : "Confirmar Conta"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -120,7 +119,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     alignItems: "center",
     padding: 20,
   },
@@ -134,9 +133,14 @@ const styles = StyleSheet.create({
   },
   formContainer: { width: "100%", alignItems: "center" },
   promptText: {
-    fontSize: 16,
+    fontSize: 22,
     color: "#191970",
     fontWeight: "bold",
+    marginBottom: 10,
+  },
+  infoText: {
+    fontSize: 16,
+    color: "#191970",
     marginBottom: 20,
     textAlign: "center",
   },
@@ -147,6 +151,15 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     fontSize: 16,
+    marginBottom: 15,
+  },
+  inputDisabled: { backgroundColor: "#8A8A8A" },
+  linkText: {
+    color: "#191970",
+    fontWeight: "bold",
+    fontSize: 14,
+    alignSelf: "flex-start",
+    marginLeft: 5,
     marginBottom: 15,
   },
   button: {

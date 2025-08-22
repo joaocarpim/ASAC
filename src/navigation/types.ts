@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-// Esta lista define todas as telas e seus parâmetros
+// Esta lista define todas as telas da sua aplicação e os parâmetros que elas esperam
 export type RootStackParamList = {
   // Onboarding
   Welcome: undefined;
@@ -11,8 +11,9 @@ export type RootStackParamList = {
   // Auth
   Login: undefined;
   ForgotPassword: undefined;
-  ResetPassword: undefined;
-
+  ResetPassword: { email: string }; // Rota com o parâmetro 'email'
+  ConfirmSignUp: { email: string };
+  
   // Main App
   Home: undefined;
   Ranking: undefined;
@@ -34,5 +35,6 @@ export type RootStackParamList = {
   AdminRegisterUser: undefined;
 };
 
+// Este é um tipo genérico que usamos nas props de cada tela
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;
