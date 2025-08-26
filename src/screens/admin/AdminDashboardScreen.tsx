@@ -122,7 +122,7 @@ export default function AdminDashboardScreen({
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.headerTitle}>Painel Administrativo</Text>
             <Text style={styles.headerSubtitle}>
-              Gestão completa do Molingo
+              Gestão completa da ASAC
             </Text>
           </View>
         </View>

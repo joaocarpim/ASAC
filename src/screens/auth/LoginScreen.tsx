@@ -11,22 +11,30 @@ import {
   Platform,
   ScrollView,
   Modal,
-  Alert,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { signIn, fetchAuthSession } from "@aws-amplify/auth";
+import { signIn } from "@aws-amplify/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const logo = require("../../assets/images/logo.png");
 
-type ErrorModalProps = {
+// Tipo para as props do nosso modal customizado
+type CustomModalProps = {
   visible: boolean;
   title: string;
   message: string;
   onClose: () => void;
+  type: "success" | "error";
 };
 
-const ErrorModal = ({ visible, title, message, onClose }: ErrorModalProps) => (
+// Componente de Modal reutilizável
+const CustomModal = ({
+  visible,
+  title,
+  message,
+  onClose,
+  type,
+}: CustomModalProps) => (
   <Modal
     animationType="fade"
     transparent={true}
@@ -35,15 +43,17 @@ const ErrorModal = ({ visible, title, message, onClose }: ErrorModalProps) => (
   >
     <View style={styles.modalBackdrop}>
       <View style={styles.modalContainer}>
-        <MaterialCommunityIcons
-          name="alert-circle-outline"
-          size={48}
-          color="#D32F2F"
-        />
+        {type === "error" && (
+          <MaterialCommunityIcons
+            name="alert-circle-outline"
+            size={48}
+            color="#D32F2F"
+          />
+        )}
         <Text style={styles.modalTitle}>{title}</Text>
         <Text style={styles.modalMessage}>{message}</Text>
         <TouchableOpacity style={styles.modalButton} onPress={onClose}>
-          <Text style={styles.modalButtonText}>Fechar</Text>
+          <Text style={styles.modalButtonText}>OK</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -57,60 +67,60 @@ export default function LoginScreen({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalTitle, setModalTitle] = useState("");
-  const [modalMessage, setModalMessage] = useState("");
+  // Estado para controlar o modal
+  const [modalState, setModalState] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "error" as "success" | "error",
+  });
 
-  const showErrorModal = (title: string, message: string) => {
-    setModalTitle(title);
-    setModalMessage(message);
-    setModalVisible(true);
+  const showModal = (
+    type: "success" | "error",
+    title: string,
+    message: string
+  ) => {
+    setModalState({ visible: true, type, title, message });
+  };
+
+  const hideModal = () => {
+    setModalState({ ...modalState, visible: false });
   };
 
   const handleLogin = async () => {
     if (loading) return;
-    setLoading(true);
-
     if (!email.trim() || !password) {
-      showErrorModal("Atenção", "Por favor, preencha o email e senha.");
-      setLoading(false);
+      showModal("error", "Atenção", "Por favor, preencha o email e senha.");
       return;
     }
+    setLoading(true);
 
     try {
+      // A única responsabilidade é tentar o login. O Hub no App.tsx cuidará do resto.
       await signIn({ username: email.trim(), password });
-      const { tokens } = await fetchAuthSession();
-      const cognitoGroups = tokens?.accessToken.payload["cognito:groups"];
-
-      if (Array.isArray(cognitoGroups) && cognitoGroups.includes("Admins")) {
-        navigation.reset({ index: 0, routes: [{ name: "AdminDashboard" }] });
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
-      }
     } catch (error) {
+      console.log("### ERRO AO FAZER LOGIN ###:", error);
       if (error && typeof error === "object" && "name" in error) {
         if (error.name === "UserNotConfirmedException") {
-          Alert.alert(
-            "Conta não confirmada",
-            "Você precisa confirmar sua conta antes de fazer o login. Vamos te levar para a tela de confirmação."
-          );
           navigation.navigate("ConfirmSignUp", { email: email.trim() });
         } else if (error.name === "UserNotFoundException") {
-          showErrorModal("Erro", "Este usuário não existe.");
+          showModal("error", "Erro", "Este usuário não existe.");
         } else if (error.name === "NotAuthorizedException") {
-          showErrorModal(
+          showModal(
+            "error",
             "Erro",
             "Digite novamente, email ou senha incorretos."
           );
         } else {
           const typedError = error as { message?: string };
-          showErrorModal(
+          showModal(
+            "error",
             "Erro",
             typedError.message || "Ocorreu um problema. Tente novamente."
           );
         }
       } else {
-        showErrorModal("Erro", "Ocorreu um erro desconhecido.");
+        showModal("error", "Erro", "Ocorreu um erro desconhecido.");
       }
     } finally {
       setLoading(false);
@@ -119,7 +129,8 @@ export default function LoginScreen({
 
   const handleGoToConfirm = () => {
     if (!email.trim()) {
-      showErrorModal(
+      showModal(
+        "error",
         "Atenção",
         "Por favor, digite seu e-mail no campo acima antes de clicar aqui."
       );
@@ -133,13 +144,13 @@ export default function LoginScreen({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ErrorModal
-        visible={modalVisible}
-        title={modalTitle}
-        message={modalMessage}
-        onClose={() => setModalVisible(false)}
+      <CustomModal
+        visible={modalState.visible}
+        title={modalState.title}
+        message={modalState.message}
+        type={modalState.type}
+        onClose={hideModal}
       />
-
       <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
@@ -167,7 +178,6 @@ export default function LoginScreen({
             value={password}
             onChangeText={setPassword}
           />
-
           <View style={styles.linksContainer}>
             <TouchableOpacity
               onPress={() => navigation.navigate("ForgotPassword")}

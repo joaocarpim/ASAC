@@ -37,9 +37,11 @@ export default function ResetPasswordScreen({
     try {
       await confirmResetPassword({
         username: email,
-        confirmationCode,
+        confirmationCode: confirmationCode.trim(), // Adicionado .trim()
         newPassword,
       });
+
+      // Este bloco só será executado se o código acima funcionar
       Alert.alert(
         "Sucesso!",
         "Sua senha foi alterada. Por favor, faça o login.",
@@ -53,13 +55,31 @@ export default function ResetPasswordScreen({
       );
     } catch (error) {
       console.log("Erro ao confirmar nova senha:", error);
+
+      // 👇 TRATAMENTO DE ERROS MELHORADO 👇
       if (error && typeof error === "object" && "name" in error) {
-        if (error.name === "CodeMismatchException") {
-          Alert.alert("Erro", "O código de confirmação está incorreto.");
+        if (
+          error.name === "CodeMismatchException" ||
+          error.name === "ExpiredCodeException"
+        ) {
+          Alert.alert(
+            "Código Inválido",
+            "O código de confirmação está incorreto ou expirou. Por favor, solicite um novo."
+          );
+        } else if (error.name === "InvalidPasswordException") {
+          Alert.alert(
+            "Senha Fraca",
+            "A nova senha não atende aos requisitos de segurança (Ex: mínimo 8 caracteres, com letras, números e símbolos)."
+          );
+        } else if (error.name === "LimitExceededException") {
+          Alert.alert(
+            "Muitas Tentativas",
+            "Você excedeu o número de tentativas. Tente novamente mais tarde."
+          );
         } else {
           Alert.alert(
             "Erro",
-            "Não foi possível alterar sua senha. Verifique o código ou tente novamente."
+            "Não foi possível alterar sua senha. Verifique os dados e tente novamente."
           );
         }
       } else {
@@ -116,6 +136,7 @@ export default function ResetPasswordScreen({
   );
 }
 
+// Estilos (sem alterações)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
   scrollContainer: {

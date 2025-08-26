@@ -12,17 +12,19 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
 import { generateClient } from "aws-amplify/api";
 import { getUser } from "../../graphql/queries";
-import { fetchAuthSession, signOut } from "@aws-amplify/auth";
+import { signOut } from "@aws-amplify/auth";
 import { useFocusEffect } from "@react-navigation/native";
+import { useAuthStore } from "../../store/authStore";
 
-// A linha 'const client = generateClient()' foi REMOVIDA DAQUI.
-
-type User = {
+// O tipo de dados que esperamos do nosso banco de dados (DynamoDB)
+type UserData = {
   name: string;
   coins?: number | null;
   points?: number | null;
   modulesCompleted?: string | null;
 };
+
+// Tipos para os componentes auxiliares
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 type StatCardProps = { icon: IconName; value: string | number; label: string };
 type ModuleItemProps = {
@@ -40,6 +42,7 @@ const StatCard = ({ icon, value, label }: StatCardProps) => (
     <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
+
 const ModuleItem = ({ icon, title, subtitle, onPress }: ModuleItemProps) => (
   <TouchableOpacity style={styles.moduleItem} onPress={onPress}>
     <MaterialCommunityIcons
@@ -55,6 +58,7 @@ const ModuleItem = ({ icon, title, subtitle, onPress }: ModuleItemProps) => (
     <View style={styles.moduleStatus} />
   </TouchableOpacity>
 );
+
 const ActionButton = ({ icon, label, onPress }: ActionButtonProps) => (
   <TouchableOpacity style={styles.actionButton} onPress={onPress}>
     <MaterialCommunityIcons name={icon} size={40} color="#FFC700" />
@@ -65,47 +69,117 @@ const ActionButton = ({ icon, label, onPress }: ActionButtonProps) => (
 export default function HomeScreen({
   navigation,
 }: RootStackScreenProps<"Home">) {
-  const [userData, setUserData] = useState<User | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(true);
+  const { user, updateUserData } = useAuthStore();
 
+  console.log("🏠 HomeScreen: user do store:", user);
+
+  // Função para buscar os dados do usuário no banco de dados
   const fetchUserData = async () => {
+    if (!user) {
+      console.log("❌ HomeScreen: Sem usuário no store");
+      setIsLoadingUserData(false);
+      return;
+    }
+
     try {
-      const client = generateClient(); // A linha foi MOVIDA PARA CÁ
-      const { tokens } = await fetchAuthSession();
-      const userId = tokens?.accessToken.payload.sub;
-      if (userId) {
-        const result = await client.graphql({
-          query: getUser,
-          variables: { id: userId },
+      console.log("🔍 HomeScreen: Buscando dados do usuário:", user.userId);
+      const client = generateClient();
+
+      const result = await client.graphql({
+        query: getUser,
+        variables: { id: user.userId },
+      });
+
+      if (result.data.getUser) {
+        console.log("✅ HomeScreen: Dados encontrados");
+        const dbUserData = result.data.getUser;
+
+        // Atualiza os dados locais
+        setUserData({
+          name: dbUserData.name || user.name || user.username,
+          coins: dbUserData.coins,
+          points: dbUserData.points,
+          modulesCompleted: dbUserData.modulesCompleted,
         });
-        setUserData(result.data.getUser ?? null);
+
+        // Atualiza o store global também
+        updateUserData({
+          name: dbUserData.name || user.name,
+          coins: dbUserData.coins || 0,
+          points: dbUserData.points || 0,
+          modulesCompleted: dbUserData.modulesCompleted || "0/3",
+        });
+      } else {
+        console.log(
+          "⚠️ HomeScreen: Usuário não encontrado no DB, usando dados do store"
+        );
+        // Se não encontrar no DB, usa os dados que já temos no store
+        setUserData({
+          name: user.name || user.username,
+          coins: user.coins || 0,
+          points: user.points || 0,
+          modulesCompleted: user.modulesCompleted || "0/3",
+        });
       }
     } catch (e) {
-      console.log("Erro ao buscar dados do usuário na HomeScreen:", e);
+      console.log("❌ HomeScreen: Erro ao buscar dados:", e);
+      // Em caso de erro, usa os dados do store
+      if (user) {
+        setUserData({
+          name: user.name || user.username,
+          coins: user.coins || 0,
+          points: user.points || 0,
+          modulesCompleted: user.modulesCompleted || "0/3",
+        });
+      }
+    } finally {
+      setIsLoadingUserData(false);
     }
   };
 
+  // useFocusEffect garante que os dados sejam recarregados sempre que o usuário voltar para esta tela
   useFocusEffect(
     useCallback(() => {
+      console.log("🔄 HomeScreen: Recarregando dados...");
       fetchUserData();
-    }, [])
+    }, [user])
   );
 
+  // Função de logout simplificada
   const handleLogout = async () => {
     try {
+      console.log("🚪 HomeScreen: Fazendo logout...");
       await signOut();
-      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+      // O Hub no App.tsx cuidará do redirecionamento
     } catch (error) {
-      console.log("Erro ao fazer logout: ", error);
+      console.log("❌ HomeScreen: Erro no logout:", error);
     }
   };
 
-  if (!userData) {
+  // Se não tiver usuário no store, algo está errado
+  if (!user) {
+    console.log("❌ HomeScreen: Sem usuário - redirecionando...");
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color="#191970" />
+        <Text style={styles.errorText}>Erro: Usuário não encontrado</Text>
       </View>
     );
   }
+
+  // Mostra loading enquanto busca dados adicionais
+  if (isLoadingUserData || !userData) {
+    console.log("⏳ HomeScreen: Carregando dados do usuário...");
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#191970" />
+        <Text style={styles.loadingText}>Carregando seus dados...</Text>
+      </View>
+    );
+  }
+
+  console.log("✅ HomeScreen: Renderizando com dados:", userData);
 
   return (
     <View style={styles.container}>
@@ -272,5 +346,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     marginTop: 5,
+  },
+  loadingText: {
+    color: "#191970",
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: "center",
+  },
+  errorText: {
+    color: "#191970",
+    fontSize: 16,
+    textAlign: "center",
   },
 });
