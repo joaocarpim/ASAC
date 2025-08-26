@@ -67,7 +67,6 @@ export default function LoginScreen({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Estado para controlar o modal
   const [modalState, setModalState] = useState({
     visible: false,
     title: "",
@@ -96,12 +95,14 @@ export default function LoginScreen({
     setLoading(true);
 
     try {
-      // A única responsabilidade é tentar o login. O Hub no App.tsx cuidará do resto.
+      // A única responsabilidade é tentar o login.
+      // O Hub no App.tsx vai detectar o sucesso e trocar o navegador.
       await signIn({ username: email.trim(), password });
     } catch (error) {
       console.log("### ERRO AO FAZER LOGIN ###:", error);
       if (error && typeof error === "object" && "name" in error) {
         if (error.name === "UserNotConfirmedException") {
+          // Se o usuário não está confirmado, o levamos para a tela de confirmação
           navigation.navigate("ConfirmSignUp", { email: email.trim() });
         } else if (error.name === "UserNotFoundException") {
           showModal("error", "Erro", "Este usuário não existe.");
@@ -151,6 +152,7 @@ export default function LoginScreen({
         type={modalState.type}
         onClose={hideModal}
       />
+
       <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
