@@ -13,7 +13,7 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { email: string }; // Rota com o parâmetro 'email'
   ConfirmSignUp: { email: string };
-  
+
   // Main App
   Home: undefined;
   Ranking: undefined;
@@ -24,9 +24,20 @@ export type RootStackParamList = {
   Settings: undefined;
 
   // Modules
+  Alphabet: undefined;
   ModuleContent: { moduleId: number };
   ModulePreQuiz: { moduleId: number };
   ModuleQuiz: { moduleId: number };
+  ModuleResults: {
+    moduleId: number;
+    correctAnswers: number;
+    totalQuestions: number;
+    accuracy: number;
+    timeSpent: number; // em segundos
+    coinsEarned: number;
+    passed: boolean;
+    errors: number;
+  };
 
   // Admin
   AdminDashboard: undefined;

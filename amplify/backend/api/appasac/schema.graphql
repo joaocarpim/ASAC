@@ -1,12 +1,8 @@
-# Nosso modelo de usuário com as regras de segurança CORRIGIDAS
 type User
   @model
   @auth(
     rules: [
-      # Regra 1: Permite que um usuário leia/atualize SE o seu ID de login (sub)
-      # for igual ao campo 'id' deste registro.
-      { allow: owner, ownerField: "id", operations: [read, update] }
-      # Regra 2: A regra de Admin continua a mesma.
+      { allow: owner, operations: [read, update] }
       {
         allow: groups
         groups: ["Admins"]
@@ -24,4 +20,41 @@ type User
   precision: String
   correctAnswers: Int
   timeSpent: String
+}
+
+type Module @model @auth(rules: [{ allow: private, operations: [read] }]) {
+  id: ID!
+  title: String!
+  description: String!
+  moduleNumber: Int!
+  lessons: [Lesson] @hasMany(indexName: "byModule", fields: ["id"])
+  questions: [Question] @hasMany(indexName: "byModule", fields: ["id"])
+}
+
+type Lesson @model @auth(rules: [{ allow: private, operations: [read] }]) {
+  id: ID!
+  title: String!
+  content: String!
+  image: String
+  lessonNumber: Int!
+  module: Module @belongsTo(fields: ["moduleId"])
+  moduleId: ID! @index(name: "byModule", sortKeyFields: ["lessonNumber"])
+}
+
+type Question @model @auth(rules: [{ allow: private, operations: [read] }]) {
+  id: ID!
+  questionText: String!
+  options: [String!]!
+  correctAnswerIndex: Int!
+  module: Module @belongsTo(fields: ["moduleId"])
+  moduleId: ID! @index(name: "byModule")
+}
+
+
+# Adicione este novo tipo ao final do seu schema
+type BrailleSymbol @model @auth(rules: [{ allow: private, operations: [read] }]) {
+  id: ID!
+  letter: String!
+  description: String! # Ex: "Ponto 1" ou "Pontos 1, 2"
+  imageKey: String!    # O nome do arquivo da imagem em S3 (ex: "a.png")
 }

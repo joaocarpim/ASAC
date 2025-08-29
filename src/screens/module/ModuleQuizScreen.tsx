@@ -1,33 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  ScrollView, // 👈 Importado para a rolagem
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+// A importação de MaterialCommunityIcons foi removida pois não estava sendo usada
+import { DEFAULT_QUIZZES, Quiz, Question } from "../../navigation/moduleTypes";
 
-const quizData = {
-  question: "Como são separadas as palavras em Braile?",
-  options: [
-    "Com um espaço de uma célula em branco.",
-    "Com um ponto de exclamação especial.",
-    "Não há separação entre as palavras.",
-    "Com duas células em branco.",
-  ],
-};
-
+// 👇 DEFINIÇÃO DE TIPOS PARA AS PROPS DO BOTÃO 👇
 type OptionButtonProps = {
   text: string;
   isSelected: boolean;
   onPress: () => void;
+  isCorrect: boolean;
+  isWrong: boolean;
 };
 
-const OptionButton = ({ text, isSelected, onPress }: OptionButtonProps) => (
-  <TouchableOpacity style={styles.optionContainer} onPress={onPress}>
+// Componente reutilizável para o botão de alternativa com tipos
+const OptionButton = ({
+  text,
+  isSelected,
+  onPress,
+  isCorrect,
+  isWrong,
+}: OptionButtonProps) => (
+  <TouchableOpacity
+    style={[
+      styles.optionContainer,
+      isSelected && styles.optionSelected,
+      isCorrect && styles.optionCorrect,
+      isWrong && styles.optionWrong,
+    ]}
+    onPress={onPress}
+    disabled={isCorrect || isWrong} // Desabilita o botão depois de respondido
+  >
     <View style={styles.radioOuter}>
       {isSelected && <View style={styles.radioInner} />}
     </View>
@@ -40,58 +51,131 @@ export default function ModuleQuizScreen({
   navigation,
 }: RootStackScreenProps<"ModuleQuiz">) {
   const { moduleId } = route.params;
+
+  const [quizData, setQuizData] = useState<Quiz | undefined>(undefined);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [isAnswerChecked, setIsAnswerChecked] = useState(false);
+  const [score, setScore] = useState(0);
+  const [quizFinished, setQuizFinished] = useState(false);
+
+  useEffect(() => {
+    const currentQuiz = DEFAULT_QUIZZES.find((q) => q.moduleId === moduleId);
+    if (currentQuiz) {
+      setQuizData(currentQuiz);
+      setQuestions(currentQuiz.questions.sort((a, b) => a.order - b.order));
+    }
+  }, [moduleId]);
+
+  const handleSelectAnswer = (index: number) => {
+    if (!isAnswerChecked) {
+      setSelectedAnswer(index);
+    }
+  };
+
+  const handleConfirmAnswer = () => {
+    if (selectedAnswer === null) return;
+    const currentQuestion = questions[currentQuestionIndex];
+    if (selectedAnswer === currentQuestion.correctAnswer) {
+      setScore(score + 1);
+    }
+    setIsAnswerChecked(true);
+  };
+
+  const handleNextQuestion = () => {
+    setIsAnswerChecked(false);
+    setSelectedAnswer(null);
+
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    } else {
+      setQuizFinished(true);
+    }
+  };
+
+  if (questions.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#191970" />
+      </View>
+    );
+  }
+
+  if (quizFinished) {
+    const passed = score >= (quizData?.passingScore || 7);
+    return (
+      <View style={styles.container}>
+        <View style={styles.resultsContainer}>
+          <Text style={styles.resultsTitle}>
+            {passed ? "Parabéns!" : "Continue Tentando!"}
+          </Text>
+          <Text style={styles.resultsSubtitle}>
+            Você acertou {score} de {questions.length} perguntas.
+          </Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate("Home")}
+          >
+            <Text style={styles.buttonText}>Voltar para o Início</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const currentQuestion = questions[currentQuestionIndex];
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
-
-      {/* CABEÇALHO */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Módulo {moduleId}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-          <MaterialCommunityIcons
-            name="exit-to-app"
-            size={30}
-            color="#191970"
-          />
-        </TouchableOpacity>
+        <Text style={styles.questionCounter}>
+          {currentQuestionIndex + 1} / {questions.length}
+        </Text>
       </View>
 
-      {/* 👇 ÁREA DE CONTEÚDO COM SCROLL 👇 */}
-      <ScrollView
-        style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContentContainer}
-      >
-        <Text style={styles.questionNumber}>Pergunta 1</Text>
+      <ScrollView contentContainerStyle={styles.scrollContentContainer}>
         <View style={styles.questionCard}>
-          <Text style={styles.questionText}>{quizData.question}</Text>
-          {quizData.options.map((option, index) => (
-            <OptionButton
-              key={index}
-              text={option}
-              isSelected={selectedAnswer === index}
-              onPress={() => setSelectedAnswer(index)}
-            />
-          ))}
+          <Text style={styles.questionText}>{currentQuestion.question}</Text>
+          {currentQuestion.options.map((option, index) => {
+            const isCorrect =
+              isAnswerChecked && index === currentQuestion.correctAnswer;
+            const isWrong =
+              isAnswerChecked &&
+              selectedAnswer === index &&
+              index !== currentQuestion.correctAnswer;
+            return (
+              <OptionButton
+                key={index}
+                text={option}
+                isSelected={selectedAnswer === index}
+                onPress={() => handleSelectAnswer(index)}
+                isCorrect={isCorrect}
+                isWrong={isWrong}
+              />
+            );
+          })}
         </View>
       </ScrollView>
 
-      {/* RODAPÉ */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.goBack()}
+          style={[
+            styles.button,
+            selectedAnswer === null && { backgroundColor: "#BDBDBD" },
+          ]}
+          onPress={isAnswerChecked ? handleNextQuestion : handleConfirmAnswer}
+          disabled={selectedAnswer === null}
         >
-          <Text style={styles.buttonText}>Voltar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => {
-            /* Lógica para confirmar resposta */
-          }}
-        >
-          <Text style={styles.buttonText}>Confirmar</Text>
+          <Text style={styles.buttonText}>
+            {isAnswerChecked
+              ? currentQuestionIndex === questions.length - 1
+                ? "Ver Resultado"
+                : "Próxima Pergunta"
+              : "Confirmar"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -99,60 +183,65 @@ export default function ModuleQuizScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1, // Ocupa a tela inteira
+  container: { flex: 1, backgroundColor: "#FFC700" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#FFC700",
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    paddingTop: 40,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10, // Menos padding para dar espaço ao conteúdo
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: "#191970",
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#191970",
+    textAlign: "center",
   },
-  // 👇 Novo estilo para a área de Scroll
-  scrollArea: {
-    flex: 1, // Faz o ScrollView ocupar o espaço entre o header e o footer
-  },
-  // 👇 Novo estilo para o conteúdo DENTRO do Scroll
-  scrollContentContainer: {
-    flexGrow: 1, // Garante que o conteúdo possa crescer
-    justifyContent: "center", // Centraliza o card verticalmente se o conteúdo for pequeno
-    paddingHorizontal: 20,
-    paddingBottom: 20, // Espaço no final do scroll
-  },
-  questionNumber: {
-    fontSize: 18,
-    fontWeight: "bold",
+  questionCounter: {
+    fontSize: 16,
+    fontWeight: "600",
     color: "#191970",
-    marginBottom: 10,
-    alignSelf: "flex-start", // Garante que o texto fique à esquerda
+    textAlign: "center",
+    marginTop: 5,
+  },
+  scrollContentContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 20,
   },
   questionCard: {
     backgroundColor: "#191970",
     borderRadius: 15,
     padding: 20,
-    width: "100%", // O card ocupa toda a largura do container
+    width: "100%",
   },
   questionText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 20,
-    lineHeight: 24,
+    marginBottom: 25,
+    lineHeight: 28,
+    textAlign: "center",
   },
   optionContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 15,
-    paddingVertical: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderWidth: 2,
+    borderColor: "#FFC700",
+    borderRadius: 10,
   },
+  optionSelected: { backgroundColor: "#3D3D8D" },
+  optionCorrect: { backgroundColor: "#2E7D32", borderColor: "#66BB6A" },
+  optionWrong: { backgroundColor: "#D32F2F", borderColor: "#EF5350" },
   radioOuter: {
     width: 24,
     height: 24,
@@ -169,28 +258,32 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#FFC700",
   },
-  optionText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    flex: 1,
-    lineHeight: 22,
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    padding: 20,
-    borderTopWidth: 2,
-    borderTopColor: "#191970",
-  },
+  optionText: { color: "#FFFFFF", fontSize: 16, flex: 1, lineHeight: 22 },
+  footer: { padding: 20, borderTopWidth: 2, borderTopColor: "#191970" },
   button: {
     backgroundColor: "#191970",
     borderRadius: 12,
     paddingVertical: 15,
-    paddingHorizontal: 35,
+    alignItems: "center",
   },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
+  buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
+  resultsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  resultsTitle: {
+    fontSize: 32,
     fontWeight: "bold",
+    color: "#191970",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  resultsSubtitle: {
+    fontSize: 18,
+    color: "#191970",
+    textAlign: "center",
+    marginBottom: 30,
   },
 });

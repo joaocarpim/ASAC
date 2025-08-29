@@ -215,15 +215,19 @@ export default function HomeScreen({
         </View>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Módulos de Aprendizado</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Alphabet")}>
+            <MaterialCommunityIcons name="book-open-variant" size={30} color="#191970" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
             <MaterialCommunityIcons name="cog" size={30} color="#191970" />
           </TouchableOpacity>
+          
         </View>
         <View style={styles.modulesList}>
           <ModuleItem
             icon="baby-face-outline"
             title="Módulo 1"
-            subtitle="Alfabeto Completo"
+            subtitle="Aprendendo o Alfabeto"
             onPress={() =>
               navigation.navigate("ModuleContent", { moduleId: 1 })
             }

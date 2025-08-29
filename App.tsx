@@ -8,6 +8,7 @@ import { useAuthStore } from "./src/store/authStore";
 // Amplify
 import { Amplify } from "aws-amplify";
 import { Hub, HubCapsule } from "aws-amplify/utils";
+
 // @ts-ignore
 import awsconfig from "./aws-exports";
 Amplify.configure(awsconfig);
@@ -34,6 +35,8 @@ import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
 import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
 import { SettingsProvider } from "./src/context/SettingsContext";
+import AlphabetScreen from "./src/screens/module/AlphabetScreen"; // 👈 Importe a nova tela
+import ModuleResultsScreen from "./src/screens/module/ModuleResultScreen";
 
 type AuthEventPayload = { event: string; data?: any; message?: string };
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -160,6 +163,11 @@ export default function App() {
                 component={ModulePreQuizScreen}
               />
               <Stack.Screen name="ModuleQuiz" component={ModuleQuizScreen} />
+              <Stack.Screen name="Alphabet" component={AlphabetScreen} />
+              <Stack.Screen
+                name="ModuleResults"
+                component={ModuleResultsScreen}
+              />
             </Stack.Group>
           )}
         </Stack.Navigator>

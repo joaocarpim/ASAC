@@ -16,7 +16,7 @@
     "smsVerificationMessage": "Your verification code is {####}",
     "emailVerificationSubject": "Your verification code",
     "emailVerificationMessage": "Your verification code is {####}",
-    "defaultPasswordPolicy": false,
+    "defaultPasswordPolicy": true,
     "passwordPolicyMinLength": 8,
     "passwordPolicyCharacters": [],
     "requiredAttributes": [
@@ -32,11 +32,11 @@
       "email"
     ],
     "userpoolClientLambdaRole": "appasa98862538_userpoolclient_lambda_role",
-    "userpoolClientSetAttributes": false,
+    "userpoolClientSetAttributes": true,
     "sharedId": "98862538",
     "resourceName": "appasac98862538",
     "authSelections": "identityPoolAndUserPool",
-    "useDefault": "defaultSocial",
+    "useDefault": "default",
     "usernameAttributes": [
       "email"
     ],
@@ -58,11 +58,15 @@
     },
     "breakCircularDependency": true,
     "dependsOn": [],
-    "hostedUI": true,
-    "hostedUIDomainName": "appasac738950c6-738950c6",
-    "authProvidersUserPool": [],
-    "hostedUIProviderMeta": "[]",
-    "oAuthMetadata": "{\"AllowedOAuthFlows\":[\"code\"],\"AllowedOAuthScopes\":[\"phone\",\"email\",\"openid\",\"profile\",\"aws.cognito.signin.user.admin\"],\"CallbackURLs\":[\"http://localhost:8081/\",\"http://localhost:8081/\",\"http://localhost:8081/\",\"asacapp://\",\"asacapp://\"],\"LogoutURLs\":[\"asacapp://\"]}",
+    "hostedUI": false,
+    "userPoolGroups": false,
+    "adminQueries": false,
+    "triggers": {},
+    "adminQueryGroup": "Admins",
+    "parentStack": {
+      "Ref": "AWS::StackId"
+    },
+    "permissions": [],
     "authProviders": []
   }
 }

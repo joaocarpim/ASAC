@@ -16,7 +16,17 @@
         "appasac98862538": {}
       },
       "api": {
-        "appasac": {}
+        "appasac": {},
+        "AdminQueries": {}
+      },
+      "function": {
+        "AdminQueriesab8267ca": {
+          "deploymentBucketName": "amplify-appasac-dev-40136-deployment",
+          "s3Key": "amplify-builds/AdminQueriesab8267ca-314238396f5330414552-build.zip"
+        }
+      },
+      "storage": {
+        "alfabetoBraille": {}
       }
     }
   }
