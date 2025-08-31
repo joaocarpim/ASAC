@@ -28,6 +28,7 @@ export type RootStackParamList = {
   ModuleContent: { moduleId: number };
   ModulePreQuiz: { moduleId: number };
   ModuleQuiz: { moduleId: number };
+
   ModuleResults: {
     moduleId: number;
     correctAnswers: number;
@@ -37,6 +38,8 @@ export type RootStackParamList = {
     coinsEarned: number;
     passed: boolean;
     errors: number;
+    score: number; // o mesmo que correctAnswers
+    pointsEarned: number; // Adicione este
   };
 
   // Admin

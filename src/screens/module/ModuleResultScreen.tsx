@@ -20,13 +20,16 @@ export default function ModuleResultsScreen({
   const {
     moduleId,
     correctAnswers,
-    //totalQuestions,
+    totalQuestions, // Adicionado para exibir 'x de y'
     accuracy,
     timeSpent,
     coinsEarned,
+    pointsEarned, // Ponto de bônus por passar
     passed,
-    errors,
+    // errors não é mais necessário aqui, podemos calcular
   } = route.params;
+
+  const errors = totalQuestions - correctAnswers;
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -94,7 +97,9 @@ export default function ModuleResultsScreen({
               size={32}
               color="#4CAF50"
             />
-            <Text style={styles.statNumber}>{correctAnswers}</Text>
+            <Text style={styles.statNumber}>
+              {correctAnswers} / {totalQuestions}
+            </Text>
             <Text style={styles.statLabel}>Acertos</Text>
           </View>
           <View style={styles.statCard}>
@@ -124,6 +129,21 @@ export default function ModuleResultsScreen({
             <Text style={styles.statNumber}>{coinsEarned}</Text>
             <Text style={styles.statLabel}>Moedas</Text>
           </View>
+
+          {/* 👇 PONTOS DE BÔNUS ADICIONADOS AQUI (SÓ APARECE SE PASSAR) 👇 */}
+          {passed && (
+            <View style={styles.fullWidthStatCard}>
+              <MaterialCommunityIcons
+                name="star-circle"
+                size={32}
+                color="#FFC107"
+              />
+              <Text style={styles.statNumber}>
+                +{pointsEarned.toLocaleString("pt-BR")}
+              </Text>
+              <Text style={styles.statLabel}>Pontos de Bônus</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -131,31 +151,21 @@ export default function ModuleResultsScreen({
         {!passed && (
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => navigation.navigate("ModuleContent", { moduleId })}
+            onPress={() => navigation.replace("ModuleQuiz", { moduleId })}
           >
-            <MaterialCommunityIcons
-              name="book-open-variant"
-              size={20}
-              color="#191970"
-            />
-            <Text style={styles.secondaryButtonText}>Revisar</Text>
+            <MaterialCommunityIcons name="refresh" size={20} color="#191970" />
+            <Text style={styles.secondaryButtonText}>Tentar Novamente</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.primaryButton, !passed && styles.retryButton]}
-          onPress={() => {
-            if (passed) {
-              navigation.navigate("Home");
-            } else {
-              navigation.navigate("ModuleContent", { moduleId });
-            }
-          }}
+          style={styles.primaryButton}
+          onPress={() => navigation.navigate("Home")}
         >
           <Text style={styles.primaryButtonText}>
-            {passed ? "Continuar" : "Tentar Novamente"}
+            {passed ? "Continuar" : "Voltar ao Início"}
           </Text>
           <MaterialCommunityIcons
-            name={passed ? "arrow-right-circle" : "refresh"}
+            name={passed ? "arrow-right-circle" : "home"}
             size={20}
             color="#FFFFFF"
           />
@@ -202,7 +212,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
     borderWidth: 4,
-    borderColor: "#191970",
+    borderColor: "rgba(255,255,255,0.2)",
   },
   accuracyText: { fontSize: 32, fontWeight: "bold" },
   accuracyLabel: { fontSize: 14, color: "#666", fontWeight: "600" },
@@ -224,6 +234,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     width: (width - 60) / 2,
+    marginBottom: 15,
+    alignItems: "center",
+  },
+  fullWidthStatCard: {
+    backgroundColor: "#191970",
+    borderRadius: 12,
+    padding: 20,
+    width: "100%",
     marginBottom: 15,
     alignItems: "center",
   },
@@ -256,7 +274,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
-  retryButton: { backgroundColor: "#4CAF50", marginLeft: 10 },
   secondaryButton: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
