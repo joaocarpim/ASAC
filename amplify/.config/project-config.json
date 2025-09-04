@@ -1,14 +1,14 @@
 {
-  "projectName": "appasac",
+  "projectName": "ASAC",
   "version": "3.1",
   "frontend": "javascript",
   "javascript": {
     "framework": "react-native",
     "config": {
       "SourceDir": "src",
-      "DistributionDir": "/",
-      "BuildCommand": "npm.cmd run-script build",
-      "StartCommand": "npm.cmd run-script start"
+      "DistributionDir": "build",
+      "BuildCommand": "npm run build",
+      "StartCommand": "npm start"
     }
   },
   "providers": [

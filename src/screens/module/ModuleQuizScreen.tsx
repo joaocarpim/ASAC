@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,36 @@ import {
   StatusBar,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-// A importação de MaterialCommunityIcons foi removida pois não estava sendo usada
-import { DEFAULT_QUIZZES, Quiz, Question } from "../../navigation/moduleTypes";
+import { useAuthStore } from "../../store/authStore";
+import {
+  ensureModuleProgress,
+  registerCorrect,
+  registerWrong,
+  finishModule,
+  ensureUserExistsInDB,
+} from "../../services/progressService";
 
-// 👇 DEFINIÇÃO DE TIPOS PARA AS PROPS DO BOTÃO 👇
+type Question = {
+  id: string;
+  order: number;
+  question: string;
+  options: string[];
+  correctAnswer: number | string;
+};
+
+type Quiz = {
+  moduleId: string;
+  questions: Question[];
+  coinsPerCorrect?: number;
+  passingScore?: number;
+};
+
+// MOCK: DEFAULT_QUIZZES substituindo import inexistente
+const DEFAULT_QUIZZES: Quiz[] = [];
+
 type OptionButtonProps = {
   text: string;
   isSelected: boolean;
@@ -21,14 +45,7 @@ type OptionButtonProps = {
   isWrong: boolean;
 };
 
-// Componente reutilizável para o botão de alternativa com tipos
-const OptionButton = ({
-  text,
-  isSelected,
-  onPress,
-  isCorrect,
-  isWrong,
-}: OptionButtonProps) => (
+const OptionButton = ({ text, isSelected, onPress, isCorrect, isWrong }: OptionButtonProps) => (
   <TouchableOpacity
     style={[
       styles.optionContainer,
@@ -37,21 +54,15 @@ const OptionButton = ({
       isWrong && styles.optionWrong,
     ]}
     onPress={onPress}
-    disabled={isCorrect || isWrong} // Desabilita o botão depois de respondido
+    disabled={isCorrect || isWrong}
   >
-    <View style={styles.radioOuter}>
-      {isSelected && <View style={styles.radioInner} />}
-    </View>
+    <View style={styles.radioOuter}>{isSelected && <View style={styles.radioInner} />}</View>
     <Text style={styles.optionText}>{text}</Text>
   </TouchableOpacity>
 );
 
-export default function ModuleQuizScreen({
-  route,
-  navigation,
-}: RootStackScreenProps<"ModuleQuiz">) {
+export default function ModuleQuizScreen({ route, navigation }: RootStackScreenProps<"ModuleQuiz">) {
   const { moduleId } = route.params;
-
   const [quizData, setQuizData] = useState<Quiz | undefined>(undefined);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -59,42 +70,86 @@ export default function ModuleQuizScreen({
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
+  const [progressObj, setProgressObj] = useState<any>(null);
+  const startTs = useRef<number | null>(null);
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    const currentQuiz = DEFAULT_QUIZZES.find((q) => q.moduleId === moduleId);
+const currentQuiz = DEFAULT_QUIZZES.find((q) => String(q.moduleId) === String(moduleId));
     if (currentQuiz) {
       setQuizData(currentQuiz);
-      setQuestions(currentQuiz.questions.sort((a, b) => a.order - b.order));
+      setQuestions(currentQuiz.questions.sort((a, b) => Number(a.order) - Number(b.order)));
     }
   }, [moduleId]);
 
+  useEffect(() => {
+    (async () => {
+      if (!user || !quizData) return;
+      await ensureUserExistsInDB(user.userId, user.name || user.username, user.email);
+      const prog = await ensureModuleProgress(user.userId, `module-${moduleId}`, moduleId);
+      setProgressObj(prog);
+      startTs.current = Date.now();
+    })();
+  }, [user, quizData, moduleId]);
+
   const handleSelectAnswer = (index: number) => {
-    if (!isAnswerChecked) {
-      setSelectedAnswer(index);
-    }
+    if (!isAnswerChecked) setSelectedAnswer(index);
   };
 
-  const handleConfirmAnswer = () => {
-    if (selectedAnswer === null) return;
+  const handleConfirmAnswer = async () => {
+    if (selectedAnswer === null || !questions[currentQuestionIndex] || !progressObj || !user) return;
     const currentQuestion = questions[currentQuestionIndex];
-    if (selectedAnswer === currentQuestion.correctAnswer) {
-      setScore(score + 1);
+    if (selectedAnswer === Number(currentQuestion.correctAnswer)) {
+      setScore((s) => s + 1);
+      await registerCorrect(user.userId, progressObj.id);
+    } else {
+      await registerWrong(user.userId, progressObj.id, {
+        questionId: currentQuestion.id,
+        questionText: currentQuestion.question,
+        userAnswer: String(selectedAnswer),
+        expectedAnswer: String(currentQuestion.correctAnswer),
+      });
     }
     setIsAnswerChecked(true);
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     setIsAnswerChecked(false);
     setSelectedAnswer(null);
-
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      setQuizFinished(true);
+      setCurrentQuestionIndex((i) => i + 1);
+      return;
+    }
+    setQuizFinished(true);
+    const durationSec = startTs.current ? Math.round((Date.now() - startTs.current) / 1000) : 0;
+    try {
+      if (!user || !progressObj) throw new Error("User/progress missing");
+      const achievementTitle = `Conquista do Módulo ${moduleId}`;
+      await finishModule(user.userId, progressObj.id, moduleId, durationSec, `module-${moduleId}`, achievementTitle);
+
+      const coinsEarned = (quizData?.coinsPerCorrect || 15) * score;
+      const passed = score >= (quizData?.passingScore || 7);
+      const accuracy = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+
+      navigation.replace("ModuleResults", {
+        moduleId,
+        correctAnswers: score,
+        totalQuestions: questions.length,
+        accuracy,
+        timeSpent: durationSec,
+        coinsEarned,
+        passed,
+        errors: questions.length - score,
+        score,
+        pointsEarned: 12250,
+      });
+    } catch (e) {
+      console.error("Erro ao finalizar quiz:", e);
+      Alert.alert("Erro", "Não foi possível salvar o progresso. Conecte-se e tente novamente.");
     }
   };
 
-  if (questions.length === 0) {
+  if (!questions || questions.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#191970" />
@@ -103,23 +158,10 @@ export default function ModuleQuizScreen({
   }
 
   if (quizFinished) {
-    const passed = score >= (quizData?.passingScore || 7);
     return (
       <View style={styles.container}>
-        <View style={styles.resultsContainer}>
-          <Text style={styles.resultsTitle}>
-            {passed ? "Parabéns!" : "Continue Tentando!"}
-          </Text>
-          <Text style={styles.resultsSubtitle}>
-            Você acertou {score} de {questions.length} perguntas.
-          </Text>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => navigation.navigate("Home")}
-          >
-            <Text style={styles.buttonText}>Voltar para o Início</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={{ padding: 20 }}>Finalizando...</Text>
+        <ActivityIndicator size="large" color="#191970" />
       </View>
     );
   }
@@ -139,13 +181,9 @@ export default function ModuleQuizScreen({
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
         <View style={styles.questionCard}>
           <Text style={styles.questionText}>{currentQuestion.question}</Text>
-          {currentQuestion.options.map((option, index) => {
-            const isCorrect =
-              isAnswerChecked && index === currentQuestion.correctAnswer;
-            const isWrong =
-              isAnswerChecked &&
-              selectedAnswer === index &&
-              index !== currentQuestion.correctAnswer;
+          {currentQuestion.options.map((option: string, index: number) => {
+            const isCorrect = isAnswerChecked && index === Number(currentQuestion.correctAnswer);
+            const isWrong = isAnswerChecked && selectedAnswer === index && index !== Number(currentQuestion.correctAnswer);
             return (
               <OptionButton
                 key={index}
@@ -162,10 +200,7 @@ export default function ModuleQuizScreen({
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[
-            styles.button,
-            selectedAnswer === null && { backgroundColor: "#BDBDBD" },
-          ]}
+          style={[styles.button, selectedAnswer === null && { backgroundColor: "#BDBDBD" }]}
           onPress={isAnswerChecked ? handleNextQuestion : handleConfirmAnswer}
           disabled={selectedAnswer === null}
         >
@@ -184,106 +219,21 @@ export default function ModuleQuizScreen({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FFC700",
-  },
-  header: {
-    paddingTop: 40,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: "#191970",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#191970",
-    textAlign: "center",
-  },
-  questionCounter: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#191970",
-    textAlign: "center",
-    marginTop: 5,
-  },
-  scrollContentContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 20,
-  },
-  questionCard: {
-    backgroundColor: "#191970",
-    borderRadius: 15,
-    padding: 20,
-    width: "100%",
-  },
-  questionText: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 25,
-    lineHeight: 28,
-    textAlign: "center",
-  },
-  optionContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderWidth: 2,
-    borderColor: "#FFC700",
-    borderRadius: 10,
-  },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFC700" },
+  header: { paddingTop: 40, paddingHorizontal: 20, paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: "#191970" },
+  headerTitle: { fontSize: 24, fontWeight: "bold", color: "#191970", textAlign: "center" },
+  questionCounter: { fontSize: 16, fontWeight: "600", color: "#191970", textAlign: "center", marginTop: 5 },
+  scrollContentContainer: { flexGrow: 1, justifyContent: "center", padding: 20 },
+  questionCard: { backgroundColor: "#191970", borderRadius: 15, padding: 20, width: "100%" },
+  questionText: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold", marginBottom: 25, lineHeight: 28, textAlign: "center" },
+  optionContainer: { flexDirection: "row", alignItems: "center", marginBottom: 15, paddingVertical: 10, paddingHorizontal: 15, borderWidth: 2, borderColor: "#FFC700", borderRadius: 10 },
   optionSelected: { backgroundColor: "#3D3D8D" },
   optionCorrect: { backgroundColor: "#2E7D32", borderColor: "#66BB6A" },
   optionWrong: { backgroundColor: "#D32F2F", borderColor: "#EF5350" },
-  radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#FFC700",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#FFC700",
-  },
+  radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "#FFC700", justifyContent: "center", alignItems: "center", marginRight: 15 },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFC700" },
   optionText: { color: "#FFFFFF", fontSize: 16, flex: 1, lineHeight: 22 },
   footer: { padding: 20, borderTopWidth: 2, borderTopColor: "#191970" },
-  button: {
-    backgroundColor: "#191970",
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: "center",
-  },
+  button: { backgroundColor: "#191970", borderRadius: 12, paddingVertical: 15, alignItems: "center" },
   buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
-  resultsContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  resultsTitle: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#191970",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  resultsSubtitle: {
-    fontSize: 18,
-    color: "#191970",
-    textAlign: "center",
-    marginBottom: 30,
-  },
 });

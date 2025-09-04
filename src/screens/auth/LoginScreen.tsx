@@ -13,12 +13,11 @@ import {
   Modal,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { signIn } from "@aws-amplify/auth";
+import { signIn } from "aws-amplify/auth"; // ✅ Amplify v6
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const logo = require("../../assets/images/logo.png");
 
-// Tipo para as props do nosso modal customizado
 type CustomModalProps = {
   visible: boolean;
   title: string;
@@ -27,7 +26,6 @@ type CustomModalProps = {
   type: "success" | "error";
 };
 
-// Componente de Modal reutilizável
 const CustomModal = ({
   visible,
   title,
@@ -35,12 +33,7 @@ const CustomModal = ({
   onClose,
   type,
 }: CustomModalProps) => (
-  <Modal
-    animationType="fade"
-    transparent={true}
-    visible={visible}
-    onRequestClose={onClose}
-  >
+  <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
     <View style={styles.modalBackdrop}>
       <View style={styles.modalContainer}>
         {type === "error" && (
@@ -60,9 +53,7 @@ const CustomModal = ({
   </Modal>
 );
 
-export default function LoginScreen({
-  navigation,
-}: RootStackScreenProps<"Login">) {
+export default function LoginScreen({ navigation }: RootStackScreenProps<"Login">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -74,11 +65,7 @@ export default function LoginScreen({
     type: "error" as "success" | "error",
   });
 
-  const showModal = (
-    type: "success" | "error",
-    title: string,
-    message: string
-  ) => {
+  const showModal = (type: "success" | "error", title: string, message: string) => {
     setModalState({ visible: true, type, title, message });
   };
 
@@ -95,33 +82,24 @@ export default function LoginScreen({
     setLoading(true);
 
     try {
-      // A única responsabilidade é tentar o login.
-      // O Hub no App.tsx vai detectar o sucesso e trocar o navegador.
-      await signIn({ username: email.trim(), password });
-    } catch (error) {
+      // ✅ Amplify v6 exige username (email no nosso caso)
+      const user = await signIn({
+        username: email.trim(),
+        password,
+      });
+
+      console.log("✅ Login bem-sucedido:", user);
+    } catch (error: any) {
       console.log("### ERRO AO FAZER LOGIN ###:", error);
-      if (error && typeof error === "object" && "name" in error) {
-        if (error.name === "UserNotConfirmedException") {
-          // Se o usuário não está confirmado, o levamos para a tela de confirmação
-          navigation.navigate("ConfirmSignUp", { email: email.trim() });
-        } else if (error.name === "UserNotFoundException") {
-          showModal("error", "Erro", "Este usuário não existe.");
-        } else if (error.name === "NotAuthorizedException") {
-          showModal(
-            "error",
-            "Erro",
-            "Digite novamente, email ou senha incorretos."
-          );
-        } else {
-          const typedError = error as { message?: string };
-          showModal(
-            "error",
-            "Erro",
-            typedError.message || "Ocorreu um problema. Tente novamente."
-          );
-        }
+
+      if (error?.name === "UserNotConfirmedException") {
+        navigation.navigate("ConfirmSignUp", { email: email.trim() });
+      } else if (error?.name === "UserNotFoundException") {
+        showModal("error", "Erro", "Este usuário não existe.");
+      } else if (error?.name === "NotAuthorizedException") {
+        showModal("error", "Erro", "Digite novamente, email ou senha incorretos.");
       } else {
-        showModal("error", "Erro", "Ocorreu um erro desconhecido.");
+        showModal("error", "Erro", error.message || "Ocorreu um problema. Tente novamente.");
       }
     } finally {
       setLoading(false);
@@ -130,11 +108,7 @@ export default function LoginScreen({
 
   const handleGoToConfirm = () => {
     if (!email.trim()) {
-      showModal(
-        "error",
-        "Atenção",
-        "Por favor, digite seu e-mail no campo acima antes de clicar aqui."
-      );
+      showModal("error", "Atenção", "Digite seu e-mail no campo acima antes de confirmar.");
       return;
     }
     navigation.navigate("ConfirmSignUp", { email: email.trim() });
@@ -160,9 +134,7 @@ export default function LoginScreen({
           <Text style={styles.logoText}>ASAC</Text>
         </View>
         <View style={styles.formContainer}>
-          <Text style={styles.promptText}>
-            Acesse o App informando seus dados
-          </Text>
+          <Text style={styles.promptText}>Acesse o App informando seus dados</Text>
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -181,9 +153,7 @@ export default function LoginScreen({
             onChangeText={setPassword}
           />
           <View style={styles.linksContainer}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("ForgotPassword")}
-            >
+            <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
               <Text style={styles.linkText}>Recuperar Senha</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleGoToConfirm}>
@@ -191,14 +161,8 @@ export default function LoginScreen({
             </TouchableOpacity>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? "Entrando..." : "Logar"}
-          </Text>
+        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? "Entrando..." : "Logar"}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

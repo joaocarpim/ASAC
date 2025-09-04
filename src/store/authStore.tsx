@@ -1,106 +1,97 @@
 import { create } from "zustand";
-import { fetchAuthSession, signOut } from "@aws-amplify/auth";
-import { generateClient } from "aws-amplify/api";
-import { getUser } from "../graphql/queries";
-import { createUser } from "../graphql/mutations";
+import { fetchAuthSession, signOut } from "aws-amplify/auth"; // ✅ v6 correto
+import { ensureUserExistsInDB, getUserById } from "../services/progressService";
 
-// Define o formato completo do nosso objeto de usuário no estado global
 export type User = {
   userId: string;
   username: string;
   email: string;
   name?: string;
-  isAdmin: boolean;
+  isAdmin?: boolean;
   coins?: number | null;
   points?: number | null;
   modulesCompleted?: string | null;
   precision?: string | null;
   correctAnswers?: number | null;
   timeSpent?: string | null;
+  achievements?: any[];
 };
 
-// Define o formato completo do nosso "store"
 type AuthState = {
   user: User | null;
   isLoading: boolean;
   checkUser: () => Promise<void>;
-  updateUserData: (data: Partial<Omit<User, "userId" | "isAdmin">>) => void;
+  updateUserData: (data: Partial<User>) => void;
   signOut: () => Promise<void>;
+  refreshUserFromDB: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  isLoading: true, // App sempre começa em estado de carregamento
+  isLoading: true,
 
   checkUser: async () => {
     try {
-      const { tokens } = await fetchAuthSession();
-      if (!tokens) {
+      const session = await fetchAuthSession();
+
+      if (!session || !session.tokens?.accessToken) {
+        console.log("⚠️ Nenhum usuário logado");
         set({ user: null, isLoading: false });
         return;
       }
 
-      const { sub, username, email } = tokens.accessToken.payload;
-      const cognitoGroups = tokens.accessToken.payload["cognito:groups"];
-      const isAdmin =
-        Array.isArray(cognitoGroups) && cognitoGroups.includes("Admins");
+      // ✅ tokens no Amplify v6 vêm em session.tokens
+      const { accessToken, idToken } = session.tokens;
+      const payload = accessToken.payload;
 
-      const baseUser = {
-        userId: sub as string,
-        username: username as string,
-        email: email as string,
+      const sub = payload.sub as string;
+      const username = payload["cognito:username"] as string;
+      const email = idToken?.payload?.email as string | undefined;
+      const cognitoGroups = payload["cognito:groups"];
+      const isAdmin = Array.isArray(cognitoGroups) && cognitoGroups.includes("Admins");
+
+      const baseUser: User = {
+        userId: sub,
+        username,
+        email: email || "",
+        name: typeof username === "string" ? username : undefined,
         isAdmin,
       };
 
       if (!isAdmin) {
-        const client = generateClient();
-        const result = await client.graphql({
-          query: getUser,
-          variables: { id: baseUser.userId },
-        });
-
-        if (result.data.getUser) {
-          set({
-            user: { ...baseUser, ...result.data.getUser },
-            isLoading: false,
-          });
-        } else {
-          const newUserInput = {
-            id: baseUser.userId,
-            email: baseUser.email,
-            name: baseUser.username,
-            role: "User",
-            coins: 0,
-            points: 0,
-          };
-          const newUserResult = await client.graphql({
-            query: createUser,
-            variables: { input: newUserInput },
-          });
-          set({
-            user: { ...baseUser, ...newUserResult.data.createUser },
-            isLoading: false,
-          });
-        }
+        // ✅ garante que o usuário exista no banco
+        await ensureUserExistsInDB(baseUser.userId, baseUser.username, baseUser.email);
+        const dbUser = await getUserById(baseUser.userId);
+        set({ user: { ...baseUser, ...dbUser }, isLoading: false });
       } else {
         set({ user: baseUser, isLoading: false });
       }
     } catch (e) {
+      console.error("❌ Erro checkUser:", e);
       set({ user: null, isLoading: false });
     }
   },
 
+  refreshUserFromDB: async () => {
+    try {
+      const u = get().user;
+      if (!u) return;
+      const dbUser = await getUserById(u.userId);
+      set({ user: { ...u, ...dbUser } });
+    } catch (e) {
+      console.warn("⚠️ refreshUserFromDB falhou:", e);
+    }
+  },
+
   updateUserData: (data) =>
-    set((state) => ({
-      user: state.user ? { ...state.user, ...data } : null,
-    })),
+    set((state) => ({ user: state.user ? { ...state.user, ...data } : null })),
 
   signOut: async () => {
     try {
-      await signOut();
+      await signOut(); // ✅ v6 continua igual
       set({ user: null, isLoading: false });
     } catch (error) {
-      console.log("Erro ao fazer signOut no store:", error);
+      console.log("Erro signOut:", error);
     }
   },
 }));

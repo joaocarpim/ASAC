@@ -1,27 +1,14 @@
 projects:
-  asacbrilleapp:
+  asac:
     schemaPath: src/graphql/schema.json
     includes:
-      - ''
-    excludes:
-      - ./amplify/**
-      - src/API.ts
-    extensions:
-      amplify:
-        codeGenTarget: typescript
-        generatedFileName: src/API.ts
-        docsFilePath: .
-        maxDepth: 2
-  appasac:
-    schemaPath: src/graphql/schema.json
-    includes:
-      - src/graphql/**/*.ts
+      - src/graphql/**/*.js
     excludes:
       - ./amplify/**
     extensions:
       amplify:
-        codeGenTarget: typescript
-        generatedFileName: src/API.ts
+        codeGenTarget: javascript
+        generatedFileName: ''
         docsFilePath: src/graphql
 extensions:
   amplify:

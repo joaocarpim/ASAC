@@ -5,15 +5,24 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { RootStackParamList } from "./src/navigation/types";
 import { useAuthStore } from "./src/store/authStore";
 
-// Amplify
+// Amplify v6 (modular)
 import { Amplify } from "aws-amplify";
 import { Hub, HubCapsule } from "aws-amplify/utils";
 
 // @ts-ignore
-import awsconfig from "./aws-exports";
-Amplify.configure(awsconfig);
+import awsconfig from "./src/aws-exports";
 
-// Importe TODAS as suas telas aqui
+// 🚀 Força o Amplify a usar **User Pool** somente
+Amplify.configure({
+  ...awsconfig,
+  Auth: {
+    region: awsconfig.aws_cognito_region,
+    userPoolId: awsconfig.aws_user_pools_id,
+    userPoolWebClientId: awsconfig.aws_user_pools_web_client_id,
+    authenticationFlowType: "USER_PASSWORD_AUTH",
+  },
+});
+
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStep1Screen";
 import TutorialStep2Screen from "./src/screens/onboarding/TutorialStep2Screen";
@@ -35,22 +44,20 @@ import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
 import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
 import { SettingsProvider } from "./src/context/SettingsContext";
-import AlphabetScreen from "./src/screens/module/AlphabetScreen"; // 👈 Importe a nova tela
+import AlphabetScreen from "./src/screens/module/AlphabetScreen";
 import ModuleResultsScreen from "./src/screens/module/ModuleResultScreen";
 
 type AuthEventPayload = { event: string; data?: any; message?: string };
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
-  const { user, isLoading, checkUser, logout } = useAuthStore();
+  const { user, isLoading, checkUser, signOut } = useAuthStore();
+  const logout = signOut;
 
   useEffect(() => {
     console.log("🚀 App: Inicializando...");
-
-    // Verifica o usuário na inicialização
     checkUser();
 
-    // Configura o Hub para escutar eventos de autenticação
     const hubListener = (data: HubCapsule<"auth", AuthEventPayload>) => {
       console.log("🔔 App: Evento do Hub:", data.payload.event);
 
@@ -70,7 +77,6 @@ export default function App() {
     };
   }, [checkUser, logout]);
 
-  // Log do estado atual para debug
   useEffect(() => {
     console.log("📊 App Estado:", {
       isLoading,
@@ -94,80 +100,35 @@ export default function App() {
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {!user ? (
-            // Grupo de Telas para Usuários Deslogados
             <Stack.Group>
               <Stack.Screen name="Welcome" component={WelcomeScreen} />
-              <Stack.Screen
-                name="TutorialStep1"
-                component={TutorialStep1Screen}
-              />
-              <Stack.Screen
-                name="TutorialStep2"
-                component={TutorialStep2Screen}
-              />
-              <Stack.Screen
-                name="TutorialStep3"
-                component={TutorialStep3Screen}
-              />
+              <Stack.Screen name="TutorialStep1" component={TutorialStep1Screen} />
+              <Stack.Screen name="TutorialStep2" component={TutorialStep2Screen} />
+              <Stack.Screen name="TutorialStep3" component={TutorialStep3Screen} />
               <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen
-                name="ForgotPassword"
-                component={ForgotPasswordScreen}
-              />
-              <Stack.Screen
-                name="ResetPassword"
-                component={ResetPasswordScreen}
-              />
-              <Stack.Screen
-                name="ConfirmSignUp"
-                component={ConfirmSignUpScreen}
-              />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+              <Stack.Screen name="ConfirmSignUp" component={ConfirmSignUpScreen} />
             </Stack.Group>
           ) : user.isAdmin ? (
-            // Grupo de Telas para Administradores Logados
             <Stack.Group>
-              <Stack.Screen
-                name="AdminDashboard"
-                component={AdminDashboardScreen}
-              />
-              <Stack.Screen
-                name="AdminUserDetail"
-                component={AdminUserDetailScreen}
-              />
-              <Stack.Screen
-                name="AdminIncorrectAnswers"
-                component={AdminIncorrectAnswersScreen}
-              />
-              <Stack.Screen
-                name="AdminRegisterUser"
-                component={AdminRegisterUserScreen}
-              />
+              <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+              <Stack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} />
+              <Stack.Screen name="AdminIncorrectAnswers" component={AdminIncorrectAnswersScreen} />
+              <Stack.Screen name="AdminRegisterUser" component={AdminRegisterUserScreen} />
             </Stack.Group>
           ) : (
-            // Grupo de Telas para Usuários Normais Logados
             <Stack.Group>
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="Ranking" component={RankingScreen} />
-              <Stack.Screen
-                name="Achievements"
-                component={AchievementsScreen}
-              />
+              <Stack.Screen name="Achievements" component={AchievementsScreen} />
               <Stack.Screen name="Progress" component={ProgressScreen} />
               <Stack.Screen name="Settings" component={SettingsScreen} />
-              <Stack.Screen
-                name="ModuleContent"
-                component={ModuleContentScreen}
-              />
-              <Stack.Screen
-                name="ModulePreQuiz"
-                component={ModulePreQuizScreen}
-              />
+              <Stack.Screen name="ModuleContent" component={ModuleContentScreen} />
+              <Stack.Screen name="ModulePreQuiz" component={ModulePreQuizScreen} />
               <Stack.Screen name="ModuleQuiz" component={ModuleQuizScreen} />
               <Stack.Screen name="Alphabet" component={AlphabetScreen} />
-              <Stack.Screen
-                name="ModuleResults"
-                component={ModuleResultsScreen}
-              />
+              <Stack.Screen name="ModuleResults" component={ModuleResultsScreen} />
             </Stack.Group>
           )}
         </Stack.Navigator>

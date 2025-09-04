@@ -1,44 +1,31 @@
 {
   "api": {
-    "AdminQueries": {
-      "authorizationType": "AMAZON_COGNITO_USER_POOLS",
+    "asac": {
       "dependsOn": [
         {
           "attributes": [
             "UserPoolId"
           ],
           "category": "auth",
-          "resourceName": "appasac98862538"
-        },
-        {
-          "attributes": [
-            "Arn",
-            "Name"
-          ],
-          "category": "function",
-          "resourceName": "AdminQueriesab8267ca"
-        }
-      ],
-      "providerPlugin": "awscloudformation",
-      "service": "API Gateway"
-    },
-    "appasac": {
-      "dependsOn": [
-        {
-          "attributes": [
-            "UserPoolId"
-          ],
-          "category": "auth",
-          "resourceName": "appasac98862538"
+          "resourceName": "asac2f4153aa"
         }
       ],
       "output": {
         "authConfig": {
-          "additionalAuthenticationProviders": [],
+          "additionalAuthenticationProviders": [
+            {
+              "apiKeyConfig": {
+                "apiKeyExpirationDate": "2025-09-11T04:29:15.252Z",
+                "apiKeyExpirationDays": 7,
+                "description": "teste publico"
+              },
+              "authenticationType": "API_KEY"
+            }
+          ],
           "defaultAuthentication": {
             "authenticationType": "AMAZON_COGNITO_USER_POOLS",
             "userPoolConfig": {
-              "userPoolId": "authappasac98862538"
+              "userPoolId": "authasac2f4153aa"
             }
           }
         }
@@ -48,7 +35,7 @@
     }
   },
   "auth": {
-    "appasac98862538": {
+    "asac2f4153aa": {
       "customAuth": false,
       "dependsOn": [],
       "frontendAuthConfig": {
@@ -75,42 +62,8 @@
       "service": "Cognito"
     }
   },
-  "function": {
-    "AdminQueriesab8267ca": {
-      "build": true,
-      "dependsOn": [
-        {
-          "attributes": [
-            "UserPoolId"
-          ],
-          "category": "auth",
-          "resourceName": "appasac98862538"
-        }
-      ],
-      "providerPlugin": "awscloudformation",
-      "service": "Lambda"
-    }
-  },
-  "parameters": {
-    "AMPLIFY_function_AdminQueriesab8267ca_deploymentBucketName": {
-      "usedBy": [
-        {
-          "category": "function",
-          "resourceName": "AdminQueriesab8267ca"
-        }
-      ]
-    },
-    "AMPLIFY_function_AdminQueriesab8267ca_s3Key": {
-      "usedBy": [
-        {
-          "category": "function",
-          "resourceName": "AdminQueriesab8267ca"
-        }
-      ]
-    }
-  },
   "storage": {
-    "alfabetoBraille": {
+    "s3112eaa39": {
       "dependsOn": [],
       "providerPlugin": "awscloudformation",
       "service": "S3"

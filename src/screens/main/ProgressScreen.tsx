@@ -1,185 +1,84 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-} from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import ScreenHeader from "../../components/layout/ScreenHeader";
-import { RootStackScreenProps } from '../../navigation/types'; // Importe seu tipo
+// src/screens/main/ProgressScreen.tsx
+import React, { useEffect, useState } from "react";
+import { View, Text, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import { useAuthStore } from "../../store/authStore";
+import { generateClient } from "aws-amplify/api";
 
-const rocketImg = require("../../assets/images/rocket.png");
-const moleCharacterImg = require("../../assets/images/logo.png");
-
-// DEFINIÇÃO DE TIPOS
-type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-
-type StatCardProps = {
-  icon: IconName;
-  value: string;
-  label: string;
+type ProgressItem = {
+  id: string;
+  moduleId: string;
+  moduleNumber: number;
+  correct?: number;
+  wrong?: number;
+  accuracy?: number;
+  durationSec?: number;
+  finished?: boolean;
 };
 
+export default function ProgressScreen() {
+  const { user } = useAuthStore();
+  const [items, setItems] = useState<ProgressItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const StatCard = ({ icon, value, label }: StatCardProps) => (
-  <View style={styles.statCard}>
-    <MaterialCommunityIcons name={icon} size={28} color="#FFC700" />
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        const client = generateClient();
+        const QUERY = /* GraphQL */ `
+          query ListProgress($filter: ModelModuleProgressFilterInput) {
+            listModuleProgresses(filter: $filter) {
+              items { id moduleId moduleNumber correct wrong accuracy durationSec finished }
+            }
+          }
+        `;
+        const res: any = await client.graphql({ query: QUERY, variables: { filter: { userId: { eq: user.userId } } } });
+        const list = res.data?.listModuleProgresses?.items || [];
+        setItems(list.sort((a: any, b: any) => a.moduleNumber - b.moduleNumber));
+      } catch (e) {
+        console.error("Erro ProgressScreen:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [user]);
 
-export default function ProgressScreen({
-  navigation,
-}: RootStackScreenProps<"Progress">) {
+  if (!user || loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#191970" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <ScreenHeader title="Meu Progresso" />
-        <Image
-          source={rocketImg}
-          style={styles.mainImage}
-          accessible
-          accessibilityLabel="Foguete decolando"
-        />
-
-        <View style={styles.statsContainer}>
-          <StatCard icon="target" value="70%" label="Precisão" />
-          <StatCard icon="check-all" value="43" label="Acertos" />
-          <StatCard
-            icon="clock-time-eight-outline"
-            value="7:34"
-            label="Tempo"
-          />
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardTextContainer}>
-            <Text style={styles.cardTitle}>Meu progresso</Text>
-            <Text style={styles.cardSubtitle}>
-              Acompanhe seu{"\n"}desenvolvimento no{"\n"}Molingo
-            </Text>
+      <Text style={styles.title}>Meu Progresso</Text>
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.id}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Módulo {item.moduleNumber}</Text>
+            <Text>Acertos: {item.correct ?? 0}</Text>
+            <Text>Erros: {item.wrong ?? 0}</Text>
+            <Text>Precisão: {item.accuracy ? (item.accuracy * 100).toFixed(1) + "%" : "0%"}</Text>
+            <Text>Tempo: {item.durationSec ?? 0}s</Text>
+            <Text>Concluído: {item.finished ? "Sim" : "Não"}</Text>
           </View>
-          <Image source={moleCharacterImg} style={styles.cardImage} />
-        </View>
-
-        <View style={styles.modulesSection}>
-          <Text style={styles.modulesTitle}>Módulos</Text>
-          <View style={styles.modulesButtons}>
-            <TouchableOpacity style={styles.moduleButton}>
-              <Text style={styles.moduleButtonText}>1</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.moduleButton}>
-              <Text style={styles.moduleButtonText}>2</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.moduleButton}>
-              <Text style={styles.moduleButtonText}>3</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.bottomButton}
-          onPress={() => navigation.navigate("Home")}
-        >
-          <MaterialCommunityIcons
-            name="book-open-variant"
-            size={20}
-            color="#FFFFFF"
-          />
-          <Text style={styles.bottomButtonText}>Continue Aprendendo</Text>
-        </TouchableOpacity>
-      </ScrollView>
+        )}
+        ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 20 }}>Nenhum progresso encontrado.</Text>}
+        contentContainerStyle={{ padding: 16 }}
+      />
     </View>
   );
 }
 
-// Os styles permanecem os mesmos
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
-  scrollContainer: { alignItems: "center", padding: 20 },
-  mainImage: {
-    width: 150,
-    height: 150,
-    resizeMode: "contain",
-    marginVertical: 10,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 20,
-  },
-  statCard: {
-    backgroundColor: "#191970",
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: "center",
-    width: "31%",
-  },
-  statValue: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginVertical: 4,
-  },
-  statLabel: { color: "#FFFFFF", fontSize: 14 },
-  card: {
-    backgroundColor: "#191970",
-    borderRadius: 20,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    marginBottom: 30,
-  },
-  cardTextContainer: { flex: 1 },
-  cardTitle: { color: "#FFFFFF", fontSize: 22, fontWeight: "bold" },
-  cardSubtitle: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    marginTop: 5,
-    lineHeight: 20,
-  },
-  cardImage: { width: 100, height: 100, resizeMode: "contain" },
-  modulesSection: { width: "100%", alignItems: "flex-start", marginBottom: 30 },
-  modulesTitle: {
-    color: "#191970",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  modulesButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  moduleButton: {
-    backgroundColor: "#191970",
-    width: "31%",
-    height: 60,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  moduleButtonText: { color: "#FFFFFF", fontSize: 24, fontWeight: "bold" },
-  bottomButton: {
-    backgroundColor: "#191970",
-    borderRadius: 12,
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  bottomButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
-  },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFC700" },
+  title: { fontSize: 22, fontWeight: "bold", color: "#191970", padding: 16 },
+  card: { backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 12, marginHorizontal: 8 },
+  cardTitle: { fontWeight: "700", marginBottom: 6 },
 });

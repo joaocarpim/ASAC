@@ -1,11 +1,12 @@
 {
-  "AppSyncApiName": "appasac",
+  "AppSyncApiName": "asac",
   "DynamoDBBillingMode": "PAY_PER_REQUEST",
   "DynamoDBEnableServerSideEncryption": false,
   "AuthCognitoUserPoolId": {
     "Fn::GetAtt": [
-      "authappasac98862538",
+      "authasac2f4153aa",
       "Outputs.UserPoolId"
     ]
-  }
+  },
+  "AuthModeLastUpdated": "2025-09-04T04:27:31.635Z"
 }

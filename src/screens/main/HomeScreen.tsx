@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+// src/screens/main/HomeScreen.tsx
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,35 +8,17 @@ import {
   StatusBar,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
-import { generateClient } from "aws-amplify/api";
-import { getUser } from "../../graphql/queries";
-import { signOut } from "@aws-amplify/auth";
-import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "../../store/authStore";
+import { getUserById } from "../../services/progressService";
+import { canStartModule } from "../../services/progressService";
 
-// O tipo de dados que esperamos do nosso banco de dados (DynamoDB)
-type UserData = {
-  name: string;
-  coins?: number | null;
-  points?: number | null;
-  modulesCompleted?: string | null;
-};
-
-// Tipos para os componentes auxiliares
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-type StatCardProps = { icon: IconName; value: string | number; label: string };
-type ModuleItemProps = {
-  icon: IconName;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-};
-type ActionButtonProps = { icon: IconName; label: string; onPress: () => void };
 
-const StatCard = ({ icon, value, label }: StatCardProps) => (
+const StatCard = ({ icon, value, label }: { icon: IconName; value: string | number; label: string }) => (
   <View style={styles.statCard}>
     <MaterialCommunityIcons name={icon} size={24} color="#FFC700" />
     <Text style={styles.statValue}>{value}</Text>
@@ -43,14 +26,9 @@ const StatCard = ({ icon, value, label }: StatCardProps) => (
   </View>
 );
 
-const ModuleItem = ({ icon, title, subtitle, onPress }: ModuleItemProps) => (
+const ModuleItem = ({ icon, title, subtitle, onPress }: { icon: IconName; title: string; subtitle: string; onPress: () => void }) => (
   <TouchableOpacity style={styles.moduleItem} onPress={onPress}>
-    <MaterialCommunityIcons
-      name={icon}
-      size={36}
-      color="#FFC700"
-      style={styles.moduleIcon}
-    />
+    <MaterialCommunityIcons name={icon} size={36} color="#FFC700" style={styles.moduleIcon} />
     <View style={styles.moduleTextContainer}>
       <Text style={styles.moduleTitle}>{title}</Text>
       <Text style={styles.moduleSubtitle}>{subtitle}</Text>
@@ -59,118 +37,43 @@ const ModuleItem = ({ icon, title, subtitle, onPress }: ModuleItemProps) => (
   </TouchableOpacity>
 );
 
-const ActionButton = ({ icon, label, onPress }: ActionButtonProps) => (
-  <TouchableOpacity style={styles.actionButton} onPress={onPress}>
-    <MaterialCommunityIcons name={icon} size={40} color="#FFC700" />
-    <Text style={styles.actionLabel}>{label}</Text>
-  </TouchableOpacity>
-);
+export default function HomeScreen({ navigation }: RootStackScreenProps<"Home">) {
+  const { user, refreshUserFromDB } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+  const [dbUser, setDbUser] = useState<any>(null);
 
-export default function HomeScreen({
-  navigation,
-}: RootStackScreenProps<"Home">) {
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [isLoadingUserData, setIsLoadingUserData] = useState(true);
-  const { user, updateUserData } = useAuthStore();
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      setLoading(true);
+      const u = await getUserById(user.userId);
+      setDbUser(u);
+      setLoading(false);
+    })();
+  }, [user]);
 
-  console.log("🏠 HomeScreen: user do store:", user);
+  useEffect(() => {
+    // refresh when coming back
+    const unsubscribe = navigation.addListener("focus", () => {
+      refreshUserFromDB();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
-  // Função para buscar os dados do usuário no banco de dados
-  const fetchUserData = async () => {
+  const openModule = async (moduleNumber: number) => {
     if (!user) {
-      console.log("❌ HomeScreen: Sem usuário no store");
-      setIsLoadingUserData(false);
+      Alert.alert("Erro", "Usuário não autenticado.");
       return;
     }
-
-    try {
-      console.log("🔍 HomeScreen: Buscando dados do usuário:", user.userId);
-      const client = generateClient();
-
-      const result = await client.graphql({
-        query: getUser,
-        variables: { id: user.userId },
-      });
-
-      if (result.data.getUser) {
-        console.log("✅ HomeScreen: Dados encontrados");
-        const dbUserData = result.data.getUser;
-
-        // Atualiza os dados locais
-        setUserData({
-          name: dbUserData.name || user.name || user.username,
-          coins: dbUserData.coins,
-          points: dbUserData.points,
-          modulesCompleted: dbUserData.modulesCompleted,
-        });
-
-        // Atualiza o store global também
-        updateUserData({
-          name: dbUserData.name || user.name,
-          coins: dbUserData.coins || 0,
-          points: dbUserData.points || 0,
-          modulesCompleted: dbUserData.modulesCompleted || "0/3",
-        });
-      } else {
-        console.log(
-          "⚠️ HomeScreen: Usuário não encontrado no DB, usando dados do store"
-        );
-        // Se não encontrar no DB, usa os dados que já temos no store
-        setUserData({
-          name: user.name || user.username,
-          coins: user.coins || 0,
-          points: user.points || 0,
-          modulesCompleted: user.modulesCompleted || "0/3",
-        });
-      }
-    } catch (e) {
-      console.log("❌ HomeScreen: Erro ao buscar dados:", e);
-      // Em caso de erro, usa os dados do store
-      if (user) {
-        setUserData({
-          name: user.name || user.username,
-          coins: user.coins || 0,
-          points: user.points || 0,
-          modulesCompleted: user.modulesCompleted || "0/3",
-        });
-      }
-    } finally {
-      setIsLoadingUserData(false);
+    const allowed = await canStartModule(user.userId, moduleNumber);
+    if (!allowed) {
+      Alert.alert("Bloqueado", "Conclua o módulo anterior antes de continuar.");
+      return;
     }
+    navigation.navigate("ModuleContent", { moduleId: moduleNumber });
   };
 
-  // useFocusEffect garante que os dados sejam recarregados sempre que o usuário voltar para esta tela
-  useFocusEffect(
-    useCallback(() => {
-      console.log("🔄 HomeScreen: Recarregando dados...");
-      fetchUserData();
-    }, [user])
-  );
-
-  // Função de logout simplificada
-  const handleLogout = async () => {
-    try {
-      console.log("🚪 HomeScreen: Fazendo logout...");
-      await signOut();
-      // O Hub no App.tsx cuidará do redirecionamento
-    } catch (error) {
-      console.log("❌ HomeScreen: Erro no logout:", error);
-    }
-  };
-
-  // Se não tiver usuário no store, algo está errado
-  if (!user) {
-    console.log("❌ HomeScreen: Sem usuário - redirecionando...");
-    return (
-      <View style={[styles.container, { justifyContent: "center" }]}>
-        <Text style={styles.errorText}>Erro: Usuário não encontrado</Text>
-      </View>
-    );
-  }
-
-  // Mostra loading enquanto busca dados adicionais
-  if (isLoadingUserData || !userData) {
-    console.log("⏳ HomeScreen: Carregando dados do usuário...");
+  if (!user || loading || !dbUser) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
         <ActivityIndicator size="large" color="#191970" />
@@ -179,7 +82,7 @@ export default function HomeScreen({
     );
   }
 
-  console.log("✅ HomeScreen: Renderizando com dados:", userData);
+  const modulesCompleted = dbUser.modulesCompleted || "0/3";
 
   return (
     <View style={styles.container}>
@@ -187,84 +90,43 @@ export default function HomeScreen({
       <ScrollView>
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>Olá, {userData.name}!</Text>
-            <Text style={styles.headerSubtitle}>
-              Continue aprendendo com ASAC
-            </Text>
+            <Text style={styles.headerTitle}>Olá, {dbUser.name || user.name}!</Text>
+            <Text style={styles.headerSubtitle}>Continue aprendendo com ASAC</Text>
           </View>
-          <TouchableOpacity onPress={handleLogout}>
-            <MaterialCommunityIcons name="logout" size={30} color="#191970" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.statsContainer}>
-          <StatCard
-            icon="hand-coin"
-            value={userData.coins ?? 0}
-            label="Moedas"
-          />
-          <StatCard
-            icon="trophy-variant"
-            value={(userData.points ?? 0).toLocaleString("pt-BR")}
-            label="Pontos"
-          />
-          <StatCard
-            icon="book-open-variant"
-            value={userData.modulesCompleted ?? "0/3"}
-            label="Módulos"
-          />
-        </View>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Módulos de Aprendizado</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Alphabet")}>
-            <MaterialCommunityIcons name="book-open-variant" size={30} color="#191970" />
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
             <MaterialCommunityIcons name="cog" size={30} color="#191970" />
           </TouchableOpacity>
-          
         </View>
+
+        <View style={styles.statsContainer}>
+          <StatCard icon="hand-coin" value={dbUser.coins ?? 0} label="Moedas" />
+          <StatCard icon="trophy-variant" value={(dbUser.points ?? 0).toLocaleString("pt-BR")} label="Pontos" />
+          <StatCard icon="book-open-variant" value={modulesCompleted} label="Módulos" />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Módulos de Aprendizado</Text>
+        </View>
+
         <View style={styles.modulesList}>
-          <ModuleItem
-            icon="baby-face-outline"
-            title="Módulo 1"
-            subtitle="Aprendendo o Alfabeto"
-            onPress={() =>
-              navigation.navigate("ModuleContent", { moduleId: 1 })
-            }
-          />
-          <ModuleItem
-            icon="hand-wave"
-            title="Módulo 2"
-            subtitle="Palavras em Braille"
-            onPress={() =>
-              navigation.navigate("ModuleContent", { moduleId: 2 })
-            }
-          />
-          <ModuleItem
-            icon="account-star"
-            title="Módulo 3"
-            subtitle="Formule Frases"
-            onPress={() =>
-              navigation.navigate("ModuleContent", { moduleId: 3 })
-            }
-          />
+          <ModuleItem icon="baby-face-outline" title="Módulo 1" subtitle="Aprendendo o Alfabeto" onPress={() => openModule(1)} />
+          <ModuleItem icon="hand-wave" title="Módulo 2" subtitle="Palavras em Braille" onPress={() => openModule(2)} />
+          <ModuleItem icon="account-star" title="Módulo 3" subtitle="Formule Frases" onPress={() => openModule(3)} />
         </View>
+
         <View style={styles.actionsContainer}>
-          <ActionButton
-            icon="trophy"
-            label="Ranking"
-            onPress={() => navigation.navigate("Ranking")}
-          />
-          <ActionButton
-            icon="medal"
-            label="Conquista"
-            onPress={() => navigation.navigate("Achievements")}
-          />
-          <ActionButton
-            icon="rocket-launch"
-            label="Progresso"
-            onPress={() => navigation.navigate("Progress")}
-          />
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Ranking")}>
+            <MaterialCommunityIcons name="trophy" size={28} color="#FFC700" />
+            <Text style={styles.actionLabel}>Ranking</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Achievements")}>
+            <MaterialCommunityIcons name="medal" size={28} color="#FFC700" />
+            <Text style={styles.actionLabel}>Conquistas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Progress")}>
+            <MaterialCommunityIcons name="rocket-launch" size={28} color="#FFC700" />
+            <Text style={styles.actionLabel}>Progresso</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -304,15 +166,12 @@ const styles = StyleSheet.create({
   },
   statLabel: { color: "#FFFFFF", fontSize: 12 },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 20,
     marginTop: 30,
     marginBottom: 10,
   },
   sectionTitle: { fontSize: 20, fontWeight: "bold", color: "#191970" },
-  modulesList: { paddingHorizontal: 20 },
+  modulesList: { paddingHorizontal: 20, marginTop: 10 },
   moduleItem: {
     backgroundColor: "#191970",
     borderRadius: 12,
@@ -331,35 +190,8 @@ const styles = StyleSheet.create({
     borderRadius: 7.5,
     backgroundColor: "#FFC700",
   },
-  actionsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 10,
-    marginTop: 30,
-    marginBottom: 40,
-  },
-  actionButton: {
-    backgroundColor: "#191970",
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: "center",
-    width: "30%",
-  },
-  actionLabel: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "bold",
-    marginTop: 5,
-  },
-  loadingText: {
-    color: "#191970",
-    fontSize: 16,
-    marginTop: 10,
-    textAlign: "center",
-  },
-  errorText: {
-    color: "#191970",
-    fontSize: 16,
-    textAlign: "center",
-  },
+  actionsContainer: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 10, marginTop: 30, marginBottom: 40 },
+  actionButton: { backgroundColor: "#191970", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 10, alignItems: "center", width: "28%" },
+  actionLabel: { color: "#FFFFFF", fontSize: 12, fontWeight: "bold", marginTop: 6 },
+  loadingText: { color: "#191970", fontSize: 16, marginTop: 10, textAlign: "center" },
 });
