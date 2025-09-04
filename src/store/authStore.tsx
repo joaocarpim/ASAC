@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { fetchAuthSession, signOut } from "aws-amplify/auth"; // ✅ v6 correto
+import { fetchAuthSession, signOut } from "aws-amplify/auth";
 import { ensureUserExistsInDB, getUserById } from "../services/progressService";
 
 export type User = {
@@ -32,34 +32,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkUser: async () => {
     try {
-      const session = await fetchAuthSession();
-
-      if (!session || !session.tokens?.accessToken) {
-        console.log("⚠️ Nenhum usuário logado");
+      const session = await fetchAuthSession({ forceRefresh: true });
+      const tokens = session?.tokens;
+      if (!tokens) {
         set({ user: null, isLoading: false });
         return;
       }
 
-      // ✅ tokens no Amplify v6 vêm em session.tokens
-      const { accessToken, idToken } = session.tokens;
-      const payload = accessToken.payload;
+      const sub = tokens.accessToken?.payload.sub as string;
+      const username = tokens.accessToken?.payload["username"] as string;
+      const email = tokens.idToken?.payload["email"] as string;
 
-      const sub = payload.sub as string;
-      const username = payload["cognito:username"] as string;
-      const email = idToken?.payload?.email as string | undefined;
-      const cognitoGroups = payload["cognito:groups"];
+      const cognitoGroups = tokens.accessToken?.payload["cognito:groups"];
       const isAdmin = Array.isArray(cognitoGroups) && cognitoGroups.includes("Admins");
 
       const baseUser: User = {
         userId: sub,
         username,
-        email: email || "",
-        name: typeof username === "string" ? username : undefined,
+        email,
+        name: username,
         isAdmin,
       };
 
       if (!isAdmin) {
-        // ✅ garante que o usuário exista no banco
         await ensureUserExistsInDB(baseUser.userId, baseUser.username, baseUser.email);
         const dbUser = await getUserById(baseUser.userId);
         set({ user: { ...baseUser, ...dbUser }, isLoading: false });
@@ -67,7 +62,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user: baseUser, isLoading: false });
       }
     } catch (e) {
-      console.error("❌ Erro checkUser:", e);
+      console.error("Erro checkUser:", e);
       set({ user: null, isLoading: false });
     }
   },
@@ -79,7 +74,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const dbUser = await getUserById(u.userId);
       set({ user: { ...u, ...dbUser } });
     } catch (e) {
-      console.warn("⚠️ refreshUserFromDB falhou:", e);
+      console.warn("refreshUserFromDB fail:", e);
     }
   },
 
@@ -88,7 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     try {
-      await signOut(); // ✅ v6 continua igual
+      await signOut();
       set({ user: null, isLoading: false });
     } catch (error) {
       console.log("Erro signOut:", error);

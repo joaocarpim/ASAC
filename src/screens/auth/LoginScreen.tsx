@@ -13,7 +13,8 @@ import {
   Modal,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { signIn } from "aws-amplify/auth"; // ✅ Amplify v6
+import { signIn } from "aws-amplify/auth"; // ✅ v6
+import { useAuthStore } from "../../store/authStore"; // ✅ Zustand
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const logo = require("../../assets/images/logo.png");
@@ -58,6 +59,8 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const { checkUser } = useAuthStore.getState();
+
   const [modalState, setModalState] = useState({
     visible: false,
     title: "",
@@ -82,16 +85,10 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
     setLoading(true);
 
     try {
-      // ✅ Amplify v6 exige username (email no nosso caso)
-      const user = await signIn({
-        username: email.trim(),
-        password,
-      });
-
-      console.log("✅ Login bem-sucedido:", user);
+      await signIn({ username: email.trim(), password });
+      await checkUser(); // ✅ Atualiza Zustand e navegação
     } catch (error: any) {
       console.log("### ERRO AO FAZER LOGIN ###:", error);
-
       if (error?.name === "UserNotConfirmedException") {
         navigation.navigate("ConfirmSignUp", { email: email.trim() });
       } else if (error?.name === "UserNotFoundException") {
