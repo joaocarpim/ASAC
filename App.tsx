@@ -1,3 +1,4 @@
+// App.tsx
 import React, { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
@@ -5,15 +6,14 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { RootStackParamList } from "./src/navigation/types";
 import { useAuthStore } from "./src/store/authStore";
 
-// Amplify v6 (configuração modular)
+// Amplify v6
 import { Amplify } from "aws-amplify";
-import { Hub, HubCapsule } from "aws-amplify/utils";
-
+import { Hub } from "aws-amplify/utils";
 // @ts-ignore
 import awsconfig from "./src/aws-exports";
 Amplify.configure(awsconfig);
 
-// Importe TODAS as suas telas aqui
+// Telas
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStep1Screen";
 import TutorialStep2Screen from "./src/screens/onboarding/TutorialStep2Screen";
@@ -38,36 +38,46 @@ import { SettingsProvider } from "./src/context/SettingsContext";
 import AlphabetScreen from "./src/screens/module/AlphabetScreen";
 import ModuleResultsScreen from "./src/screens/module/ModuleResultScreen";
 
-type AuthEventPayload = { event: string; data?: any; message?: string };
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   const { user, isLoading, checkUser, signOut } = useAuthStore();
-  const logout = signOut; // Alias
+  const logout = signOut;
 
   useEffect(() => {
-    console.log("🚀 App inicializando...");
+    console.log("🚀 App: Inicializando...");
     checkUser();
 
-    const hubListener = (data: HubCapsule<"auth", AuthEventPayload>) => {
-      console.log("🔔 Evento Hub:", data.payload.event);
-
-      if (data.payload.event === "signedIn") {
-        console.log("✅ Usuário logou → checkUser()");
+    const hubListener = (capsule: any) => {
+      const event = capsule?.payload?.event;
+      console.log("🔔 App: Evento do Hub:", event);
+      if (event === "signedIn") {
+        console.log("✅ App: usuário logou - verificando dados...");
         checkUser();
-      } else if (data.payload.event === "signedOut") {
-        console.log("🚪 Usuário saiu");
+      } else if (event === "signedOut") {
+        console.log("🚪 App: usuário deslogou");
         logout();
       }
     };
 
     const unsubscribe = Hub.listen("auth", hubListener);
     return () => {
+      console.log("🔌 App: removendo listener do Hub");
       unsubscribe();
     };
   }, [checkUser, logout]);
 
+  useEffect(() => {
+    console.log("📊 App Estado:", {
+      isLoading,
+      hasUser: !!user,
+      isAdmin: user?.isAdmin,
+      username: user?.username,
+    });
+  }, [user, isLoading]);
+
   if (isLoading) {
+    console.log("⏳ App: Mostrando loading...");
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#191970" />

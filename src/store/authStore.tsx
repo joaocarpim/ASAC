@@ -1,5 +1,6 @@
+// src/store/authStore.tsx
 import { create } from "zustand";
-import { fetchAuthSession, signOut } from "aws-amplify/auth";
+import { getCurrentUser, fetchAuthSession, signOut } from "aws-amplify/auth";
 import { ensureUserExistsInDB, getUserById } from "../services/progressService";
 
 export type User = {
@@ -32,37 +33,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkUser: async () => {
     try {
-      const session = await fetchAuthSession({ forceRefresh: true });
-      const tokens = session?.tokens;
-      if (!tokens) {
-        set({ user: null, isLoading: false });
-        return;
-      }
+      const cognitoUser = await getCurrentUser();
+      const session = await fetchAuthSession();
 
-      const sub = tokens.accessToken?.payload.sub as string;
-      const username = tokens.accessToken?.payload["username"] as string;
-      const email = tokens.idToken?.payload["email"] as string;
-
-      const cognitoGroups = tokens.accessToken?.payload["cognito:groups"];
-      const isAdmin = Array.isArray(cognitoGroups) && cognitoGroups.includes("Admins");
+      const sub = cognitoUser.userId;
+      const username = cognitoUser.username;
+      const email = cognitoUser.signInDetails?.loginId ?? "";
+      const groups =
+        session.tokens?.accessToken?.payload?.["cognito:groups"] ?? [];
+      const isAdmin = Array.isArray(groups) && groups.includes("Admins");
 
       const baseUser: User = {
         userId: sub,
         username,
         email,
-        name: username,
         isAdmin,
       };
 
       if (!isAdmin) {
-        await ensureUserExistsInDB(baseUser.userId, baseUser.username, baseUser.email);
-        const dbUser = await getUserById(baseUser.userId);
+        await ensureUserExistsInDB(sub, username, email);
+        const dbUser = await getUserById(sub);
         set({ user: { ...baseUser, ...dbUser }, isLoading: false });
       } else {
         set({ user: baseUser, isLoading: false });
       }
     } catch (e) {
-      console.error("Erro checkUser:", e);
       set({ user: null, isLoading: false });
     }
   },
@@ -73,8 +68,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!u) return;
       const dbUser = await getUserById(u.userId);
       set({ user: { ...u, ...dbUser } });
-    } catch (e) {
-      console.warn("refreshUserFromDB fail:", e);
+    } catch {
+      /* ignore */
     }
   },
 
@@ -85,8 +80,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await signOut();
       set({ user: null, isLoading: false });
-    } catch (error) {
-      console.log("Erro signOut:", error);
+    } catch {
+      /* ignore */
     }
   },
 }));

@@ -1,3 +1,4 @@
+// src/screens/auth/LoginScreen.tsx 
 import React, { useState } from "react";
 import {
   View,
@@ -13,8 +14,7 @@ import {
   Modal,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { signIn } from "aws-amplify/auth"; // ✅ v6
-import { useAuthStore } from "../../store/authStore"; // ✅ Zustand
+import { signIn } from "aws-amplify/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const logo = require("../../assets/images/logo.png");
@@ -27,22 +27,12 @@ type CustomModalProps = {
   type: "success" | "error";
 };
 
-const CustomModal = ({
-  visible,
-  title,
-  message,
-  onClose,
-  type,
-}: CustomModalProps) => (
-  <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+const CustomModal = ({ visible, title, message, onClose, type }: CustomModalProps) => (
+  <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
     <View style={styles.modalBackdrop}>
       <View style={styles.modalContainer}>
         {type === "error" && (
-          <MaterialCommunityIcons
-            name="alert-circle-outline"
-            size={48}
-            color="#D32F2F"
-          />
+          <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#D32F2F" />
         )}
         <Text style={styles.modalTitle}>{title}</Text>
         <Text style={styles.modalMessage}>{message}</Text>
@@ -59,8 +49,6 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { checkUser } = useAuthStore.getState();
-
   const [modalState, setModalState] = useState({
     visible: false,
     title: "",
@@ -72,9 +60,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
     setModalState({ visible: true, type, title, message });
   };
 
-  const hideModal = () => {
-    setModalState({ ...modalState, visible: false });
-  };
+  const hideModal = () => setModalState({ ...modalState, visible: false });
 
   const handleLogin = async () => {
     if (loading) return;
@@ -86,7 +72,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
 
     try {
       await signIn({ username: email.trim(), password });
-      await checkUser(); // ✅ Atualiza Zustand e navegação
+      // Hub em App.tsx captura "signedIn" e faz checkUser/navegação
     } catch (error: any) {
       console.log("### ERRO AO FAZER LOGIN ###:", error);
       if (error?.name === "UserNotConfirmedException") {
@@ -94,21 +80,13 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
       } else if (error?.name === "UserNotFoundException") {
         showModal("error", "Erro", "Este usuário não existe.");
       } else if (error?.name === "NotAuthorizedException") {
-        showModal("error", "Erro", "Digite novamente, email ou senha incorretos.");
+        showModal("error", "Erro", "Email ou senha incorretos.");
       } else {
-        showModal("error", "Erro", error.message || "Ocorreu um problema. Tente novamente.");
+        showModal("error", "Erro", error?.message || "Ocorreu um problema. Tente novamente.");
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoToConfirm = () => {
-    if (!email.trim()) {
-      showModal("error", "Atenção", "Digite seu e-mail no campo acima antes de confirmar.");
-      return;
-    }
-    navigation.navigate("ConfirmSignUp", { email: email.trim() });
   };
 
   return (
@@ -153,7 +131,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
             <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
               <Text style={styles.linkText}>Recuperar Senha</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleGoToConfirm}>
+            <TouchableOpacity onPress={() => navigation.navigate("ConfirmSignUp", { email: email.trim() })}>
               <Text style={styles.linkText}>Confirmar Conta</Text>
             </TouchableOpacity>
           </View>
@@ -214,46 +192,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 20,
   },
-  buttonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
+  buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
   },
   modalContainer: {
-    width: "100%",
-    maxWidth: 350,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 15,
-    padding: 25,
+    backgroundColor: "#FFF",
+    padding: 20,
+    borderRadius: 10,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    width: "80%",
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#191970",
-    marginBottom: 15,
-    marginTop: 10,
-  },
-  modalMessage: {
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 25,
-    color: "#333",
-    lineHeight: 24,
-  },
+  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10, color: "#191970" },
+  modalMessage: { fontSize: 16, textAlign: "center", marginBottom: 20, color: "#333" },
   modalButton: {
     backgroundColor: "#191970",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 40,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    width: "100%",
   },
-  modalButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
+  modalButtonText: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
 });
