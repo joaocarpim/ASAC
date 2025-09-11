@@ -1,3 +1,4 @@
+// src/screens/auth/ConfirmSignUpScreen.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -13,7 +14,8 @@ import {
   Alert,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { confirmSignUp, resendSignUpCode } from "@aws-amplify/auth";
+import { confirmSignUp, resendSignUpCode, signIn } from "aws-amplify/auth";
+import { Hub } from "@aws-amplify/core";
 
 const logo = require("../../assets/images/logo.png");
 
@@ -21,8 +23,7 @@ export default function ConfirmSignUpScreen({
   route,
   navigation,
 }: RootStackScreenProps<"ConfirmSignUp">) {
-  // Recebe o e-mail da tela de Login
-  const [email, _setEmail] = useState(route.params.email);
+  const [email] = useState(route.params.email);
   const [confirmationCode, setConfirmationCode] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,18 +36,29 @@ export default function ConfirmSignUpScreen({
     setLoading(true);
 
     try {
+      // 1. Confirmar conta no Cognito
       await confirmSignUp({
         username: email.trim(),
         confirmationCode,
       });
-      Alert.alert(
-        "Sucesso!",
-        "Sua conta foi confirmada com sucesso. Por favor, faça o login.",
-        [{ text: "OK", onPress: () => navigation.navigate("Login") }]
-      );
-    } catch (error) {
+
+      // 2. Fazer login automático se a senha foi passada como parâmetro
+      const maybePassword = (route.params as any)?.password;
+      if (maybePassword) {
+        await signIn({ username: email.trim(), password: maybePassword });
+        // avisa o app que houve login (App.tsx escuta)
+        Hub.dispatch("auth", { event: "signedIn" });
+        Alert.alert("Bem-vindo!", "Conta confirmada e login realizado com sucesso!");
+        // navega
+        navigation.replace("Home");
+      } else {
+        Alert.alert("Sucesso!", "Sua conta foi confirmada. Faça login para continuar.", [
+          { text: "OK", onPress: () => navigation.navigate("Login") },
+        ]);
+      }
+    } catch (error: any) {
       console.log("Erro ao confirmar conta:", error);
-      Alert.alert("Erro", "O código de confirmação está incorreto ou expirou.");
+      Alert.alert("Erro", error?.message || "O código de confirmação está incorreto ou expirou.");
     } finally {
       setLoading(false);
     }
@@ -55,16 +67,10 @@ export default function ConfirmSignUpScreen({
   const handleResendCode = async () => {
     try {
       await resendSignUpCode({ username: email.trim() });
-      Alert.alert(
-        "Código Reenviado",
-        "Um novo código foi enviado para o seu e-mail."
-      );
+      Alert.alert("Código Reenviado", "Um novo código foi enviado para o seu e-mail.");
     } catch (err) {
       console.log("Erro ao reenviar código:", err);
-      Alert.alert(
-        "Erro",
-        "Não foi possível reenviar o código. Tente novamente mais tarde."
-      );
+      Alert.alert("Erro", "Não foi possível reenviar o código. Tente novamente mais tarde.");
     }
   };
 
@@ -81,14 +87,8 @@ export default function ConfirmSignUpScreen({
         </View>
         <View style={styles.formContainer}>
           <Text style={styles.promptText}>Confirme sua conta</Text>
-          <Text style={styles.infoText}>
-            Enviamos um código de confirmação para o seu e-mail:
-          </Text>
-          <TextInput
-            style={[styles.input, styles.inputDisabled]}
-            value={email}
-            editable={false} // O e-mail não pode ser editado aqui
-          />
+          <Text style={styles.infoText}>Enviamos um código de confirmação para o seu e-mail:</Text>
+          <TextInput style={[styles.input, styles.inputDisabled]} value={email} editable={false} />
           <TextInput
             style={styles.input}
             placeholder="Código de Confirmação"
@@ -101,14 +101,8 @@ export default function ConfirmSignUpScreen({
             <Text style={styles.linkText}>Reenviar Código</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleConfirmSignUp}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? "Confirmando..." : "Confirmar Conta"}
-          </Text>
+        <TouchableOpacity style={styles.button} onPress={handleConfirmSignUp} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? "Confirmando..." : "Confirmar Conta"}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -12,9 +12,11 @@ import {
   Platform,
   ScrollView,
   Modal,
+  Alert,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { signIn } from "aws-amplify/auth";
+import { signIn, confirmSignIn } from "aws-amplify/auth";
+import { Hub } from "@aws-amplify/core";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const logo = require("../../assets/images/logo.png");
@@ -34,6 +36,9 @@ const CustomModal = ({ visible, title, message, onClose, type }: CustomModalProp
         {type === "error" && (
           <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#D32F2F" />
         )}
+        {type === "success" && (
+          <MaterialCommunityIcons name="check-circle-outline" size={48} color="#2E7D32" />
+        )}
         <Text style={styles.modalTitle}>{title}</Text>
         <Text style={styles.modalMessage}>{message}</Text>
         <TouchableOpacity style={styles.modalButton} onPress={onClose}>
@@ -47,7 +52,9 @@ const CustomModal = ({ visible, title, message, onClose, type }: CustomModalProp
 export default function LoginScreen({ navigation }: RootStackScreenProps<"Login">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [requireNewPassword, setRequireNewPassword] = useState(false);
 
   const [modalState, setModalState] = useState({
     visible: false,
@@ -56,8 +63,20 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
     type: "error" as "success" | "error",
   });
 
-  const showModal = (type: "success" | "error", title: string, message: string) => {
+  const showModal = (
+    type: "success" | "error",
+    title: string,
+    message: string,
+    onClose?: () => void
+  ) => {
     setModalState({ visible: true, type, title, message });
+    if (onClose) {
+      // fecha modal após tempo curto e executa ação (navegar)
+      setTimeout(() => {
+        setModalState((s) => ({ ...s, visible: false }));
+        onClose();
+      }, 600);
+    }
   };
 
   const hideModal = () => setModalState({ ...modalState, visible: false });
@@ -71,12 +90,33 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
     setLoading(true);
 
     try {
-      await signIn({ username: email.trim(), password });
-      // Hub em App.tsx captura "signedIn" e faz checkUser/navegação
+      console.log("🔐 Tentando login com:", email.trim());
+      const result = await signIn({ username: email.trim(), password });
+      console.log("✅ Login Cognito retornou:", JSON.stringify(result, null, 2));
+
+      if (result.nextStep?.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
+        setRequireNewPassword(true);
+        showModal("error", "Nova senha necessária", "Digite uma nova senha para continuar.");
+        return;
+      }
+
+      // dispara evento global (App.tsx escuta)
+      Hub.dispatch("auth", { event: "signedIn" });
+
+      // mostra modal e navega para Home
+      showModal("success", "Bem-vindo", "Login realizado com sucesso!", () => {
+        navigation.replace("Home");
+      });
     } catch (error: any) {
-      console.log("### ERRO AO FAZER LOGIN ###:", error);
+      console.log("❌ ERRO AO FAZER LOGIN DETALHADO:", JSON.stringify(error, null, 2));
       if (error?.name === "UserNotConfirmedException") {
         navigation.navigate("ConfirmSignUp", { email: email.trim() });
+      } else if (error?.name === "UserAlreadyAuthenticatedException") {
+        // já autenticado — forçar refresh do estado global via Hub
+        Hub.dispatch("auth", { event: "signedIn" });
+        showModal("success", "Bem-vindo", "Você já está logado.", () => {
+          navigation.replace("Home");
+        });
       } else if (error?.name === "UserNotFoundException") {
         showModal("error", "Erro", "Este usuário não existe.");
       } else if (error?.name === "NotAuthorizedException") {
@@ -86,6 +126,32 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmNewPassword = async () => {
+    if (!newPassword) {
+      Alert.alert("Erro", "Digite uma nova senha.");
+      return;
+    }
+
+    try {
+      console.log("🔄 Confirmando nova senha...");
+      // confirmSignIn espera objeto com challengeResponse
+      const result = await confirmSignIn({ challengeResponse: newPassword });
+      console.log("✅ Nova senha definida:", JSON.stringify(result, null, 2));
+
+      setRequireNewPassword(false);
+      setNewPassword("");
+
+      Hub.dispatch("auth", { event: "signedIn" });
+
+      showModal("success", "Sucesso", "Senha alterada! Você está logado.", () => {
+        navigation.replace("Home");
+      });
+    } catch (err: any) {
+      console.error("❌ Erro ao confirmar nova senha:", err);
+      Alert.alert("Erro", err.message || "Não foi possível redefinir a senha.");
     }
   };
 
@@ -110,6 +176,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
         </View>
         <View style={styles.formContainer}>
           <Text style={styles.promptText}>Acesse o App informando seus dados</Text>
+
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -119,26 +186,52 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
             value={email}
             onChangeText={setEmail}
           />
-          <TextInput
-            style={styles.input}
-            placeholder="Senha"
-            placeholderTextColor="#FFFFFF"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+
+          {!requireNewPassword ? (
+            <TextInput
+              style={styles.input}
+              placeholder="Senha"
+              placeholderTextColor="#FFFFFF"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+          ) : (
+            <TextInput
+              style={styles.input}
+              placeholder="Nova Senha"
+              placeholderTextColor="#FFFFFF"
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+          )}
+
           <View style={styles.linksContainer}>
-            <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
-              <Text style={styles.linkText}>Recuperar Senha</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("ConfirmSignUp", { email: email.trim() })}>
-              <Text style={styles.linkText}>Confirmar Conta</Text>
-            </TouchableOpacity>
+            {!requireNewPassword && (
+              <>
+                <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
+                  <Text style={styles.linkText}>Recuperar Senha</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("ConfirmSignUp", { email: email.trim() })}
+                >
+                  <Text style={styles.linkText}>Confirmar Conta</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          <Text style={styles.buttonText}>{loading ? "Entrando..." : "Logar"}</Text>
-        </TouchableOpacity>
+
+        {!requireNewPassword ? (
+          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            <Text style={styles.buttonText}>{loading ? "Entrando..." : "Logar"}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={handleConfirmNewPassword} disabled={loading}>
+            <Text style={styles.buttonText}>{loading ? "Salvando..." : "Salvar Nova Senha"}</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -154,12 +247,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: { alignItems: "center", marginBottom: 20 },
   logo: { width: 150, height: 150, resizeMode: "contain" },
-  logoText: {
-    fontSize: 52,
-    fontWeight: "bold",
-    color: "#191970",
-    marginTop: 10,
-  },
+  logoText: { fontSize: 52, fontWeight: "bold", color: "#191970", marginTop: 10 },
   formContainer: { width: "100%", alignItems: "center" },
   promptText: {
     fontSize: 16,

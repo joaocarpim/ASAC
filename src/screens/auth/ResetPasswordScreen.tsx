@@ -1,3 +1,4 @@
+// src/screens/auth/ResetPasswordScreen.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -13,7 +14,8 @@ import {
   Alert,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
-import { confirmResetPassword } from "@aws-amplify/auth";
+import { confirmResetPassword, signIn } from "aws-amplify/auth";
+import { Hub } from "aws-amplify/utils";
 
 const logo = require("../../assets/images/logo.png");
 
@@ -37,53 +39,37 @@ export default function ResetPasswordScreen({
     try {
       await confirmResetPassword({
         username: email,
-        confirmationCode: confirmationCode.trim(), // Adicionado .trim()
+        confirmationCode: confirmationCode.trim(),
         newPassword,
       });
 
-      // Este bloco só será executado se o código acima funcionar
-      Alert.alert(
-        "Sucesso!",
-        "Sua senha foi alterada. Por favor, faça o login.",
-        [
-          {
-            text: "OK",
-            onPress: () =>
-              navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
-          },
-        ]
-      );
-    } catch (error) {
-      console.log("Erro ao confirmar nova senha:", error);
+      // login automático após resetar senha
+      const result = await signIn({ username: email.trim(), password: newPassword });
+      console.log("✅ Usuário autenticado após reset:", JSON.stringify(result, null, 2));
 
-      // 👇 TRATAMENTO DE ERROS MELHORADO 👇
-      if (error && typeof error === "object" && "name" in error) {
-        if (
-          error.name === "CodeMismatchException" ||
-          error.name === "ExpiredCodeException"
-        ) {
-          Alert.alert(
-            "Código Inválido",
-            "O código de confirmação está incorreto ou expirou. Por favor, solicite um novo."
-          );
-        } else if (error.name === "InvalidPasswordException") {
-          Alert.alert(
-            "Senha Fraca",
-            "A nova senha não atende aos requisitos de segurança (Ex: mínimo 8 caracteres, com letras, números e símbolos)."
-          );
-        } else if (error.name === "LimitExceededException") {
-          Alert.alert(
-            "Muitas Tentativas",
-            "Você excedeu o número de tentativas. Tente novamente mais tarde."
-          );
-        } else {
-          Alert.alert(
-            "Erro",
-            "Não foi possível alterar sua senha. Verifique os dados e tente novamente."
-          );
-        }
+      // dispara evento global e redireciona
+      Hub.dispatch("auth", { event: "signedIn" });
+
+      Alert.alert("Sucesso!", "Sua senha foi alterada com sucesso.", [
+        {
+          text: "OK",
+          onPress: () => navigation.replace("Home"),
+        },
+      ]);
+    } catch (error: any) {
+      console.log("❌ Erro ao confirmar nova senha:", error);
+
+      if (error?.name === "CodeMismatchException" || error?.name === "ExpiredCodeException") {
+        Alert.alert("Código Inválido", "O código está incorreto ou expirou. Solicite um novo.");
+      } else if (error?.name === "InvalidPasswordException") {
+        Alert.alert(
+          "Senha Fraca",
+          "A nova senha não atende aos requisitos (mínimo 8 caracteres, com letras, números e símbolos)."
+        );
+      } else if (error?.name === "LimitExceededException") {
+        Alert.alert("Muitas Tentativas", "Você excedeu o número de tentativas. Tente novamente mais tarde.");
       } else {
-        Alert.alert("Erro", "Ocorreu um erro desconhecido.");
+        Alert.alert("Erro", error?.message || "Não foi possível alterar a senha.");
       }
     } finally {
       setLoading(false);
@@ -136,7 +122,6 @@ export default function ResetPasswordScreen({
   );
 }
 
-// Estilos (sem alterações)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
   scrollContainer: {

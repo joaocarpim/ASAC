@@ -1,4 +1,11 @@
 // App.tsx
+import { Amplify } from "aws-amplify";
+import { Hub } from "aws-amplify/utils"; // ✅ Amplify v6
+import awsconfig from "./src/aws-exports";
+
+// Configure Amplify o mais cedo possível
+Amplify.configure(awsconfig);
+
 import React, { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
@@ -6,14 +13,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { RootStackParamList } from "./src/navigation/types";
 import { useAuthStore } from "./src/store/authStore";
 
-// Amplify v6
-import { Amplify } from "aws-amplify";
-import { Hub } from "aws-amplify/utils";
-// @ts-ignore
-import awsconfig from "./src/aws-exports";
-Amplify.configure(awsconfig);
-
-// Telas
+// Screens
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStep1Screen";
 import TutorialStep2Screen from "./src/screens/onboarding/TutorialStep2Screen";
@@ -42,7 +42,6 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   const { user, isLoading, checkUser, signOut } = useAuthStore();
-  const logout = signOut;
 
   useEffect(() => {
     console.log("🚀 App: Inicializando...");
@@ -51,33 +50,24 @@ export default function App() {
     const hubListener = (capsule: any) => {
       const event = capsule?.payload?.event;
       console.log("🔔 App: Evento do Hub:", event);
+
       if (event === "signedIn") {
         console.log("✅ App: usuário logou - verificando dados...");
         checkUser();
       } else if (event === "signedOut") {
         console.log("🚪 App: usuário deslogou");
-        logout();
+        signOut();
+      } else if (event === "tokenRefresh") {
+        console.log("♻️ App: token atualizado, rechecando usuário...");
+        checkUser();
       }
     };
 
     const unsubscribe = Hub.listen("auth", hubListener);
-    return () => {
-      console.log("🔌 App: removendo listener do Hub");
-      unsubscribe();
-    };
-  }, [checkUser, logout]);
-
-  useEffect(() => {
-    console.log("📊 App Estado:", {
-      isLoading,
-      hasUser: !!user,
-      isAdmin: user?.isAdmin,
-      username: user?.username,
-    });
-  }, [user, isLoading]);
+    return () => unsubscribe();
+  }, [checkUser, signOut]);
 
   if (isLoading) {
-    console.log("⏳ App: Mostrando loading...");
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#191970" />

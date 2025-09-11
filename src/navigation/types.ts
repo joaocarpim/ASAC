@@ -12,7 +12,7 @@ export type RootStackParamList = {
   Login: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email: string }; // Rota com o parâmetro 'email'
-  ConfirmSignUp: { email: string };
+  ConfirmSignUp: { email: string; password?: string }; // 🔑 Agora aceita também password opcional
 
   // Main App
   Home: undefined;
