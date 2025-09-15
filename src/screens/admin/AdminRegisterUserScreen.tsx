@@ -10,31 +10,33 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal, // NOVO: Importa o Modal
-  Pressable, // NOVO: Importa o Pressable para o botão
+  Modal,
+  Pressable,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
-import { signUp } from "@aws-amplify/auth";
-import { generateClient } from "aws-amplify/api";
-import { createUser } from "../../graphql/mutations";
+import { useAuthStore } from "../../store/authStore"; // hook do authStore
 
 const logo = require("../../assets/images/logo.png");
 
-export default function AdminRegisterUserScreen({
-  
-}: RootStackScreenProps<"AdminRegisterUser">) {
+// 🚨 use o endpoint certo da sua API REST (AdminApi)
+const API_URL =
+  "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/AdminRegisterUser";
+
+export default function AdminRegisterUserScreen(
+  {}: RootStackScreenProps<"AdminRegisterUser">
+) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // --- NOVO: Estados para controlar o Modal ---
   const [isModalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalMessage, setModalMessage] = useState("");
 
-  // --- NOVO: Função para exibir o Modal ---
+  const authStore: any = useAuthStore(); // 👈 tipado como any para evitar TS error
+
   const triggerModal = (title: string, message: string) => {
     setModalTitle(title);
     setModalMessage(message);
@@ -42,45 +44,25 @@ export default function AdminRegisterUserScreen({
   };
 
   const validateInput = () => {
-    // 4. Modal para "preencha todos os campos"
     if (!name.trim() || !email.trim() || !password.trim()) {
-      triggerModal(
-        "Campos Incompletos",
-        "Por favor, preencha todos os campos para continuar."
-      );
+      triggerModal("Campos Incompletos", "Por favor, preencha todos os campos.");
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      triggerModal(
-        "Email Inválido",
-        "Por favor, insira um formato de email válido."
-      );
+      triggerModal("Email Inválido", "Por favor, insira um email válido.");
       return false;
     }
 
-    // Validação de Senha que agora usa o Modal
     const passwordErrors = [];
-    if (password.length < 8) {
-      passwordErrors.push("• Pelo menos 8 caracteres");
-    }
-    if (!/[A-Z]/.test(password)) {
-      passwordErrors.push("• Pelo menos uma letra MAIÚSCULA");
-    }
-    if (!/[a-z]/.test(password)) {
-      passwordErrors.push("• Pelo menos uma letra minúscula");
-    }
-    if (!/[0-9]/.test(password)) {
-      passwordErrors.push("• Pelo menos um número");
-    }
+    if (password.length < 8) passwordErrors.push("• Pelo menos 8 caracteres");
+    if (!/[A-Z]/.test(password)) passwordErrors.push("• Uma letra MAIÚSCULA");
+    if (!/[a-z]/.test(password)) passwordErrors.push("• Uma letra minúscula");
+    if (!/[0-9]/.test(password)) passwordErrors.push("• Um número");
 
     if (passwordErrors.length > 0) {
-      triggerModal(
-        "Senha Fraca",
-        "Sua senha não atende aos requisitos de segurança:\n\n" +
-          passwordErrors.join("\n")
-      );
+      triggerModal("Senha Fraca", passwordErrors.join("\n"));
       return false;
     }
 
@@ -89,83 +71,49 @@ export default function AdminRegisterUserScreen({
 
   const handleRegister = async () => {
     if (loading || !validateInput()) return;
-
     setLoading(true);
-    let cognitoUserId = null;
 
     try {
-      const signUpResult = await signUp({
-        username: email.trim().toLowerCase(),
-        password,
-        options: {
-          userAttributes: {
-            email: email.trim().toLowerCase(),
-          },
+      // pega token JWT do admin logado
+      const token: string | undefined =
+        authStore?.session?.tokens?.idToken?.jwtToken;
+
+      if (!token) {
+        triggerModal(
+          "Erro",
+          "Token de autenticação não encontrado. Faça login novamente."
+        );
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token,
         },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+        }),
       });
 
-      cognitoUserId = signUpResult.userId;
+      const data: any = await response.json(); // 👈 forçando any para acessar data.message
 
-      const client = generateClient();
-      await client.graphql({
-        query: createUser,
-        variables: {
-          input: {
-            id: cognitoUserId,
-            name: name.trim(),
-            email: email.trim().toLowerCase(),
-            points: 0,
-            coins: 0,
-            role: "User",
-          },
-        },
-        authMode: "userPool",
-      });
+      if (!response.ok) {
+        throw new Error(data?.error || "Erro ao registrar usuário.");
+      }
 
-      // Modal de Sucesso
-      triggerModal(
-        "Sucesso!",
-        `O usuário ${name.trim()} foi registrado com sucesso.`
-      );
-      // Limpa os campos após o sucesso
+      triggerModal("Sucesso!", data?.message || "Usuário registrado com sucesso.");
+
       setName("");
       setEmail("");
       setPassword("");
-      // Opcional: Navegar de volta após fechar o modal de sucesso
-      // (você pode adicionar lógica no botão do modal se precisar)
-      // navigation.goBack();
-    } catch (error: any) {
-      console.error("❌ ERRO DURANTE O REGISTRO:", error);
-
-      // Tratamento de erros com o Modal
-      switch (error.name) {
-        // 1 e 2. Modal para "usuário existe" e "email ja existe"
-        case "UsernameExistsException":
-          triggerModal(
-            "Email já Cadastrado",
-            "O email inserido já está em uso por outra conta."
-          );
-          break;
-        // 3. Modal para senha inválida (a verificação do Cognito)
-        // OBS: "senha já existe" não é um erro padrão do Cognito. O erro comum é a senha não seguir a política.
-        case "InvalidPasswordException":
-          triggerModal(
-            "Senha Inválida",
-            "A senha não atende aos requisitos de segurança definidos pelo sistema. Verifique as regras e tente novamente."
-          );
-          break;
-        case "InvalidParameterException":
-          triggerModal(
-            "Dados Inválidos",
-            "Verifique os dados inseridos. Um ou mais campos podem ser inválidos."
-          );
-          break;
-        default:
-          triggerModal(
-            "Erro Inesperado",
-            "Ocorreu um erro ao tentar registrar o usuário. Tente novamente mais tarde."
-          );
-      }
+    } catch (err: any) {
+      console.error("Erro REST:", err);
+      triggerModal("Erro", err.message || "Erro ao registrar usuário.");
     } finally {
       setLoading(false);
     }
@@ -176,7 +124,6 @@ export default function AdminRegisterUserScreen({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      {/* --- NOVO: Componente Modal --- */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -253,7 +200,6 @@ export default function AdminRegisterUserScreen({
 }
 
 const styles = StyleSheet.create({
-  // Seus estilos existentes ...
   container: { flex: 1, backgroundColor: "#F0EFEA" },
   scrollContainer: {
     flexGrow: 1,
@@ -299,12 +245,11 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
 
-  // --- NOVO: Estilos para o Modal ---
   modalCenteredView: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)", // Fundo escurecido
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
   modalView: {
     margin: 20,
@@ -313,10 +258,7 @@ const styles = StyleSheet.create({
     padding: 25,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,

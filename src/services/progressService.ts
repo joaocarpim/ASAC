@@ -49,66 +49,39 @@ async function graphqlRequest<T>(
 
 /* --------------------- FUNÇÕES DE USUÁRIO --------------------- */
 
-export async function ensureUserExistsInDB(userId: string, username?: string, email?: string) {
+export async function ensureUserExistsInDB(userId: string) {
   const GET_USER = `query GetUser($id: ID!) {
     getUser(id: $id) {
-      id name email role coins points modulesCompleted precision correctAnswers wrongAnswers timeSpent
-      achievements {
-        items {
-          id
-          title
-          createdAt
-        }
-      }
-    }
-  }`;
-
-  const CREATE_USER = `mutation CreateUser($input: CreateUserInput!) {
-    createUser(input: $input) {
-      id name email role coins points modulesCompleted precision correctAnswers wrongAnswers timeSpent
-      achievements {
-        items {
-          id
-          title
-          createdAt
-        }
-      }
+      id name email role coins points modulesCompleted currentModule precision correctAnswers timeSpent
+      achievements { items { id title createdAt } }
     }
   }`;
 
   const data = await graphqlRequest<any>(GET_USER, { id: userId }, "GetUser");
-  if (data?.getUser) return data.getUser;
+  return data?.getUser ?? null;
+}
 
-  const input = {
-    id: userId,
-    name: username ?? "Usuário",
-    email: email ?? "",
-    role: "User",
-    coins: 0,
-    points: 0,
-    modulesCompleted: [], // ✅ agora array vazio
-    currentModule: 1,
-    precision: 0,
-    correctAnswers: 0,
-    wrongAnswers: 0,
-    timeSpent: "0s",
-  };
+export async function createUserAsAdmin(input: {
+  id: string;
+  name: string;
+  email: string;
+  role?: string;
+}) {
+  const MUT = `mutation CreateUser($input: CreateUserInput!) {
+    createUser(input: $input) {
+      id name email role coins points modulesCompleted currentModule precision correctAnswers timeSpent
+    }
+  }`;
 
-  const createData = await graphqlRequest<any>(CREATE_USER, { input }, "CreateUser");
-  return createData?.createUser ?? null;
+  const data = await graphqlRequest<any>(MUT, { input }, "CreateUserAsAdmin");
+  return data?.createUser ?? null;
 }
 
 export async function getUserById(userId: string) {
   const GET_USER = `query GetUser($id: ID!) {
     getUser(id: $id) {
-      id name email role coins points modulesCompleted precision correctAnswers wrongAnswers timeSpent
-      achievements {
-        items {
-          id
-          title
-          createdAt
-        }
-      }
+      id name email role coins points modulesCompleted currentModule precision correctAnswers timeSpent
+      achievements { items { id title createdAt } }
     }
   }`;
 
@@ -119,20 +92,17 @@ export async function getUserById(userId: string) {
 async function updateUserRaw(input: any) {
   const MUT = `mutation UpdateUser($input: UpdateUserInput!) {
     updateUser(input: $input) {
-      id coins points modulesCompleted
-      achievements {
-        items {
-          id
-          title
-          createdAt
-        }
-      }
+      id coins points modulesCompleted currentModule
+      achievements { items { id title createdAt } }
     }
   }`;
 
   const data = await graphqlRequest<any>(MUT, { input }, "UpdateUser");
   return data?.updateUser ?? null;
 }
+
+/* --------------------- PROGRESSO DE MÓDULOS --------------------- */
+// (mantém igual ao que você tinha, removi apenas partes desnecessárias para este exemplo)
 
 /* --------------------- PROGRESSO DE MÓDULOS --------------------- */
 

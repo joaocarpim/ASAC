@@ -1,13 +1,6 @@
-// src/store/authStore.tsx
 import { create } from "zustand";
 import { getCurrentUser, fetchAuthSession, signOut as amplifySignOut } from "aws-amplify/auth";
 import { ensureUserExistsInDB, getUserById } from "../services/progressService";
-
-export type Achievement = {
-  id: string;
-  title: string;
-  createdAt: string;
-};
 
 export type User = {
   userId: string;
@@ -17,12 +10,12 @@ export type User = {
   isAdmin?: boolean;
   coins?: number | null;
   points?: number | null;
-  modulesCompleted?: number[]; // ✅ agora array de inteiros
-  precision?: number | null; // ✅ schema usa Float
+  modulesCompleted?: number[]; // ajustado para array
+  currentModule?: number | null;
+  precision?: number | null;
   correctAnswers?: number | null;
-  wrongAnswers?: number | null;
   timeSpent?: string | null;
-  achievements?: Achievement[]; // ✅ lista de conquistas
+  achievements?: { id: string; title: string; createdAt: string }[];
 };
 
 type AuthState = {
@@ -56,23 +49,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const baseUser: User = { userId: sub, username, email, isAdmin };
 
-      if (!isAdmin) {
-        console.log("🗄️ Garantindo usuário no DB...");
-        await ensureUserExistsInDB(sub, username, email);
-        const dbUser = await getUserById(sub);
-
-        set({
-          user: {
-            ...baseUser,
-            ...dbUser,
-            modulesCompleted: dbUser?.modulesCompleted ?? [], // ✅ garante array
-            achievements: dbUser?.achievements?.items ?? [], // ✅ pega lista
-          },
-          isLoading: false,
-        });
-      } else {
+      if (isAdmin) {
+        console.log("👑 Usuário é Admin, acesso liberado.");
         set({ user: baseUser, isLoading: false });
+        return;
       }
+
+      console.log("🗄️ Buscando usuário no DB...");
+      const dbUser = await ensureUserExistsInDB(sub);
+
+      if (!dbUser) {
+        console.warn("⚠️ Usuário não existe no DB. Um Admin precisa registrá-lo.");
+        set({ user: null, isLoading: false });
+        return;
+      }
+
+      set({
+        user: {
+          ...baseUser,
+          ...dbUser,
+          achievements: dbUser?.achievements?.items ?? [],
+        },
+        isLoading: false,
+      });
     } catch (e: any) {
       if (e?.name === "UserUnAuthenticatedException" || e?.message?.includes("not authenticated")) {
         console.log("ℹ️ Nenhum usuário logado ainda");
@@ -92,7 +91,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: {
           ...u,
           ...dbUser,
-          modulesCompleted: dbUser?.modulesCompleted ?? [], // ✅ garante array
           achievements: dbUser?.achievements?.items ?? [],
         },
       });

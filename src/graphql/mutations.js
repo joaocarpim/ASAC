@@ -1,6 +1,15 @@
 /* eslint-disable */
 // this is an auto generated file. This will be overwritten
 
+export const adminRegisterUser = /* GraphQL */ `
+  mutation AdminRegisterUser(
+    $name: String!
+    $email: String!
+    $password: String!
+  ) {
+    adminRegisterUser(name: $name, email: $email, password: $password)
+  }
+`;
 export const createUser = /* GraphQL */ `
   mutation CreateUser(
     $input: CreateUserInput!

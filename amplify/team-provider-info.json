@@ -9,7 +9,8 @@
       "UnauthRoleName": "amplify-asac-dev-11020-unauthRole",
       "StackName": "amplify-asac-dev-11020",
       "StackId": "arn:aws:cloudformation:us-east-1:222165755326:stack/amplify-asac-dev-11020/e7341330-887b-11f0-bde6-0affdb97d689",
-      "AmplifyAppId": "d2erls0r4wqetm"
+      "AmplifyAppId": "d2erls0r4wqetm",
+      "APIGatewayAuthURL": "https://s3.amazonaws.com/amplify-asac-dev-11020-deployment/amplify-cfn-templates/api/APIGatewayAuthStack.json"
     },
     "categories": {
       "auth": {
@@ -19,7 +20,15 @@
         "s3112eaa39": {}
       },
       "api": {
-        "asac": {}
+        "asac": {},
+        "AdminApi": {}
+      },
+      "function": {
+        "AdminRegisterUser": {
+          "userPoolId": "us-east-1_00uu9Yg4p",
+          "deploymentBucketName": "amplify-asac-dev-11020-deployment",
+          "s3Key": "amplify-builds/AdminRegisterUser-4c2b3232772b4848594b-build.zip"
+        }
       }
     }
   }

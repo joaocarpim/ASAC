@@ -102,3 +102,7 @@ type BrailleSymbol
   description: String! # Exemplo: "Ponto 1" ou "Pontos 1,2"
   imageKey: String!    # Nome do arquivo no S3
 }
+type Mutation {
+  adminRegisterUser(name: String!, email: String!, password: String!): String
+    @function(name: "AdminRegisterUser-${env}")
+}

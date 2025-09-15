@@ -1,5 +1,19 @@
 {
   "api": {
+    "AdminApi": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "AdminRegisterUser"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "API Gateway"
+    },
     "asac": {
       "dependsOn": [
         {
@@ -60,6 +74,62 @@
       },
       "providerPlugin": "awscloudformation",
       "service": "Cognito"
+    }
+  },
+  "function": {
+    "AdminRegisterUser": {
+      "build": true,
+      "dependsOn": [
+        {
+          "attributes": [
+            "UserPoolId"
+          ],
+          "category": "auth",
+          "resourceName": "asac2f4153aa"
+        },
+        {
+          "attributes": [
+            "BucketName"
+          ],
+          "category": "storage",
+          "resourceName": "s3112eaa39"
+        },
+        {
+          "attributes": [
+            "GraphQLAPIIdOutput"
+          ],
+          "category": "api",
+          "resourceName": "asac"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_AdminRegisterUser_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "AdminRegisterUser"
+        }
+      ]
+    },
+    "AMPLIFY_function_AdminRegisterUser_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "AdminRegisterUser"
+        }
+      ]
+    },
+    "AMPLIFY_function_AdminRegisterUser_userPoolId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "AdminRegisterUser"
+        }
+      ]
     }
   },
   "storage": {

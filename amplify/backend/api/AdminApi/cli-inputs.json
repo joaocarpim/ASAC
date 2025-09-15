@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "paths": {
+    "/admin/createuser": {
+      "name": "/admin/createuser",
+      "lambdaFunction": "AdminRegisterUser",
+      "permissions": {
+        "setting": "private",
+        "auth": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ]
+      }
+    }
+  }
+}
