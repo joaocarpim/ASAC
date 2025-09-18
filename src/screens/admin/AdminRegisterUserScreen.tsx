@@ -15,11 +15,10 @@ import {
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
-import { useAuthStore } from "../../store/authStore"; // hook do authStore
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const logo = require("../../assets/images/logo.png");
 
-// 🚨 use o endpoint certo da sua API REST (AdminApi)
 const API_URL =
   "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/AdminRegisterUser";
 
@@ -34,8 +33,6 @@ export default function AdminRegisterUserScreen(
   const [isModalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalMessage, setModalMessage] = useState("");
-
-  const authStore: any = useAuthStore(); // 👈 tipado como any para evitar TS error
 
   const triggerModal = (title: string, message: string) => {
     setModalTitle(title);
@@ -55,7 +52,7 @@ export default function AdminRegisterUserScreen(
       return false;
     }
 
-    const passwordErrors = [];
+    const passwordErrors: string[] = [];
     if (password.length < 8) passwordErrors.push("• Pelo menos 8 caracteres");
     if (!/[A-Z]/.test(password)) passwordErrors.push("• Uma letra MAIÚSCULA");
     if (!/[a-z]/.test(password)) passwordErrors.push("• Uma letra minúscula");
@@ -74,9 +71,8 @@ export default function AdminRegisterUserScreen(
     setLoading(true);
 
     try {
-      // pega token JWT do admin logado
-      const token: string | undefined =
-        authStore?.session?.tokens?.idToken?.jwtToken;
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
 
       if (!token) {
         triggerModal(
@@ -91,7 +87,7 @@ export default function AdminRegisterUserScreen(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: name.trim(),
@@ -100,20 +96,23 @@ export default function AdminRegisterUserScreen(
         }),
       });
 
-      const data: any = await response.json(); // 👈 forçando any para acessar data.message
+      // data pode ser qualquer coisa, então tipamos como any
+      const data: any = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Erro ao registrar usuário.");
+        // Corrigido: acessar data?.error de forma segura
+        throw new Error(data && data.error ? data.error : "Erro ao registrar usuário.");
       }
 
-      triggerModal("Sucesso!", data?.message || "Usuário registrado com sucesso.");
+      // Corrigido: acessar data?.message de forma segura
+      triggerModal("Sucesso!", data && data.message ? data.message : "Usuário registrado com sucesso.");
 
       setName("");
       setEmail("");
       setPassword("");
     } catch (err: any) {
       console.error("Erro REST:", err);
-      triggerModal("Erro", err.message || "Erro ao registrar usuário.");
+      triggerModal("Erro", err?.message || "Erro ao registrar usuário.");
     } finally {
       setLoading(false);
     }
@@ -152,9 +151,7 @@ export default function AdminRegisterUserScreen(
           <Text style={styles.logoText}>ASAC</Text>
         </View>
         <View style={styles.formContainer}>
-          <Text style={styles.promptText}>
-            Realize o registro dos assistidos
-          </Text>
+          <Text style={styles.promptText}>Realize o registro dos assistidos</Text>
           <TextInput
             style={styles.input}
             placeholder="Nome completo"
