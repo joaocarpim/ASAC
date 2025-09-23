@@ -19,8 +19,9 @@ import { fetchAuthSession } from "aws-amplify/auth";
 
 const logo = require("../../assets/images/logo.png");
 
+// ✅ Endpoint corrigido: mesmo path configurado no API Gateway
 const API_URL =
-  "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/AdminRegisterUser";
+  "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/admin/createuser";
 
 export default function AdminRegisterUserScreen(
   {}: RootStackScreenProps<"AdminRegisterUser">
@@ -72,7 +73,9 @@ export default function AdminRegisterUserScreen(
 
     try {
       const session = await fetchAuthSession();
-      const token = session.tokens?.idToken?.toString();
+      // ✅ Usa accessToken, que é o esperado pelo API Gateway com Lambda Authorizer
+// const token = session.tokens?.accessToken?.toString();
+const token = session.tokens?.idToken?.toString();
 
       if (!token) {
         triggerModal(
@@ -96,16 +99,13 @@ export default function AdminRegisterUserScreen(
         }),
       });
 
-      // data pode ser qualquer coisa, então tipamos como any
       const data: any = await response.json();
 
       if (!response.ok) {
-        // Corrigido: acessar data?.error de forma segura
-        throw new Error(data && data.error ? data.error : "Erro ao registrar usuário.");
+        throw new Error(data?.error || "Erro ao registrar usuário.");
       }
 
-      // Corrigido: acessar data?.message de forma segura
-      triggerModal("Sucesso!", data && data.message ? data.message : "Usuário registrado com sucesso.");
+      triggerModal("Sucesso!", data?.message || "Usuário registrado com sucesso.");
 
       setName("");
       setEmail("");
@@ -145,11 +145,13 @@ export default function AdminRegisterUserScreen(
 
       <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
       <ScreenHeader title="Registrar Assistido" />
+
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
           <Image source={logo} style={styles.logo} />
           <Text style={styles.logoText}>ASAC</Text>
         </View>
+
         <View style={styles.formContainer}>
           <Text style={styles.promptText}>Realize o registro dos assistidos</Text>
           <TextInput
@@ -182,6 +184,7 @@ export default function AdminRegisterUserScreen(
             editable={!loading}
           />
         </View>
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleRegister}
