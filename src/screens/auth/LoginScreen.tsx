@@ -1,4 +1,3 @@
-// src/screens/auth/LoginScreen.tsx 
 import React, { useState } from "react";
 import {
   View,
@@ -71,7 +70,6 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
   ) => {
     setModalState({ visible: true, type, title, message });
     if (onClose) {
-      // fecha modal após tempo curto e executa ação (navegar)
       setTimeout(() => {
         setModalState((s) => ({ ...s, visible: false }));
         onClose();
@@ -94,16 +92,20 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
       const result = await signIn({ username: email.trim(), password });
       console.log("✅ Login Cognito retornou:", JSON.stringify(result, null, 2));
 
+      // 🔑 Se o Cognito exigir redefinição de senha
+      if (result.nextStep?.signInStep === "RESET_PASSWORD") {
+        navigation.replace("NewPassword", { username: email.trim() });
+        return;
+      }
+
       if (result.nextStep?.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
         setRequireNewPassword(true);
         showModal("error", "Nova senha necessária", "Digite uma nova senha para continuar.");
         return;
       }
 
-      // dispara evento global (App.tsx escuta)
       Hub.dispatch("auth", { event: "signedIn" });
 
-      // mostra modal e navega para Home
       showModal("success", "Bem-vindo", "Login realizado com sucesso!", () => {
         navigation.replace("Home");
       });
@@ -112,7 +114,6 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
       if (error?.name === "UserNotConfirmedException") {
         navigation.navigate("ConfirmSignUp", { email: email.trim() });
       } else if (error?.name === "UserAlreadyAuthenticatedException") {
-        // já autenticado — forçar refresh do estado global via Hub
         Hub.dispatch("auth", { event: "signedIn" });
         showModal("success", "Bem-vindo", "Você já está logado.", () => {
           navigation.replace("Home");
@@ -134,10 +135,8 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
       Alert.alert("Erro", "Digite uma nova senha.");
       return;
     }
-
     try {
       console.log("🔄 Confirmando nova senha...");
-      // confirmSignIn espera objeto com challengeResponse
       const result = await confirmSignIn({ challengeResponse: newPassword });
       console.log("✅ Nova senha definida:", JSON.stringify(result, null, 2));
 

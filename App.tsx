@@ -1,9 +1,6 @@
-// App.tsx
 import { Amplify } from "aws-amplify";
-import { Hub } from "aws-amplify/utils"; // ✅ Amplify v6
+import { Hub } from "aws-amplify/utils";
 import awsconfig from "./src/aws-exports";
-
-// Configure Amplify o mais cedo possível
 Amplify.configure(awsconfig);
 
 import React, { useEffect } from "react";
@@ -22,6 +19,9 @@ import LoginScreen from "./src/screens/auth/LoginScreen";
 import ForgotPasswordScreen from "./src/screens/auth/ForgotPasswordScreen";
 import ResetPasswordScreen from "./src/screens/auth/ResetPasswordScreen";
 import ConfirmSignUpScreen from "./src/screens/auth/ConfirmSignUpScreen";
+// 🚀 NOVO
+import NewPasswordScreen from "./src/screens/auth/NewPasswordScreen";
+
 import HomeScreen from "./src/screens/main/HomeScreen";
 import RankingScreen from "./src/screens/main/RankingScreen";
 import AchievementsScreen from "./src/screens/main/AchievementsScreen";
@@ -52,13 +52,10 @@ export default function App() {
       console.log("🔔 App: Evento do Hub:", event);
 
       if (event === "signedIn") {
-        console.log("✅ App: usuário logou - verificando dados...");
         checkUser();
       } else if (event === "signedOut") {
-        console.log("🚪 App: usuário deslogou");
         signOut();
       } else if (event === "tokenRefresh") {
-        console.log("♻️ App: token atualizado, rechecando usuário...");
         checkUser();
       }
     };
@@ -89,6 +86,8 @@ export default function App() {
               <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
               <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
               <Stack.Screen name="ConfirmSignUp" component={ConfirmSignUpScreen} />
+              {/* 🚀 NOVO */}
+              <Stack.Screen name="NewPassword" component={NewPasswordScreen} />
             </Stack.Group>
           ) : user.isAdmin ? (
             <Stack.Group>

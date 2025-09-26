@@ -19,7 +19,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 
 const logo = require("../../assets/images/logo.png");
 
-// ✅ Endpoint corrigido: mesmo path configurado no API Gateway
+// ✅ URL pública da stage “dev” do API Gateway
 const API_URL =
   "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/admin/createuser";
 
@@ -63,7 +63,6 @@ export default function AdminRegisterUserScreen(
       triggerModal("Senha Fraca", passwordErrors.join("\n"));
       return false;
     }
-
     return true;
   };
 
@@ -73,9 +72,10 @@ export default function AdminRegisterUserScreen(
 
     try {
       const session = await fetchAuthSession();
-      // ✅ Usa accessToken, que é o esperado pelo API Gateway com Lambda Authorizer
-// const token = session.tokens?.accessToken?.toString();
-const token = session.tokens?.idToken?.toString();
+
+      // 🔎 LOG do token para copiar e testar no “Test authorizer”
+      const token = session.tokens?.idToken?.toString();
+      console.log("🔑 ID Token usado no Authorization:", token);
 
       if (!token) {
         triggerModal(
@@ -90,6 +90,7 @@ const token = session.tokens?.idToken?.toString();
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // Cognito Authorizer exige "Bearer <token>"
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -102,7 +103,7 @@ const token = session.tokens?.idToken?.toString();
       const data: any = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Erro ao registrar usuário.");
+        throw new Error(data?.error || data?.message || "Erro ao registrar usuário.");
       }
 
       triggerModal("Sucesso!", data?.message || "Usuário registrado com sucesso.");
@@ -153,7 +154,9 @@ const token = session.tokens?.idToken?.toString();
         </View>
 
         <View style={styles.formContainer}>
-          <Text style={styles.promptText}>Realize o registro dos assistidos</Text>
+          <Text style={styles.promptText}>
+            Realize o registro dos assistidos
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="Nome completo"
@@ -240,9 +243,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 20,
   },
-  buttonDisabled: {
-    backgroundColor: "#191970AA",
-  },
+  buttonDisabled: { backgroundColor: "#191970AA" },
   buttonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
 
   modalCenteredView: {
