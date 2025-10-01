@@ -97,6 +97,7 @@ export default function AdminRegisterUserScreen(
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
+          role: "user", // ✅ garante compatibilidade com schema
         }),
       });
 

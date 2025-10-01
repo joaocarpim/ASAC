@@ -10,14 +10,14 @@ type User
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
-  id: ID!
+  id: ID! @primaryKey
   name: String!
-  email: String!
+  email: String! @index(name: "byEmail")
   role: String! # "user" ou "admin"
   coins: Int
   points: Int
-  modulesCompleted: [Int] # lista de módulos concluídos
-  currentModule: Int       # em qual módulo o usuário está
+  modulesCompleted: [Int]
+  currentModule: Int
   precision: Float
   correctAnswers: Int
   wrongAnswers: Int
@@ -46,7 +46,7 @@ type Progress
   user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
   module: Module @belongsTo(fields: ["moduleId"])
-  moduleId: ID! @index(name: "byModule") # ✅ corrigido
+  moduleId: ID! @index(name: "byModule")
   accuracy: Float
   correctAnswers: Int
   wrongAnswers: Int
@@ -64,9 +64,8 @@ type Module
   moduleNumber: Int!
   lessons: [Lesson] @hasMany(indexName: "byModule", fields: ["id"])
   questions: [Question] @hasMany(indexName: "byModule", fields: ["id"])
-  progress: [Progress] @hasMany(indexName: "byModule", fields: ["id"]) # ✅ adicionado
+  progress: [Progress] @hasMany(indexName: "byModule", fields: ["id"])
 }
-
 
 # Lições
 type Lesson
@@ -93,15 +92,17 @@ type Question
   moduleId: ID! @index(name: "byModule")
 }
 
-# Símbolos Braille (para o admin cadastrar no S3)
+# Símbolos Braille
 type BrailleSymbol
   @model
   @auth(rules: [{ allow: private, operations: [read] }]) {
   id: ID!
   letter: String!
-  description: String! # Exemplo: "Ponto 1" ou "Pontos 1,2"
-  imageKey: String!    # Nome do arquivo no S3
+  description: String!
+  imageKey: String!
 }
+
+# Mutation customizada para registrar usuário via Lambda
 type Mutation {
   adminRegisterUser(name: String!, email: String!, password: String!): String
     @function(name: "AdminRegisterUser-${env}")
