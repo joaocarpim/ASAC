@@ -9,15 +9,14 @@ const {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
+  AdminGetUserCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
-// Node.js 18 já tem fetch nativo
 const fetch = globalThis.fetch;
 
 const REGION = process.env.REGION || "us-east-1";
 const USER_POOL_ID = process.env.AUTH_ASAC2F4153AA_USERPOOLID;
 
-// ✅ Usa env se for uma URL válida, senão cai no fallback fixo
 const GRAPHQL_URL =
   process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT &&
   process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT.startsWith("http")
@@ -37,7 +36,6 @@ exports.handler = async (event) => {
     "Content-Type": "application/json",
   };
 
-  // Pré-flight CORS
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: headersBase, body: JSON.stringify({ ok: true }) };
   }
@@ -54,10 +52,9 @@ exports.handler = async (event) => {
       };
     }
 
-    if (!USER_POOL_ID) throw new Error("UserPoolId não configurado.");
     const username = email.toLowerCase();
 
-    // 1) Criar usuário no Cognito
+    // 1️⃣ Criar usuário no Cognito
     try {
       await cognito.send(new AdminCreateUserCommand({
         UserPoolId: USER_POOL_ID,
@@ -76,7 +73,7 @@ exports.handler = async (event) => {
       console.log("⚠️ Usuário já existe, definindo senha permanente.");
     }
 
-    // 2) Definir senha permanente
+    // 2️⃣ Definir senha permanente
     await cognito.send(new AdminSetUserPasswordCommand({
       UserPoolId: USER_POOL_ID,
       Username: username,
@@ -85,7 +82,16 @@ exports.handler = async (event) => {
     }));
     console.log("🔑 Senha permanente definida:", username);
 
-    // 3) Inserir também no AppSync/DynamoDB
+    // 3️⃣ Buscar o `sub` do usuário
+    const getUserResp = await cognito.send(
+      new AdminGetUserCommand({ UserPoolId: USER_POOL_ID, Username: username })
+    );
+
+    const subAttr = getUserResp.UserAttributes.find(attr => attr.Name === "sub");
+    const userSub = subAttr ? subAttr.Value : null;
+    console.log("🆔 Sub Cognito do novo usuário:", userSub);
+
+    // 4️⃣ Inserir também no AppSync
     if (GRAPHQL_URL) {
       const adminToken = event.headers?.Authorization || event.headers?.authorization;
       if (!adminToken) {
@@ -106,12 +112,18 @@ exports.handler = async (event) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: adminToken, // usa o token Cognito do Admin
+            Authorization: adminToken,
           },
           body: JSON.stringify({
             query: mutation,
-            // ❌ removi o `id`, AppSync gera sozinho
-            variables: { input: { name, email: username, role: "user" } },
+            variables: {
+              input: {
+                id: userSub,
+                name,
+                email: username,
+                role: "user",
+              },
+            },
           }),
         });
 
@@ -120,14 +132,18 @@ exports.handler = async (event) => {
           console.error("⚠️ Erro GraphQL:", JSON.stringify(gqlJson.errors));
           throw new Error("Falha ao inserir no AppSync");
         }
-        console.log("✅ Usuário gravado no DynamoDB via AppSync:", gqlJson.data.createUser);
+        console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data.createUser);
       }
     }
 
     return {
       statusCode: 200,
       headers: headersBase,
-      body: JSON.stringify({ success: true, message: "Usuário criado/atualizado com sucesso (Cognito + AppSync)." }),
+      body: JSON.stringify({
+        success: true,
+        message: "Usuário criado com sucesso.",
+        sub: userSub, // ✅ retornado ao app
+      }),
     };
   } catch (error) {
     console.error("❌ Erro ao criar usuário:", error);

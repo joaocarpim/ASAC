@@ -16,8 +16,10 @@ import {
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { generateClient } from "aws-amplify/api";
 
 const logo = require("../../assets/images/logo.png");
+const client = generateClient();
 
 // ✅ URL pública da stage “dev” do API Gateway
 const API_URL =
@@ -86,25 +88,55 @@ export default function AdminRegisterUserScreen(
         return;
       }
 
+      // 📡 Chamada para Lambda
       const response = await fetch(API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Cognito Authorizer exige "Bearer <token>"
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
-          role: "user", // ✅ garante compatibilidade com schema
+          role: "user",
         }),
       });
 
       const data: any = await response.json();
+      console.log("📥 Resposta da Lambda:", data);
 
       if (!response.ok) {
         throw new Error(data?.error || data?.message || "Erro ao registrar usuário.");
+      }
+
+      // 🆔 Se Lambda retornou o sub Cognito, garante inserção no AppSync manualmente
+      if (data?.sub) {
+        try {
+          await client.graphql({
+            query: /* GraphQL */ `
+              mutation CreateUser($input: CreateUserInput!) {
+                createUser(input: $input) {
+                  id
+                  name
+                  email
+                  role
+                }
+              }
+            `,
+            variables: {
+              input: {
+                id: data.sub,
+                name: name.trim(),
+                email: email.trim().toLowerCase(),
+                role: "user",
+              },
+            },
+          });
+          console.log("✅ Usuário também gravado no banco via GraphQL");
+        } catch (gqlErr) {
+          console.warn("⚠️ Erro ao salvar no GraphQL:", gqlErr);
+        }
       }
 
       triggerModal("Sucesso!", data?.message || "Usuário registrado com sucesso.");
