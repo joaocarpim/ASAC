@@ -117,11 +117,12 @@ exports.handler = async (event) => {
           body: JSON.stringify({
             query: mutation,
             variables: {
-              input: {
-                id: userSub,
-                name,
-                email: username,
-                role: "user",
+             input: {
+              id: userSub,
+              owner: userSub, // ✅ ADICIONE ESTA LINHA
+              name,
+              email: username,
+              role: "user",
               },
             },
           }),

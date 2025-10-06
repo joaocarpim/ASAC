@@ -17,6 +17,7 @@ export const createUser = /* GraphQL */ `
   ) {
     createUser(input: $input, condition: $condition) {
       id
+      owner
       name
       email
       role
@@ -38,7 +39,6 @@ export const createUser = /* GraphQL */ `
       }
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -50,6 +50,7 @@ export const updateUser = /* GraphQL */ `
   ) {
     updateUser(input: $input, condition: $condition) {
       id
+      owner
       name
       email
       role
@@ -71,7 +72,6 @@ export const updateUser = /* GraphQL */ `
       }
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -83,6 +83,7 @@ export const deleteUser = /* GraphQL */ `
   ) {
     deleteUser(input: $input, condition: $condition) {
       id
+      owner
       name
       email
       role
@@ -104,7 +105,6 @@ export const deleteUser = /* GraphQL */ `
       }
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -120,6 +120,7 @@ export const createAchievement = /* GraphQL */ `
       description
       user {
         id
+        owner
         name
         email
         role
@@ -133,7 +134,6 @@ export const createAchievement = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId
@@ -156,6 +156,7 @@ export const updateAchievement = /* GraphQL */ `
       description
       user {
         id
+        owner
         name
         email
         role
@@ -169,7 +170,6 @@ export const updateAchievement = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId
@@ -192,6 +192,7 @@ export const deleteAchievement = /* GraphQL */ `
       description
       user {
         id
+        owner
         name
         email
         role
@@ -205,7 +206,6 @@ export const deleteAchievement = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId
@@ -226,6 +226,7 @@ export const createProgress = /* GraphQL */ `
       id
       user {
         id
+        owner
         name
         email
         role
@@ -239,7 +240,6 @@ export const createProgress = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId
@@ -274,6 +274,7 @@ export const updateProgress = /* GraphQL */ `
       id
       user {
         id
+        owner
         name
         email
         role
@@ -287,7 +288,6 @@ export const updateProgress = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId
@@ -322,6 +322,7 @@ export const deleteProgress = /* GraphQL */ `
       id
       user {
         id
+        owner
         name
         email
         role
@@ -335,7 +336,6 @@ export const deleteProgress = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId

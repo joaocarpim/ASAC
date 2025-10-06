@@ -16,23 +16,16 @@ import {
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { generateClient } from "aws-amplify/api";
 
 const logo = require("../../assets/images/logo.png");
-const client = generateClient();
 
-// ✅ URL pública da stage “dev” do API Gateway
-const API_URL =
-  "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/admin/createuser";
+const API_URL = "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/admin/createuser";
 
-export default function AdminRegisterUserScreen(
-  {}: RootStackScreenProps<"AdminRegisterUser">
-) {
+export default function AdminRegisterUserScreen({}: RootStackScreenProps<"AdminRegisterUser">) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [isModalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalMessage, setModalMessage] = useState("");
@@ -43,24 +36,22 @@ export default function AdminRegisterUserScreen(
     setModalVisible(true);
   };
 
+  // ... (Sua função validateInput está ótima, não precisa mudar)
   const validateInput = () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
       triggerModal("Campos Incompletos", "Por favor, preencha todos os campos.");
       return false;
     }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       triggerModal("Email Inválido", "Por favor, insira um email válido.");
       return false;
     }
-
     const passwordErrors: string[] = [];
     if (password.length < 8) passwordErrors.push("• Pelo menos 8 caracteres");
     if (!/[A-Z]/.test(password)) passwordErrors.push("• Uma letra MAIÚSCULA");
     if (!/[a-z]/.test(password)) passwordErrors.push("• Uma letra minúscula");
     if (!/[0-9]/.test(password)) passwordErrors.push("• Um número");
-
     if (passwordErrors.length > 0) {
       triggerModal("Senha Fraca", passwordErrors.join("\n"));
       return false;
@@ -68,38 +59,38 @@ export default function AdminRegisterUserScreen(
     return true;
   };
 
+
   const handleRegister = async () => {
     if (loading || !validateInput()) return;
     setLoading(true);
 
     try {
       const session = await fetchAuthSession();
-
-      // 🔎 LOG do token para copiar e testar no “Test authorizer”
       const token = session.tokens?.idToken?.toString();
-      console.log("🔑 ID Token usado no Authorization:", token);
-
+      
       if (!token) {
         triggerModal(
-          "Erro",
-          "Token de autenticação não encontrado. Faça login novamente."
+          "Erro de Autenticação",
+          "Token de administrador não encontrado. Faça login novamente."
         );
         setLoading(false);
         return;
       }
 
-      // 📡 Chamada para Lambda
+      console.log("🔑 Enviando Token para a Lambda:", token);
+
+      // 📡 Chamada ÚNICA para a Lambda, que fará todo o trabalho
       const response = await fetch(API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          // ✅ CORREÇÃO 1: Enviando o token diretamente, sem o prefixo "Bearer ".
+          Authorization: token,
         },
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
-          role: "user",
         }),
       });
 
@@ -107,50 +98,28 @@ export default function AdminRegisterUserScreen(
       console.log("📥 Resposta da Lambda:", data);
 
       if (!response.ok) {
-        throw new Error(data?.error || data?.message || "Erro ao registrar usuário.");
+        throw new Error(data?.error || "Erro ao registrar usuário.");
       }
 
-      // 🆔 Se Lambda retornou o sub Cognito, garante inserção no AppSync manualmente
-      if (data?.sub) {
-        try {
-          await client.graphql({
-            query: /* GraphQL */ `
-              mutation CreateUser($input: CreateUserInput!) {
-                createUser(input: $input) {
-                  id
-                  name
-                  email
-                  role
-                }
-              }
-            `,
-            variables: {
-              input: {
-                id: data.sub,
-                name: name.trim(),
-                email: email.trim().toLowerCase(),
-                role: "user",
-              },
-            },
-          });
-          console.log("✅ Usuário também gravado no banco via GraphQL");
-        } catch (gqlErr) {
-          console.warn("⚠️ Erro ao salvar no GraphQL:", gqlErr);
-        }
-      }
+      // ✅ CORREÇÃO 2: A chamada GraphQL duplicada foi removida.
+      // A Lambda já é responsável por salvar no banco de dados.
 
       triggerModal("Sucesso!", data?.message || "Usuário registrado com sucesso.");
-
+      
       setName("");
       setEmail("");
       setPassword("");
+
     } catch (err: any) {
-      console.error("Erro REST:", err);
-      triggerModal("Erro", err?.message || "Erro ao registrar usuário.");
+      console.error("❌ Erro no processo de registro:", err);
+      triggerModal("Erro", err?.message || "Ocorreu um problema no registro.");
     } finally {
       setLoading(false);
     }
   };
+
+  // O resto do seu código (JSX e styles) pode continuar o mesmo.
+  // Colei aqui para garantir que esteja completo.
 
   return (
     <KeyboardAvoidingView
@@ -185,7 +154,6 @@ export default function AdminRegisterUserScreen(
           <Image source={logo} style={styles.logo} />
           <Text style={styles.logoText}>ASAC</Text>
         </View>
-
         <View style={styles.formContainer}>
           <Text style={styles.promptText}>
             Realize o registro dos assistidos
@@ -236,92 +204,22 @@ export default function AdminRegisterUserScreen(
 }
 
 const styles = StyleSheet.create({
+  // Seus estilos estão ótimos, mantive eles aqui
   container: { flex: 1, backgroundColor: "#F0EFEA" },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "space-around",
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
+  scrollContainer: { flexGrow: 1, justifyContent: "space-around", paddingHorizontal: 20, paddingBottom: 40 },
   logoContainer: { alignItems: "center", marginBottom: 30 },
   logo: { width: 120, height: 120, resizeMode: "contain" },
-  logoText: {
-    fontSize: 48,
-    fontWeight: "bold",
-    color: "#191970",
-    marginTop: 10,
-  },
+  logoText: { fontSize: 48, fontWeight: "bold", color: "#191970", marginTop: 10 },
   formContainer: { width: "100%", alignItems: "center" },
-  promptText: {
-    fontSize: 16,
-    color: "#191970",
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  input: {
-    width: "100%",
-    backgroundColor: "#191970",
-    color: "#FFFFFF",
-    padding: 15,
-    borderRadius: 8,
-    fontSize: 16,
-    marginBottom: 15,
-  },
-  button: {
-    width: "100%",
-    backgroundColor: "#191970",
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 20,
-  },
+  promptText: { fontSize: 16, color: "#191970", fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  input: { width: "100%", backgroundColor: "#191970", color: "#FFFFFF", padding: 15, borderRadius: 8, fontSize: 16, marginBottom: 15 },
+  button: { width: "100%", backgroundColor: "#191970", padding: 15, borderRadius: 8, alignItems: "center", marginTop: 20 },
   buttonDisabled: { backgroundColor: "#191970AA" },
   buttonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
-
-  modalCenteredView: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 25,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    width: "85%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-    color: "#191970",
-  },
-  modalMessage: {
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  modalButton: {
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    elevation: 2,
-    backgroundColor: "#191970",
-  },
-  modalButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
-    fontSize: 16,
-  },
+  modalCenteredView: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.6)" },
+  modalView: { margin: 20, backgroundColor: "white", borderRadius: 20, padding: 25, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, width: "85%" },
+  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 15, textAlign: "center", color: "#191970" },
+  modalMessage: { fontSize: 16, marginBottom: 20, textAlign: "center", lineHeight: 22 },
+  modalButton: { borderRadius: 10, paddingVertical: 12, paddingHorizontal: 30, elevation: 2, backgroundColor: "#191970" },
+  modalButtonText: { color: "white", fontWeight: "bold", textAlign: "center", fontSize: 16 },
 });

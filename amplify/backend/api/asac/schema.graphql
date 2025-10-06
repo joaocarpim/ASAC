@@ -6,11 +6,13 @@ type User
   @model
   @auth(
     rules: [
-      { allow: owner, operations: [read, update] }
+      # ✅ ALTERAÇÃO: Regra de "dono" agora é explícita.
+      { allow: owner, ownerField: "owner", operations: [read, update] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
   id: ID! @primaryKey
+  owner: String # ✅ NOVO CAMPO: Para armazenar o ID do dono.
   name: String!
   email: String! @index(name: "byEmail")
   role: String! # "user" ou "admin"

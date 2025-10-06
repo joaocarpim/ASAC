@@ -5,6 +5,7 @@ export const getUser = /* GraphQL */ `
   query GetUser($id: ID!) {
     getUser(id: $id) {
       id
+      owner
       name
       email
       role
@@ -26,7 +27,6 @@ export const getUser = /* GraphQL */ `
       }
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -48,6 +48,7 @@ export const listUsers = /* GraphQL */ `
     ) {
       items {
         id
+        owner
         name
         email
         role
@@ -61,7 +62,6 @@ export const listUsers = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken
@@ -77,6 +77,7 @@ export const getAchievement = /* GraphQL */ `
       description
       user {
         id
+        owner
         name
         email
         role
@@ -90,7 +91,6 @@ export const getAchievement = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId
@@ -131,6 +131,7 @@ export const getProgress = /* GraphQL */ `
       id
       user {
         id
+        owner
         name
         email
         role
@@ -144,7 +145,6 @@ export const getProgress = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       userId
@@ -385,6 +385,7 @@ export const usersByEmail = /* GraphQL */ `
     ) {
       items {
         id
+        owner
         name
         email
         role
@@ -398,7 +399,6 @@ export const usersByEmail = /* GraphQL */ `
         timeSpent
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken

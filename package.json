@@ -35,7 +35,9 @@
     "react-native-worklets": "^0.4.1",
     "react-native-worklets-core": "^1.6.0",
     "tailwindcss": "^3.4.17",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "expo-font": "~13.3.2",
+    "react-native-gesture-handler": "~2.24.0"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.16.1",
@@ -44,7 +46,6 @@
     "@babel/core": "7.23",
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@types/react": "~19.0.10",
-    "@types/react-native": "^0.73.0",
     "aws-cdk-lib": "^2.204.0",
     "constructs": "^10.4.2",
     "esbuild": "^0.25.8",
