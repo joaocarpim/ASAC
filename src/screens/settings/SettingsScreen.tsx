@@ -1,180 +1,275 @@
-import React from "react";
+// src/screens/settings/SettingsScreen.tsx
+
+import React, { useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  Switch,
+  SafeAreaView,
   StatusBar,
-  TouchableOpacity,
 } from "react-native";
 import Slider from "@react-native-community/slider";
-import { Switch } from "react-native";
-import { useSettings, Theme, FontSize } from "../../context/SettingsContext"; // Agora o import funciona!
+import { useNavigation } from "@react-navigation/native";
+import { useSettings } from "../../hooks/useSettings";
+import { useContrast } from "../../hooks/useContrast";
+import {
+  AccessibleText,
+  AccessibleHeader,
+  AccessibleButton,
+} from "../../components/AccessibleComponents";
 import ScreenHeader from "../../components/layout/ScreenHeader";
-
-// DEFINIÇÃO DE TIPOS PARA AS PROPS DOS COMPONENTES AUXILIARES
-type OptionSelectorProps = {
-  title: string;
-  options: string[];
-  selectedOption: Theme | FontSize;
-  onSelect: (option: any) => void;
-};
-
-type SettingRowProps = {
-  label: string;
-  value: boolean;
-  onValueChange: (value: boolean) => void;
-};
-
-// Componente com tipos aplicados
-const OptionSelector = ({
-  title,
-  options,
-  selectedOption,
-  onSelect,
-}: OptionSelectorProps) => (
-  <View style={styles.sectionContainer}>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    <View style={styles.optionsRow}>
-      {options.map((option: string) => (
-        <TouchableOpacity
-          key={option}
-          style={[
-            styles.optionButton,
-            selectedOption === option && styles.optionButtonSelected,
-          ]}
-          onPress={() => onSelect(option)}
-        >
-          <Text
-            style={[
-              styles.optionButtonText,
-              selectedOption === option && styles.optionButtonTextSelected,
-            ]}
-          >
-            {option.charAt(0).toUpperCase() + option.slice(1)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  </View>
-);
-
-// Componente com tipos aplicados
-const SettingRow = ({ label, value, onValueChange }: SettingRowProps) => (
-  <View style={styles.settingRow}>
-    <Text style={styles.settingRowLabel}>{label}</Text>
-    <Switch
-      trackColor={{ false: "#767577", true: "#FFC700" }}
-      thumbColor={value ? "#191970" : "#f4f3f4"}
-      onValueChange={onValueChange}
-      value={value}
-    />
-  </View>
-);
+import { Theme } from "../../types/contrast";
+// 👇 1. IMPORTAR OS COMPONENTES DE GESTO 👇
+import {
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
+  const { theme, contrastMode } = useContrast();
   const {
-    theme,
-    setTheme,
-    fontSize,
-    setFontSize,
-    zoom,
-    setZoom,
-    isNarrationEnabled,
-    setIsNarrationEnabled,
-    isSoundEffectsEnabled,
-    setIsSoundEffectsEnabled,
+    fontSizeMultiplier,
+    setFontSizeMultiplier,
+    isBoldTextEnabled,
+    toggleBoldText,
+    lineHeightMultiplier,
+    setLineHeightMultiplier,
+    letterSpacing,
+    setLetterSpacing,
+    isDyslexiaFontEnabled,
+    toggleDyslexiaFont,
+    imageScale,
+    setImageScale,
   } = useSettings();
 
+  const MAX_FONT_SIZE_MULTIPLIER = 1.2;
+
+  // 👇 2. DEFINIR A FUNÇÃO E O GESTO 👇
+  const handleGoBack = () => {
+    navigation.goBack();
+  };
+
+  const flingRight = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(handleGoBack);
+
+  useEffect(() => {
+    if (fontSizeMultiplier > MAX_FONT_SIZE_MULTIPLIER) {
+      setFontSizeMultiplier(MAX_FONT_SIZE_MULTIPLIER);
+    }
+    if (lineHeightMultiplier < 1.0) {
+      setLineHeightMultiplier(1.0);
+    }
+    if (letterSpacing < 0) {
+      setLetterSpacing(0);
+    }
+  }, [
+    fontSizeMultiplier,
+    setFontSizeMultiplier,
+    lineHeightMultiplier,
+    setLineHeightMultiplier,
+    letterSpacing,
+    setLetterSpacing,
+    isDyslexiaFontEnabled,
+    MAX_FONT_SIZE_MULTIPLIER,
+  ]);
+
+  const styles = createStyles(
+    theme,
+    fontSizeMultiplier,
+    isBoldTextEnabled,
+    lineHeightMultiplier,
+    letterSpacing,
+    isDyslexiaFontEnabled
+  );
+
+  const SettingRow = ({
+    label,
+    children,
+  }: {
+    label: string;
+    children: React.ReactNode;
+  }) => (
+    <View style={styles.row}>
+      <AccessibleText baseSize={16} style={styles.label}>
+        {label}
+      </AccessibleText>
+      <View style={styles.controlContainer}>{children}</View>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
-      <ScreenHeader title="Configurações" />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <OptionSelector
-          title="Temas de Cores"
-          options={["claro", "escuro", "azul"]}
-          selectedOption={theme}
-          onSelect={setTheme}
+    // 👇 3. ENVOLVER A TELA COM O DETECTOR DE GESTOS 👇
+    <GestureDetector gesture={flingRight}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar
+          barStyle={theme.statusBarStyle}
+          backgroundColor={theme.background}
         />
-        <OptionSelector
-          title="Tamanho da Fonte"
-          options={["atual", "grande", "extra"]}
-          selectedOption={fontSize}
-          onSelect={setFontSize}
-        />
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Zoom da Página</Text>
-          <Slider
-            style={styles.slider}
-            minimumValue={0}
-            maximumValue={1}
-            value={zoom}
-            onValueChange={setZoom}
-            minimumTrackTintColor="#191970"
-            maximumTrackTintColor="#000000"
-            thumbTintColor="#191970"
-          />
-        </View>
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Configurações de Áudio</Text>
-          <View style={styles.audioSettingsContainer}>
+        {/* Passando a função handleGoBack para o ScreenHeader também */}
+        <ScreenHeader title="Acessibilidade" onBackPress={handleGoBack} />
+
+        <View style={styles.contentContainer}>
+          <View style={styles.section}>
             <SettingRow
-              label="Narração por Voz"
-              value={isNarrationEnabled}
-              onValueChange={setIsNarrationEnabled}
-            />
+              label={`Tamanho da Fonte: ${(fontSizeMultiplier * 100).toFixed(
+                0
+              )}%`}
+            >
+              <Slider
+                style={styles.slider}
+                minimumValue={0.8}
+                maximumValue={MAX_FONT_SIZE_MULTIPLIER}
+                step={0.1}
+                value={fontSizeMultiplier}
+                onSlidingComplete={setFontSizeMultiplier}
+                minimumTrackTintColor={theme.text}
+                maximumTrackTintColor="#d3d3d3"
+                thumbTintColor={theme.text}
+              />
+            </SettingRow>
+
+            <SettingRow label="Texto em Negrito">
+              <Switch
+                value={isBoldTextEnabled}
+                onValueChange={toggleBoldText}
+                trackColor={{ false: "#767577", true: theme.button }}
+                thumbColor={isBoldTextEnabled ? theme.buttonText : "#f4f3f4"}
+              />
+            </SettingRow>
+
             <SettingRow
-              label="Efeitos Sonoros"
-              value={isSoundEffectsEnabled}
-              onValueChange={setIsSoundEffectsEnabled}
-            />
+              label={`Espaçamento Linhas: ${lineHeightMultiplier.toFixed(1)}x`}
+            >
+              <Slider
+                style={styles.slider}
+                minimumValue={1.0}
+                maximumValue={2.0}
+                step={0.1}
+                value={lineHeightMultiplier}
+                onSlidingComplete={setLineHeightMultiplier}
+                minimumTrackTintColor={theme.text}
+                maximumTrackTintColor="#d3d3d3"
+                thumbTintColor={theme.text}
+              />
+            </SettingRow>
+
+            <SettingRow
+              label={`Espaçamento Letras: ${letterSpacing.toFixed(1)}`}
+            >
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={3}
+                step={0.25}
+                value={letterSpacing}
+                onSlidingComplete={setLetterSpacing}
+                minimumTrackTintColor={theme.text}
+                maximumTrackTintColor="#d3d3d3"
+                thumbTintColor={theme.text}
+              />
+            </SettingRow>
+
+            <SettingRow label="Fonte para Dislexia">
+              <Switch
+                value={isDyslexiaFontEnabled}
+                onValueChange={toggleDyslexiaFont}
+                trackColor={{ false: "#767577", true: theme.button }}
+                thumbColor={
+                  isDyslexiaFontEnabled ? theme.buttonText : "#f4f3f4"
+                }
+              />
+            </SettingRow>
+          </View>
+
+          <View style={styles.section}>
+            <AccessibleHeader level={2} style={styles.sectionHeader}>
+              Tela
+            </AccessibleHeader>
+            <SettingRow label={`Contraste (${contrastMode})`}>
+              <AccessibleButton
+                onPress={() => navigation.navigate("Contrast" as never)}
+                accessibilityText={`Alterar modo de contraste. Modo atual: ${contrastMode}`}
+              >
+                <Text style={styles.linkText}>Alterar</Text>
+              </AccessibleButton>
+            </SettingRow>
+            <SettingRow
+              label={`Tamanho das Imagens: ${(imageScale * 100).toFixed(0)}%`}
+            >
+              <Slider
+                style={styles.slider}
+                minimumValue={0.6}
+                maximumValue={1.2}
+                step={0.1}
+                value={imageScale}
+                onSlidingComplete={setImageScale}
+                minimumTrackTintColor={theme.text}
+                maximumTrackTintColor="#d3d3d3"
+                thumbTintColor={theme.text}
+              />
+            </SettingRow>
           </View>
         </View>
-      </ScrollView>
-    </View>
+      </SafeAreaView>
+    </GestureDetector>
   );
 }
 
-// Os estilos permanecem os mesmos
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFC700" },
-  scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
-  sectionContainer: { marginBottom: 30 },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#191970",
-    marginBottom: 15,
-  },
-  optionsRow: { flexDirection: "row", justifyContent: "space-between" },
-  optionButton: {
-    flex: 1,
-    backgroundColor: "#191970",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginHorizontal: 5,
-  },
-  optionButtonSelected: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#191970",
-    borderWidth: 2,
-  },
-  optionButtonText: { color: "#FFFFFF", fontWeight: "bold" },
-  optionButtonTextSelected: { color: "#191970" },
-  slider: { width: "100%", height: 40 },
-  audioSettingsContainer: {
-    backgroundColor: "#191970",
-    borderRadius: 12,
-    padding: 10,
-  },
-  settingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-  },
-  settingRowLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
-});
+// --- Estilos dinâmicos ---
+const createStyles = (
+  theme: Theme,
+  fontMultiplier: number,
+  isBold: boolean,
+  lineHeightMultiplier: number,
+  letterSpacing: number,
+  isDyslexiaFont: boolean
+) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.background },
+    contentContainer: {
+      flex: 1,
+      paddingHorizontal: 20,
+      justifyContent: "space-evenly",
+    },
+    section: {},
+    sectionHeader: {
+      marginBottom: 8,
+      paddingBottom: 4,
+      color: theme.text,
+      fontSize: 18 * fontMultiplier,
+      fontWeight: "bold",
+    },
+    row: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 8,
+    },
+    label: {
+      color: theme.text,
+      flex: 1.2,
+      fontSize: 16 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "normal",
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      lineHeight: 16 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
+    },
+    controlContainer: {
+      flex: 1,
+      alignItems: "flex-end",
+    },
+    slider: {
+      width: "100%",
+      height: 40,
+    },
+    linkText: {
+      color: theme.text,
+      fontWeight: "bold",
+      textDecorationLine: "underline",
+      fontSize: 16 * fontMultiplier,
+    },
+  });

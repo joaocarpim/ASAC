@@ -6,15 +6,28 @@ import {
   Image,
   ScrollView,
   StatusBar,
+  SafeAreaView,
   ImageSourcePropType,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import ScreenHeader from "../../components/layout/ScreenHeader";
+import { useContrast } from "../../hooks/useContrast";
+import { Theme } from "../../types/contrast";
+import {
+  AccessibleView,
+  AccessibleButton,
+  AccessibleHeader,
+} from "../../components/AccessibleComponents";
+import { useSettings } from "../../hooks/useSettings";
+// 👇 1. IMPORTAR OS COMPONENTES DE GESTO 👇
+import {
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 
-const trophyImg = require("../../assets/images/trophy.png");
-
-// ITEM DO RANKING
-type RankingItem = {
+// --- DADOS E TIPOS ---
+type RankingItemData = {
   id: string;
   name: string;
   coins: number;
@@ -22,15 +35,7 @@ type RankingItem = {
   modules: string;
   avatar: ImageSourcePropType;
 };
-
-// COMPONENTE DA LISTA
-type RankingListItemProps = {
-  data: RankingItem;
-  rank: number;
-};
-
-// Dados de exemplo com o tipo aplicado
-const rankingData: RankingItem[] = [
+const rankingData: RankingItemData[] = [
   {
     id: "1",
     name: "Ana Silva Nogueira",
@@ -63,99 +68,242 @@ const rankingData: RankingItem[] = [
     modules: "1/3",
     avatar: require("../../assets/images/avatar4.png"),
   },
+  {
+    id: "5",
+    name: "Marcos Pereira",
+    coins: 310,
+    points: 14800,
+    modules: "1/3",
+    avatar: require("../../assets/images/avatar1.png"),
+  },
+  {
+    id: "6",
+    name: "Juliana Costa",
+    coins: 290,
+    points: 13500,
+    modules: "1/3",
+    avatar: require("../../assets/images/avatar2.png"),
+  },
 ];
 
-// TIPO NO COMPONENTE
-const RankingListItem = ({ data, rank }: RankingListItemProps) => (
-  <View style={[styles.listItem, rank <= 3 && styles.topThree]}>
-    <Text style={styles.rankNumber}>{rank}º</Text>
-    <View style={styles.playerInfo}>
-      <Text style={styles.playerName}>{data.name}</Text>
-      <View style={styles.playerStats}>
-        <MaterialCommunityIcons name="hand-coin" color="#FFC700" size={16} />
-        <Text style={styles.statText}>{data.coins}</Text>
-        <MaterialCommunityIcons
-          name="trophy-variant"
-          color="#FFC700"
-          size={16}
-          style={{ marginLeft: 8 }}
-        />
-        <Text style={styles.statText}>
-          {data.points.toLocaleString("pt-BR")}
-        </Text>
-        <MaterialCommunityIcons
-          name="book-open-variant"
-          color="#FFC700"
-          size={16}
-          style={{ marginLeft: 8 }}
-        />
-        <Text style={styles.statText}>{data.modules}</Text>
-      </View>
-    </View>
-    <Image source={data.avatar} style={styles.avatar} />
-  </View>
-);
-
-export default function RankingScreen() {
+// --- ITEM INDIVIDUAL ---
+const RankingListItem = ({
+  data,
+  rank,
+  styles,
+}: {
+  data: RankingItemData;
+  rank: number;
+  styles: any;
+}) => {
+  const accessibilityText = `Posição ${rank}º: ${
+    data.name
+  }. Status: ${data.coins} moedas, ${data.points.toLocaleString(
+    "pt-BR"
+  )} pontos e ${data.modules} módulos concluídos.`;
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <ScreenHeader
-          title="Ranking Geral"
-          rightIcon="share-variant"
-          onRightIconPress={() => {}}
-        />
-        <Image
-          source={trophyImg}
-          style={styles.mainImage}
-          accessible
-          accessibilityLabel="Troféu dourado grande"
-        />
-        <View style={styles.listContainer}>
-          {rankingData.map((item, index) => (
-            <RankingListItem key={item.id} data={item} rank={index + 1} />
-          ))}
+    <AccessibleView accessibilityText={accessibilityText}>
+      <View style={styles.listItem}>
+        <Text selectable={false} style={styles.rankNumber}>
+          {rank}º
+        </Text>
+        <View style={styles.playerInfo}>
+          <Text selectable={false} style={styles.playerName} numberOfLines={2}>
+            {data.name}
+          </Text>
+          <View style={styles.playerStats}>
+            <MaterialCommunityIcons
+              name="hand-coin"
+              color={styles.statIcon.color}
+              size={14}
+            />
+            <Text selectable={false} style={styles.statText}>
+              {data.coins}
+            </Text>
+            <MaterialCommunityIcons
+              name="trophy-variant"
+              color={styles.statIcon.color}
+              size={14}
+              style={{ marginLeft: 8 }}
+            />
+            <Text selectable={false} style={styles.statText}>
+              {data.points.toLocaleString("pt-BR")}
+            </Text>
+            <MaterialCommunityIcons
+              name="book-open-variant"
+              color={styles.statIcon.color}
+              size={14}
+              style={{ marginLeft: 8 }}
+            />
+            <Text selectable={false} style={styles.statText}>
+              {data.modules}
+            </Text>
+          </View>
         </View>
-      </ScrollView>
-    </View>
+        <Image source={data.avatar} style={styles.avatar} />
+      </View>
+    </AccessibleView>
+  );
+};
+
+// --- TELA PRINCIPAL ---
+export default function RankingScreen() {
+  const navigation = useNavigation();
+  const { theme } = useContrast();
+  const {
+    fontSizeMultiplier,
+    isBoldTextEnabled,
+    lineHeightMultiplier,
+    letterSpacing,
+    isDyslexiaFontEnabled,
+  } = useSettings();
+
+  const styles = createStyles(
+    theme,
+    fontSizeMultiplier,
+    isBoldTextEnabled,
+    lineHeightMultiplier,
+    letterSpacing,
+    isDyslexiaFontEnabled
+  );
+
+  // 👇 2. DEFINIR A FUNÇÃO E O GESTO 👇
+  const handleGoBack = () => {
+    navigation.goBack();
+  };
+
+  const flingRight = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(handleGoBack);
+
+  return (
+    // 👇 3. ENVOLVER A TELA COM O DETECTOR DE GESTOS 👇
+    <GestureDetector gesture={flingRight}>
+      <SafeAreaView style={styles.pageContainer}>
+        <StatusBar
+          barStyle={theme.statusBarStyle}
+          backgroundColor={theme.background}
+        />
+        <View style={styles.header}>
+          <AccessibleButton
+            onPress={handleGoBack} // Reutilizando a função
+            accessibilityText="Voltar para a tela anterior"
+          >
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={28}
+              color={styles.headerTitle.color}
+            />
+          </AccessibleButton>
+          <AccessibleHeader level={1} style={styles.headerTitle}>
+            Classificação Geral
+          </AccessibleHeader>
+          <View style={styles.headerIconPlaceholder} />
+        </View>
+        <View style={styles.topSection}>
+          <AccessibleView accessibilityText="Troféu, representando o topo da classificação">
+            <Text selectable={false} style={styles.mainEmoji}>
+              🏆
+            </Text>
+          </AccessibleView>
+          <ScrollView
+            style={styles.carouselContainer}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.carouselContent}
+          >
+            {rankingData.map((item, index) => (
+              <View key={item.id} style={styles.carouselItem}>
+                <RankingListItem data={item} rank={index + 1} styles={styles} />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    </GestureDetector>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFC700" },
-  scrollContainer: { alignItems: "center", paddingBottom: 30 },
-  mainImage: {
-    width: 180,
-    height: 180,
-    resizeMode: "contain",
-    marginVertical: 10,
-  },
-  listContainer: {
-    backgroundColor: "#191970",
-    borderRadius: 20,
-    padding: 15,
-    width: "90%",
-  },
-  listItem: {
-    backgroundColor: "#3D3D8D",
-    borderRadius: 15,
-    padding: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  // 👇 CORREÇÃO AQUI 👇
-  topThree: { backgroundColor: "#5A4FCF" }, // Tom de azul arroxeado
-  rankNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginRight: 10,
-  },
-  playerInfo: { flex: 1 },
-  playerName: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
-  playerStats: { flexDirection: "row", alignItems: "center", marginTop: 5 },
-  statText: { color: "#FFFFFF", fontSize: 12, marginLeft: 3 },
-  avatar: { width: 45, height: 45, borderRadius: 22.5, marginLeft: 10 },
-});
+// --- ESTILOS ---
+// A função createStyles permanece exatamente a mesma
+const createStyles = (
+  theme: Theme,
+  fontMultiplier: number,
+  isBold: boolean,
+  lineHeight: number,
+  letterSpacing: number,
+  isDyslexiaFont: boolean
+) =>
+  StyleSheet.create({
+    pageContainer: { flex: 1, backgroundColor: theme.background },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 15,
+      paddingHorizontal: 20,
+    },
+    headerTitle: {
+      color: theme.text,
+      opacity: 0.8,
+      fontSize: 18 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "600",
+      lineHeight: 18 * fontMultiplier * lineHeight,
+      letterSpacing: letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    headerIconPlaceholder: { width: 28 },
+    topSection: {
+      flex: 1,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.card,
+      paddingBottom: 4,
+    },
+    mainEmoji: { fontSize: 100, textAlign: "center", marginVertical: 8 },
+    carouselContainer: { maxHeight: 330 },
+    carouselContent: { gap: 8, paddingBottom: 16 },
+    carouselItem: { width: "100%" },
+    listItem: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 12,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    rankNumber: {
+      color: theme.cardText,
+      fontSize: 22 * fontMultiplier,
+      fontWeight: "bold",
+      marginRight: 12,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    playerInfo: { flex: 1 },
+    playerName: {
+      color: theme.cardText,
+      fontSize: 15 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "bold",
+      marginBottom: 6,
+      lineHeight: 15 * fontMultiplier * lineHeight,
+      letterSpacing: letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    playerStats: { flexDirection: "row", alignItems: "center" },
+    statIcon: { color: theme.cardText, opacity: 0.7 },
+    statText: {
+      color: theme.cardText,
+      fontSize: 12 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "600",
+      marginLeft: 4,
+      lineHeight: 12 * fontMultiplier * lineHeight,
+      letterSpacing: letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      marginLeft: 10,
+      borderWidth: 2,
+      borderColor: theme.background,
+    },
+  });

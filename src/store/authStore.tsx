@@ -1,7 +1,12 @@
 import { create } from "zustand";
-import { getCurrentUser, fetchAuthSession, signOut as amplifySignOut } from "aws-amplify/auth";
+import {
+  getCurrentUser,
+  fetchAuthSession,
+  signOut as amplifySignOut,
+} from "aws-amplify/auth";
 import { ensureUserExistsInDB, getUserById } from "../services/progressService";
 
+// ... (Sua tipagem 'User' e 'AuthState' permanecem as mesmas)
 export type User = {
   userId: string;
   username: string;
@@ -10,7 +15,7 @@ export type User = {
   isAdmin?: boolean;
   coins?: number | null;
   points?: number | null;
-  modulesCompleted?: number[]; // ajustado para array
+  modulesCompleted?: number[];
   currentModule?: number | null;
   precision?: number | null;
   correctAnswers?: number | null;
@@ -31,39 +36,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
 
+  // A função checkUser permanece a mesma
   checkUser: async () => {
     try {
-      console.log("🔑 checkUser: verificando usuário no Cognito...");
       const cognitoUser = await getCurrentUser();
       const session = await fetchAuthSession();
-
-      console.log("📌 cognitoUser:", JSON.stringify(cognitoUser, null, 2));
-      console.log("📌 session:", JSON.stringify(session, null, 2));
-
       const sub = cognitoUser.userId;
       const username = cognitoUser.username;
       const email = cognitoUser.signInDetails?.loginId ?? "";
-
-      const groups = (session.tokens?.accessToken?.payload?.["cognito:groups"] ?? []) as string[];
+      const groups = (session.tokens?.accessToken?.payload?.[
+        "cognito:groups"
+      ] ?? []) as string[];
       const isAdmin = Array.isArray(groups) && groups.includes("Admins");
-
       const baseUser: User = { userId: sub, username, email, isAdmin };
 
       if (isAdmin) {
-        console.log("👑 Usuário é Admin, acesso liberado.");
         set({ user: baseUser, isLoading: false });
         return;
       }
-
-      console.log("🗄️ Buscando usuário no DB...");
       const dbUser = await ensureUserExistsInDB(sub);
-
       if (!dbUser) {
-        console.warn("⚠️ Usuário não existe no DB. Um Admin precisa registrá-lo.");
         set({ user: null, isLoading: false });
         return;
       }
-
       set({
         user: {
           ...baseUser,
@@ -72,16 +67,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         },
         isLoading: false,
       });
-    } catch (e: any) {
-      if (e?.name === "UserUnAuthenticatedException" || e?.message?.includes("not authenticated")) {
-        console.log("ℹ️ Nenhum usuário logado ainda");
-      } else {
-        console.warn("⚠️ Erro ao checar usuário:", e?.message || e);
-      }
+    } catch (e) {
       set({ user: null, isLoading: false });
     }
   },
 
+  // A função refreshUserFromDB permanece a mesma
   refreshUserFromDB: async () => {
     try {
       const u = get().user;
@@ -99,17 +90,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // A função updateUserData permanece a mesma
   updateUserData: (data) =>
     set((state) => ({
       user: state.user ? { ...state.user, ...data } : null,
     })),
 
+  // ✅ FUNÇÃO SIGNOUT CORRIGIDA
   signOut: async () => {
+    // Primeiro, limpa o estado local IMEDIATAMENTE.
+    // Isso força uma re-renderização síncrona em qualquer componente que usa o hook.
+    set({ user: null });
+    console.log("🚪 Estado do usuário limpo. Redirecionamento deve ocorrer.");
+
+    // Depois, executa a limpeza assíncrona com o Amplify em segundo plano.
     try {
-      await amplifySignOut();
-      set({ user: null, isLoading: false });
+      await amplifySignOut({ global: true });
+      console.log("✅ Logout no Amplify concluído.");
     } catch (e) {
-      console.warn("⚠️ Erro ao fazer signOut:", e);
+      console.warn("⚠️ Erro ao fazer signOut no Amplify:", e);
+      // O estado local já foi limpo, então o usuário já foi deslogado da UI.
     }
   },
 }));

@@ -1,3 +1,4 @@
+// src/navigation/types.ts
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 export type RootStackParamList = {
@@ -12,25 +13,26 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { email: string };
   ConfirmSignUp: { email: string; password?: string };
-
-  // 🚀 NOVO
-NewPassword: { username: string };
+  NewPassword: { username: string };
 
   // Main App
   Home: undefined;
   Ranking: undefined;
   Achievements: undefined;
   Progress: undefined;
-
-  // Settings
+  Braille: undefined;
+  
+  // Settings & Accessibility
   Settings: undefined;
+  Contrast: undefined;
 
   // Modules
   Alphabet: undefined;
   ModuleContent: { moduleId: number };
   ModulePreQuiz: { moduleId: number };
   ModuleQuiz: { moduleId: number };
-  ModuleResults: {
+  
+  ModuleResult: {
     moduleId: number;
     correctAnswers: number;
     totalQuestions: number;

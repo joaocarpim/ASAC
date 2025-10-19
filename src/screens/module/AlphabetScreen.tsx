@@ -1,33 +1,42 @@
+// src/screens/module/AlphabetScreen.tsx — versão final com carrossel lateral 100% acessível por voz
+
 import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   Image,
   ActivityIndicator,
+  ScrollView,
+  Dimensions,
 } from "react-native";
 import { generateClient } from "aws-amplify/api";
 import { listBrailleSymbols } from "../../graphql/queries";
 import { getUrl } from "aws-amplify/storage";
 import ScreenHeader from "../../components/layout/ScreenHeader";
+import { AccessibleView } from "../../components/AccessibleComponents";
+// 👇 1. IMPORTAR OS COMPONENTES DE GESTO E NAVEGAÇÃO 👇
+import { useNavigation } from "@react-navigation/native";
+import {
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 
-// Tipo para os dados de um símbolo Braille
+const screenWidth = Dimensions.get("window").width;
+
 type BrailleSymbol = {
   id: string;
   letter: string;
   description: string;
   imageKey: string;
+  imageUrl?: string;
 };
 
-// Tipo para as props do componente de item
-type AlphabetItemProps = {
-  item: BrailleSymbol;
-};
-
-// Componente para cada item da lista
-const AlphabetItem = ({ item }: AlphabetItemProps) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+const AlphabetItem = ({ item }: { item: BrailleSymbol }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(
+    item.imageUrl || null
+  );
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
@@ -37,27 +46,30 @@ const AlphabetItem = ({ item }: AlphabetItemProps) => {
         return;
       }
       try {
-        // Lógica de busca de imagem simplificada
         const urlResult = await getUrl({
           key: item.imageKey,
-          options: {
-            accessLevel: "protected", // Acesso para usuários logados
-            validateObjectExistence: true, // Garante que o arquivo existe
-          },
+          options: { accessLevel: "protected", validateObjectExistence: true },
         });
         setImageUrl(urlResult.url.toString());
         setImageError(false);
       } catch (e) {
-        console.error(`Erro ao buscar imagem "${item.imageKey}" do S3:`, e);
+        console.error(`Erro ao carregar imagem ${item.imageKey}:`, e);
         setImageError(true);
       }
     };
-
-    fetchImage();
+    const timeout = setTimeout(fetchImage, 60);
+    return () => clearTimeout(timeout);
   }, [item.imageKey]);
 
+  const accessibilityText = `${item.letter}: ${item.description}`;
+
   return (
-    <View style={styles.itemContainer}>
+    <AccessibleView
+      style={styles.itemContainer}
+      accessibilityText={accessibilityText}
+      accessible={true}
+      importantForAccessibility="yes"
+    >
       {imageUrl && !imageError ? (
         <Image source={{ uri: imageUrl }} style={styles.brailleImage} />
       ) : (
@@ -65,39 +77,52 @@ const AlphabetItem = ({ item }: AlphabetItemProps) => {
           {!imageError ? (
             <ActivityIndicator color="#FFC700" />
           ) : (
-            <Text style={styles.errorText}>Erro Imagem</Text>
+            <Text style={styles.errorText} selectable={false}>
+              Erro Imagem
+            </Text>
           )}
         </View>
       )}
-      <Text style={styles.descriptionText}>
+      <Text style={styles.descriptionText} selectable={false}>
         {item.letter}: {item.description}
       </Text>
-    </View>
+    </AccessibleView>
   );
 };
 
 export default function AlphabetScreen() {
   const [alphabet, setAlphabet] = useState<BrailleSymbol[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigation = useNavigation(); // Hook de navegação
+
+  // 👇 2. DEFINIR A FUNÇÃO E O GESTO 👇
+  const handleGoBack = () => {
+    navigation.goBack();
+  };
+
+  const flingRight = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(handleGoBack);
 
   useEffect(() => {
     const fetchAlphabet = async () => {
       try {
         const client = generateClient();
         const result = await client.graphql({ query: listBrailleSymbols });
-        const items = result.data.listBrailleSymbols.items.filter(
+        const items = (result.data.listBrailleSymbols.items || []).filter(
           Boolean
         ) as BrailleSymbol[];
-        const sortedAlphabet = items.sort((a, b) =>
-          a.letter.localeCompare(b.letter)
-        );
-        setAlphabet(sortedAlphabet);
+
+        const sorted = items.sort((a, b) => a.letter.localeCompare(b.letter));
+
+        setAlphabet(sorted);
       } catch (e) {
         console.error("Erro ao buscar o alfabeto:", e);
       } finally {
         setLoading(false);
       }
     };
+
     fetchAlphabet();
   }, []);
 
@@ -105,36 +130,59 @@ export default function AlphabetScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#191970" />
-        <Text style={styles.loadingText}>Carregando alfabeto...</Text>
+        <Text style={styles.loadingText}>Carregando símbolos...</Text>
       </View>
     );
   }
 
   if (alphabet.length === 0) {
     return (
-      <View style={styles.container}>
-        <ScreenHeader title="Alfabeto Braille" />
-        <View style={styles.loadingContainer}>
-          <Text style={styles.pageTitle}>Nenhum material encontrado.</Text>
-          <Text style={styles.infoText}>
-            Verifique se o conteúdo foi cadastrado no Amplify Studio.
-          </Text>
-        </View>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.infoText}>Nenhum símbolo encontrado.</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Alfabeto Braille" />
-      <FlatList
-        data={alphabet}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <AlphabetItem item={item} />}
-        numColumns={2}
-        contentContainerStyle={styles.listContainer}
-      />
-    </View>
+    // 👇 3. ENVOLVER A TELA COM O DETECTOR DE GESTOS 👇
+    <GestureDetector gesture={flingRight}>
+      <View style={styles.container}>
+        <ScreenHeader title="Alfabeto Braille" />
+
+        {/* 🎠 Carrossel lateral visível */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator
+          decelerationRate="fast"
+          snapToInterval={screenWidth * 0.8}
+          snapToAlignment="center"
+          disableIntervalMomentum
+          contentContainerStyle={styles.carouselContent}
+          accessibilityLabel="Carrossel de símbolos Braille"
+        >
+          {alphabet.map((item) => (
+            <View key={item.id} style={styles.cardWrapper}>
+              <AlphabetItem item={item} />
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* ♿ Área invisível, mas acessível por voz — garante leitura de todos os símbolos */}
+        <View
+          accessible={true}
+          accessibilityElementsHidden={false}
+          importantForAccessibility="yes"
+          style={styles.hiddenAccessibilityArea}
+        >
+          {alphabet.map((item) => (
+            <Text
+              key={`hidden-${item.id}`}
+              accessibilityLabel={`${item.letter}: ${item.description}`}
+            />
+          ))}
+        </View>
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -145,58 +193,57 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#FFC700",
-    padding: 20,
   },
-  loadingText: {
-    fontSize: 16,
-    color: "#191970",
-    marginTop: 10,
-    textAlign: "center",
-  },
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#191970",
-    textAlign: "center",
-    marginBottom: 10,
-  },
+  loadingText: { fontSize: 16, color: "#191970", marginTop: 10 },
   infoText: {
     fontSize: 16,
     color: "#191970",
     textAlign: "center",
     marginTop: 10,
   },
-  listContainer: { padding: 10 },
-  itemContainer: {
-    flex: 1,
-    margin: 10,
-    padding: 15,
-    backgroundColor: "#191970",
-    borderRadius: 12,
+  carouselContent: {
+    paddingHorizontal: 20,
     alignItems: "center",
+  },
+  cardWrapper: {
+    width: screenWidth * 0.8,
+    marginHorizontal: 10,
+  },
+  itemContainer: {
+    backgroundColor: "#191970",
+    borderRadius: 14,
+    alignItems: "center",
+    padding: 15,
   },
   brailleImage: {
-    width: 100,
-    height: 150,
+    width: 120,
+    height: 160,
     resizeMode: "contain",
-    marginBottom: 10,
-    backgroundColor: "white",
     borderRadius: 8,
+    backgroundColor: "#fff",
+    marginBottom: 10,
   },
   imagePlaceholder: {
-    width: 100,
-    height: 150,
-    marginBottom: 10,
+    width: 120,
+    height: 160,
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#e0e0e0",
-    borderRadius: 8,
+    backgroundColor: "#ddd",
   },
-  errorText: { color: "#666", fontSize: 12, textAlign: "center" },
+  errorText: {
+    color: "#555",
+    fontSize: 12,
+  },
   descriptionText: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
     textAlign: "center",
+  },
+  hiddenAccessibilityArea: {
+    height: 0,
+    width: 0,
+    opacity: 0,
   },
 });

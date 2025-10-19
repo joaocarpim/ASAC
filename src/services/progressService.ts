@@ -30,13 +30,20 @@ async function graphqlRequest<T>(
     );
 
     if (!res.ok) {
-      console.warn(`⚠️ GraphQL HTTP erro em ${context}:`, res.status, res.statusText);
+      console.warn(
+        `⚠️ GraphQL HTTP erro em ${context}:`,
+        res.status,
+        res.statusText
+      );
       return null;
     }
 
     const json: any = await res.json();
     if (json.errors) {
-      console.error(`❌ GraphQL erro em ${context}:`, JSON.stringify(json.errors, null, 2));
+      console.error(
+        `❌ GraphQL erro em ${context}:`,
+        JSON.stringify(json.errors, null, 2)
+      );
       return null;
     }
 
@@ -85,7 +92,11 @@ export async function getUserById(userId: string) {
     }
   }`;
 
-  const data = await graphqlRequest<any>(GET_USER, { id: userId }, "GetUserById");
+  const data = await graphqlRequest<any>(
+    GET_USER,
+    { id: userId },
+    "GetUserById"
+  );
   return data?.getUser ?? null;
 }
 
@@ -102,11 +113,11 @@ async function updateUserRaw(input: any) {
 }
 
 /* --------------------- PROGRESSO DE MÓDULOS --------------------- */
-// (mantém igual ao que você tinha, removi apenas partes desnecessárias para este exemplo)
 
-/* --------------------- PROGRESSO DE MÓDULOS --------------------- */
-
-export async function getModuleProgressByUser(userId: string, moduleId: string) {
+export async function getModuleProgressByUser(
+  userId: string,
+  moduleId: string
+) {
   const QUERY = `query ModuleProgressByUser($userId: ID!, $moduleId: ID!) {
     moduleProgressByUser(userId: $userId, moduleId: $moduleId) {
       items {
@@ -115,11 +126,19 @@ export async function getModuleProgressByUser(userId: string, moduleId: string) 
     }
   }`;
 
-  const data = await graphqlRequest<any>(QUERY, { userId, moduleId }, "ModuleProgressByUser");
+  const data = await graphqlRequest<any>(
+    QUERY,
+    { userId, moduleId },
+    "ModuleProgressByUser"
+  );
   return data?.moduleProgressByUser?.items?.[0] ?? null;
 }
 
-export async function createModuleProgress(userId: string, moduleId: string, moduleNumber: number) {
+export async function createModuleProgress(
+  userId: string,
+  moduleId: string,
+  moduleNumber: number
+) {
   const MUT = `mutation CreateModuleProgress($input: CreateModuleProgressInput!) {
     createModuleProgress(input: $input) {
       id userId moduleId moduleNumber correct wrong accuracy durationSec finished startedAt
@@ -139,11 +158,19 @@ export async function createModuleProgress(userId: string, moduleId: string, mod
     errorDetails: [],
   };
 
-  const data = await graphqlRequest<any>(MUT, { input }, "CreateModuleProgress");
+  const data = await graphqlRequest<any>(
+    MUT,
+    { input },
+    "CreateModuleProgress"
+  );
   return data?.createModuleProgress ?? null;
 }
 
-export async function ensureModuleProgress(userId: string, moduleId: string, moduleNumber: number) {
+export async function ensureModuleProgress(
+  userId: string,
+  moduleId: string,
+  moduleNumber: number
+) {
   const existing = await getModuleProgressByUser(userId, moduleId);
   if (existing) return existing;
   return createModuleProgress(userId, moduleId, moduleNumber);
@@ -156,7 +183,11 @@ async function updateModuleProgressRaw(input: any) {
     }
   }`;
 
-  const data = await graphqlRequest<any>(MUT, { input }, "UpdateModuleProgress");
+  const data = await graphqlRequest<any>(
+    MUT,
+    { input },
+    "UpdateModuleProgress"
+  );
   return data?.updateModuleProgress ?? null;
 }
 
@@ -167,7 +198,11 @@ export async function registerCorrect(userId: string, progressId: string) {
     getModuleProgress(id: $id) { id correct wrong errorDetails }
   }`;
 
-  const data = await graphqlRequest<any>(GET, { id: progressId }, "GetProgress");
+  const data = await graphqlRequest<any>(
+    GET,
+    { id: progressId },
+    "GetProgress"
+  );
   if (!data?.getModuleProgress) return null;
 
   const cur = data.getModuleProgress;
@@ -175,7 +210,11 @@ export async function registerCorrect(userId: string, progressId: string) {
   const total = newCorrect + (cur.wrong || 0);
   const accuracy = total > 0 ? newCorrect / total : 0;
 
-  await updateModuleProgressRaw({ id: progressId, correct: newCorrect, accuracy });
+  await updateModuleProgressRaw({
+    id: progressId,
+    correct: newCorrect,
+    accuracy,
+  });
 
   const user = await getUserById(userId);
   const newCoins = (user?.coins || 0) + 15;
@@ -184,12 +223,20 @@ export async function registerCorrect(userId: string, progressId: string) {
   return { newCorrect, accuracy, newCoins };
 }
 
-export async function registerWrong(userId: string, progressId: string, errorDetail: ErrorDetail) {
+// CORREÇÃO: Removido o parâmetro 'userId' que não era utilizado.
+export async function registerWrong(
+  progressId: string,
+  errorDetail: ErrorDetail
+) {
   const GET = `query GetProgress($id: ID!) {
     getModuleProgress(id: $id) { id correct wrong errorDetails }
   }`;
 
-  const data = await graphqlRequest<any>(GET, { id: progressId }, "GetProgress");
+  const data = await graphqlRequest<any>(
+    GET,
+    { id: progressId },
+    "GetProgress"
+  );
   if (!data?.getModuleProgress) return null;
 
   const cur = data.getModuleProgress;
@@ -198,18 +245,23 @@ export async function registerWrong(userId: string, progressId: string, errorDet
   const accuracy = total > 0 ? (cur.correct || 0) / total : 0;
   const newErrors = [...(cur.errorDetails || []), errorDetail];
 
-  await updateModuleProgressRaw({ id: progressId, wrong: newWrong, accuracy, errorDetails: newErrors });
+  await updateModuleProgressRaw({
+    id: progressId,
+    wrong: newWrong,
+    accuracy,
+    errorDetails: newErrors,
+  });
   return { newWrong, accuracy, newErrors };
 }
 
 /* --------------------- FINALIZAR MÓDULO --------------------- */
 
+// CORREÇÃO: Removido o parâmetro 'moduleId' que não era utilizado.
 export async function finishModule(
   userId: string,
   progressId: string,
   moduleNumber: number,
   durationSec: number,
-  moduleId: string,
   achievementTitle: string
 ) {
   await updateModuleProgressRaw({
@@ -225,12 +277,15 @@ export async function finishModule(
   const currentPoints = user.points || 0;
   const newPoints = currentPoints + 12250;
 
-  // ✅ agora adiciona o módulo ao array em vez de string "x/3"
   const newModulesCompleted = [...(user.modulesCompleted || []), moduleNumber];
 
   const newAchievements = [
     ...(user.achievements?.items || []),
-    { id: `temp-${Date.now()}`, title: achievementTitle, createdAt: new Date().toISOString() },
+    {
+      id: `temp-${Date.now()}`,
+      title: achievementTitle,
+      createdAt: new Date().toISOString(),
+    },
   ];
 
   await updateUserRaw({
@@ -254,7 +309,10 @@ export async function canStartModule(userId: string, moduleNumber: number) {
     }
   }`;
 
-  const filter = { userId: { eq: userId }, moduleNumber: { eq: moduleNumber - 1 } };
+  const filter = {
+    userId: { eq: userId },
+    moduleNumber: { eq: moduleNumber - 1 },
+  };
   const data = await graphqlRequest<any>(LIST, { filter }, "ListProgress");
 
   const item = data?.listModuleProgresses?.items?.[0];
