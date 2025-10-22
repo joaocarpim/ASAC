@@ -1,6 +1,6 @@
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
-import awsmobile from "./aws-exports";
+import awsmobile from './src/aws-exports'; 
 Amplify.configure(awsmobile);
 
 import React, { useEffect, useRef, useState } from "react";
