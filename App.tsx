@@ -1,6 +1,6 @@
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
-import awsmobile from './src/aws-exports'; 
+import awsmobile from "./src/aws-exports";
 Amplify.configure(awsmobile);
 
 import React, { useEffect, useRef, useState } from "react";
@@ -84,7 +84,6 @@ function AppNavigation() {
     string | undefined
   >();
 
-  // Lista de telas onde o botão de acessibilidade NÃO deve aparecer
   const screensWithoutHub = [
     "ConfirmSignUp",
     "ForgotPassword",
@@ -95,10 +94,9 @@ function AppNavigation() {
     "TutorialStep2",
     "TutorialStep3",
     "Welcome",
-    "Contrast", // Nome da rota para a tela SelectedContrast
+    "Contrast",
   ];
 
-  // Variável que controla a visibilidade do botão
   const showAccessibilityHub =
     !user?.isAdmin &&
     currentRouteName &&
@@ -146,11 +144,14 @@ function AppNavigation() {
         ref={viewShotRef}
         style={{ flex: 1 }}
         options={{ format: "jpg", quality: 0.9 }}
-        {...(magnifier.isActive
-          ? magnifierPanResponder.panHandlers
-          : panResponder.panHandlers)}
       >
-        <View style={styles.fullscreen}>
+        {/* ✅ CORREÇÃO: OS GESTOS (panHandlers) FORAM MOVIDOS PARA ESTA VIEW INTERNA */}
+        <View
+          style={styles.fullscreen}
+          {...(magnifier.isActive
+            ? magnifierPanResponder.panHandlers
+            : panResponder.panHandlers)}
+        >
           <NavigationContainer
             ref={navigationRef}
             theme={navigationTheme}
@@ -258,8 +259,7 @@ function AppNavigation() {
             </Stack.Navigator>
           </NavigationContainer>
 
-          <MagnifierLens viewShotRef={viewShotRef} />
-          {/* Renderização condicional do botão de acessibilidade */}
+          {magnifier.isActive && <MagnifierLens viewShotRef={viewShotRef} />}
           {showAccessibilityHub && <AccessibilityHub />}
         </View>
       </ViewShot>

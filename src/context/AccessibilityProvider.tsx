@@ -53,7 +53,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
   const elementCacheRef = useRef<Map<string, PrecisionElement>>(new Map());
   const lastSpokenRef = useRef<string>("");
   const lastMagnifiedElementIdRef = useRef<string | null>(null);
-  const speechTimeoutRef = useRef<number | null>(null);
+  const speechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTouchPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   const speechSettings: SpeechConfig = {
@@ -66,22 +66,15 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
   const { width, height } = Dimensions.get("window");
   const PIXEL_RATIO = PixelRatio.get();
 
-  // parâmetros
-  const MAGNIFIER_RADIUS = 75; // correspondendo ao componente da lupa
-  const INTERSECTION_SAMPLES = 8; // 8x8 amostragem -> boa precisão sem muito custo
+  const MAGNIFIER_RADIUS = 75;
+  const INTERSECTION_SAMPLES = 8;
 
   /* -------------------- utilitários -------------------- */
 
-  // converte coordenada de evento (pageX/pageY) para coordenada do layout (dp)
   const normalizeCoord = useCallback((x: number, y: number) => {
-    // divide por PixelRatio para garantir mesma base dos elementos registrados (dp)
-    return {
-      x: x / PIXEL_RATIO,
-      y: y / PIXEL_RATIO,
-    };
+    return { x, y };
   }, []);
 
-  // cria PrecisionElement (com bbox e distância)
   const createPrecisionData = useCallback(
     (element: AccessibleElement, px: number, py: number): PrecisionElement => {
       const centerX = element.x + element.width / 2;
@@ -106,14 +99,12 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
         touchRadius,
         bbox,
       };
-      // cache dos dados estáticos por id
       elementCacheRef.current.set(element.id, pe);
       return pe;
     },
     []
   );
 
-  // amostragem para área de interseção círculo-retângulo (aproximação)
   const circleRectIntersectionArea = useCallback(
     (
       cx: number,
@@ -140,7 +131,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     []
   );
 
-  // verificação com tolerância (mantive sua lógica, mas com interseção circular como adicional)
   const isPointInElementWithTolerance = useCallback(
     (
       element: PrecisionElement,
@@ -191,8 +181,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     },
     [circleRectIntersectionArea]
   );
-
-  /* -------------------- algoritmo principal (find) -------------------- */
 
   const calculatePrecisionScore = useCallback(
     (
@@ -257,13 +245,46 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     [width, height, circleRectIntersectionArea]
   );
 
+  const isValidSelection = useCallback(
+    (element: PrecisionElement, touchX: number, touchY: number) => {
+      if (element.distanceFromTouch > 150) return false;
+      if (!element.text || element.text.length < 2) return false;
+      const screenArea = width * height;
+      const elementAreaPercentage = element.area / screenArea;
+      if (elementAreaPercentage > 0.5) return false;
+      return true;
+    },
+    [width, height]
+  );
+
+  const findElementInExpandedRadius = useCallback(
+    (touchX: number, touchY: number): AccessibleElement | null => {
+      const expandedCandidates: Array<{
+        element: AccessibleElement;
+        distance: number;
+      }> = [];
+      for (const element of elementsRef.current.values()) {
+        const centerX = element.x + element.width / 2;
+        const centerY = element.y + element.height / 2;
+        const distance = Math.hypot(touchX - centerX, touchY - centerY);
+        if (distance <= 120) expandedCandidates.push({ element, distance });
+      }
+      if (expandedCandidates.length === 0) return null;
+      expandedCandidates.sort(
+        (a, b) =>
+          a.distance - b.distance || b.element.priority - a.element.priority
+      );
+      return expandedCandidates[0].element;
+    },
+    []
+  );
+
   const findElementAtPositionPrecise = useCallback(
     (
       touchX: number,
       touchY: number,
       magnifierRadius = 0
     ): AccessibleElement | null => {
-      // normaliza coords (se necessário) - assume touchX/Y já em dp; se vierem em px, normalize antes de chamar
       if (lastTouchPositionRef.current) {
         const distance = Math.hypot(
           touchX - lastTouchPositionRef.current.x,
@@ -278,7 +299,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
       for (const el of elementsRef.current.values()) {
         const cached = elementCacheRef.current.get(el.id);
         const pe = cached ?? createPrecisionData(el, touchX, touchY);
-        // atualiza distância dinâmica
         pe.distanceFromTouch = Math.hypot(
           touchX - pe.centerX,
           touchY - pe.centerY
@@ -309,62 +329,31 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     [
       createPrecisionData,
       isPointInElementWithTolerance,
+      findElementInExpandedRadius,
       calculatePrecisionScore,
+      isValidSelection,
     ]
-  );
-
-  /* fallback por proximidade */
-  const findElementInExpandedRadius = useCallback(
-    (touchX: number, touchY: number): AccessibleElement | null => {
-      const expandedCandidates: Array<{
-        element: AccessibleElement;
-        distance: number;
-      }> = [];
-      for (const element of elementsRef.current.values()) {
-        const centerX = element.x + element.width / 2;
-        const centerY = element.y + element.height / 2;
-        const distance = Math.hypot(touchX - centerX, touchY - centerY);
-        if (distance <= 120) expandedCandidates.push({ element, distance });
-      }
-      if (expandedCandidates.length === 0) return null;
-      expandedCandidates.sort(
-        (a, b) =>
-          a.distance - b.distance || b.element.priority - a.element.priority
-      );
-      return expandedCandidates[0].element;
-    },
-    []
-  );
-
-  const isValidSelection = useCallback(
-    (element: PrecisionElement, touchX: number, touchY: number) => {
-      if (element.distanceFromTouch > 150) return false;
-      if (!element.text || element.text.length < 2) return false;
-      const screenArea = width * height;
-      const elementAreaPercentage = element.area / screenArea;
-      if (elementAreaPercentage > 0.5) return false;
-      return true;
-    },
-    [width, height]
   );
 
   /* -------------------- TTS / announce -------------------- */
 
   const speakText = useCallback(
-    (text: string, elementId?: string) => {
-      if (elementId && lastSpokenRef.current === elementId) return; // evita repetição
-      lastSpokenRef.current = elementId ?? "";
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = speechSettings.lang;
-        u.rate = speechSettings.rate;
-        u.volume = speechSettings.volume;
-        u.onerror = (e) => console.warn("Erro síntese:", e);
-        window.speechSynthesis.speak(u);
+    (text: string) => {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
       }
-      console.log("🔊 [Acessibilidade]:", text);
+      speechTimeoutRef.current = setTimeout(() => {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = speechSettings.lang;
+          utterance.rate = speechSettings.rate;
+          utterance.volume = speechSettings.volume;
+          utterance.onerror = (e) => console.warn("Erro na síntese de voz:", e);
+          window.speechSynthesis.speak(utterance);
+        }
+        console.log("🔊 [Acessibilidade]:", text);
+      }, 50);
     },
     [speechSettings]
   );
@@ -373,16 +362,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     (element: AccessibleElement) => {
       let announcement = `${element.type}: ${element.text}`;
       if (element.isInteractive) {
-        switch (element.type) {
-          case "botão":
-            announcement += ". Toque duas vezes para ativar";
-            break;
-          case "campo":
-            announcement += ". Toque duas vezes para editar";
-            break;
-          default:
-            announcement += ". Elemento interativo";
-        }
+        announcement += ". Toque duas vezes para ativar";
       }
       return announcement;
     },
@@ -418,7 +398,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     setIsVoiceMode(newMode);
     if (newMode) {
       speakText(
-        "Explorar por Toque ativado. Pressione e arraste o dedo pela tela para ouvir os elementos."
+        "Explorar por Toque ativado. Pressione e arraste o dedo pela tela."
       );
     } else {
       speakText("Explorar por Toque desativado");
@@ -432,22 +412,25 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     onMoveShouldSetPanResponder: () => isVoiceMode && !magnifier.isActive,
     onPanResponderGrant: (evt) => {
       const { pageX, pageY } = evt.nativeEvent;
-      const norm = normalizeCoord(pageX, pageY);
-      const el = findElementAtPositionPrecise(norm.x, norm.y);
+      const el = findElementAtPositionPrecise(pageX, pageY);
       if (el) {
-        const announcement = createElementAnnouncement(el);
-        speakText(announcement, el.id);
+        lastSpokenRef.current = el.id;
+        speakText(createElementAnnouncement(el));
       } else {
+        lastSpokenRef.current = "vazio";
         speakText("Área vazia.");
       }
     },
     onPanResponderMove: (evt, gestureState) => {
       const { moveX, moveY } = gestureState;
-      const norm = normalizeCoord(moveX, moveY);
-      const element = findElementAtPositionPrecise(norm.x, norm.y);
+      const element = findElementAtPositionPrecise(moveX, moveY);
+
       if (element && element.id !== lastSpokenRef.current) {
-        const announcement = createElementAnnouncement(element);
-        speakText(announcement, element.id);
+        lastSpokenRef.current = element.id;
+        speakText(createElementAnnouncement(element));
+      } else if (!element && lastSpokenRef.current !== "vazio") {
+        lastSpokenRef.current = "vazio";
+        speakText("Área vazia.");
       }
     },
     onPanResponderRelease: () => {
@@ -473,36 +456,36 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
 
   const updateMagnifierPosition = useCallback(
     (pageX: number, pageY: number) => {
-      const { x: nx, y: ny } = normalizeCoord(pageX, pageY);
       const boundedX = Math.max(
         MAGNIFIER_RADIUS,
-        Math.min(width - MAGNIFIER_RADIUS, nx)
+        Math.min(width - MAGNIFIER_RADIUS, pageX)
       );
       const boundedY = Math.max(
         MAGNIFIER_RADIUS,
-        Math.min(height - MAGNIFIER_RADIUS, ny)
+        Math.min(height - MAGNIFIER_RADIUS, pageY)
       );
+
       setMagnifier((prev) => ({ ...prev, x: boundedX, y: boundedY }));
+
       const element = findElementAtPositionPrecise(
         boundedX,
         boundedY,
         MAGNIFIER_RADIUS
       );
       setMagnifier((prev) => ({ ...prev, currentElement: element }));
+
       if (element && element.id !== lastMagnifiedElementIdRef.current) {
-        speakText(createElementAnnouncement(element), element.id);
         lastMagnifiedElementIdRef.current = element.id;
+        speakText(createElementAnnouncement(element));
       } else if (!element && lastMagnifiedElementIdRef.current !== null) {
         lastMagnifiedElementIdRef.current = null;
       }
     },
-    [width, height, normalizeCoord, findElementAtPositionPrecise, speakText]
+    [width, height, findElementAtPositionPrecise, speakText]
   );
 
-  // getElementsUnderMagnifier compatível com chamada sem args (usa estado magnifier) e com args (x,y,radius)
   const getElementsUnderMagnifier = useCallback(
     (pageX?: number, pageY?: number, radius?: number) => {
-      // se pageX/ pageY vierem (px), normalize; se não, usa magnifier.x/y (já em dp)
       let cx = magnifier.x;
       let cy = magnifier.y;
       if (typeof pageX === "number" && typeof pageY === "number") {
@@ -529,7 +512,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     [magnifier.x, magnifier.y, normalizeCoord, circleRectIntersectionArea]
   );
 
-  // função que anuncia os elementos no ponto (page coords opcionais)
   const announceElementsUnderMagnifier = useCallback(
     (pageX?: number, pageY?: number, radius?: number) => {
       const elements = getElementsUnderMagnifier(pageX, pageY, radius);
@@ -548,8 +530,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     return magnifier.currentElement ? [magnifier.currentElement] : [];
   }, [magnifier.isActive, magnifier.currentElement]);
 
-  /* -------------------- magnifier panResponder (arrastar & soltar) -------------------- */
-
   const magnifierPanResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => magnifier.isActive,
     onMoveShouldSetPanResponder: () => magnifier.isActive,
@@ -566,8 +546,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     onPanResponderRelease: (evt) => {
       if (!magnifier.isActive) return;
       const { pageX, pageY } = evt.nativeEvent;
-      // normalize coords then: encontra elementos e foca instantâneo
-      const { x: nx, y: ny } = normalizeCoord(pageX, pageY);
       const elements = getElementsUnderMagnifier(
         pageX,
         pageY,
@@ -576,12 +554,10 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
       const top = elements[0] ?? null;
       setMagnifier((prev) => ({ ...prev, zoomFocus: top }));
       if (top) {
-        speakText(`Lupa focada em: ${top.text}`, top.id);
+        speakText(`Lupa focada em: ${top.text}`);
       } else {
         speakText("Lupa liberada: nenhum elemento focado.");
       }
-      // Anuncio dos elementos sob a lente
-      announceElementsUnderMagnifier(pageX, pageY, MAGNIFIER_RADIUS);
     },
   });
 
@@ -607,8 +583,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     unregisterElement,
     clearAllElements,
     getElementCount: () => elementsRef.current.size,
-    findElementAtPosition: (x: number, y: number) =>
-      findElementAtPositionPrecise(x, y),
+    findElementAtPosition: findElementAtPositionPrecise,
     magnifier,
     setMagnifier,
     toggleMagnifierMode,
