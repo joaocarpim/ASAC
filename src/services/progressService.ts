@@ -1,12 +1,11 @@
 import { fetchAuthSession } from "aws-amplify/auth";
 
-type ErrorDetail = {
+export type ErrorDetail = { // <-- ADICIONE 'export'
   questionId: string;
-  questionText?: string;
-  userAnswer?: string;
-  expectedAnswer?: string;
+  questionText?: string | null;
+  userAnswer?: string | null;
+  expectedAnswer?: string | null;
 };
-
 // Função base para todas as requisições GraphQL
 async function graphqlRequest<T>(
   query: string,

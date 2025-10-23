@@ -6,19 +6,19 @@ type User
   @model
   @auth(
     rules: [
-      # ✅ ALTERAÇÃO: Regra de "dono" agora é explícita.
+      # ✅ Regra de "dono" explícita (CORREÇÃO APLICADA)
       { allow: owner, ownerField: "owner", operations: [read, update] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
   id: ID! @primaryKey
-  owner: String # ✅ NOVO CAMPO: Para armazenar o ID do dono.
+  owner: String # ✅ Campo adicionado para o ID do dono (CORREÇÃO APLICADA)
   name: String!
   email: String! @index(name: "byEmail")
   role: String! # "user" ou "admin"
   coins: Int
   points: Int
-  modulesCompleted: [Int]
+  modulesCompleted: [Int] # Verifique se este tipo está correto (talvez [String] ou String?)
   currentModule: Int
   precision: Float
   correctAnswers: Int
@@ -52,14 +52,15 @@ type Progress
   accuracy: Float
   correctAnswers: Int
   wrongAnswers: Int
-  timeSpent: String
+  timeSpent: String # Considere usar Int para segundos
   completed: Boolean
+  # errorDetails: [ErrorDetailInput] # Se precisar salvar erros detalhados
 }
 
 # Módulo
 type Module
   @model
-  @auth(rules: [{ allow: private, operations: [read] }]) {
+  @auth(rules: [{ allow: private, operations: [read] }]) { # private = usuários logados (Cognito ou IAM)
   id: ID!
   title: String!
   description: String!
@@ -76,7 +77,7 @@ type Lesson
   id: ID!
   title: String!
   content: String!
-  image: String
+  image: String # Pode ser chave S3 ou URL
   lessonNumber: Int!
   module: Module @belongsTo(fields: ["moduleId"])
   moduleId: ID! @index(name: "byModule", sortKeyFields: ["lessonNumber"])
@@ -101,11 +102,20 @@ type BrailleSymbol
   id: ID!
   letter: String!
   description: String!
-  imageKey: String!
+  imageKey: String! # Chave para buscar no S3 Storage
 }
 
 # Mutation customizada para registrar usuário via Lambda
 type Mutation {
   adminRegisterUser(name: String!, email: String!, password: String!): String
     @function(name: "AdminRegisterUser-${env}")
+    @auth(rules: [{ allow: groups, groups: ["Admins"] }]) # Protegendo a mutação
 }
+
+# (Opcional: Tipo para detalhes de erro no Progresso)
+# input ErrorDetailInput {
+#   questionId: String!
+#   questionText: String
+#   userAnswer: String
+#   expectedAnswer: String
+# }
