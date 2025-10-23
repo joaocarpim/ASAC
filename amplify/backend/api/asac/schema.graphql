@@ -1,24 +1,23 @@
-# Configuração global de auth (pode ser ajustado depois para produção)
-input AMPLIFY { globalAuthRule: AuthRule = { allow: public } } # FOR TESTING ONLY!
+# Configuração global de auth
+input AMPLIFY { globalAuthRule: AuthRule = { allow: public } } # TESTE SOMENTE, remova em produção
 
-# Usuário
+# === Usuário ===
 type User
   @model
   @auth(
     rules: [
-      # ✅ Regra de "dono" explícita (CORREÇÃO APLICADA)
-      { allow: owner, ownerField: "owner", operations: [read, update] }
+      { allow: owner, ownerField: "owner", operations: [read, update] },
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
   id: ID! @primaryKey
-  owner: String # ✅ Campo adicionado para o ID do dono (CORREÇÃO APLICADA)
+  owner: String
   name: String!
   email: String! @index(name: "byEmail")
   role: String! # "user" ou "admin"
   coins: Int
   points: Int
-  modulesCompleted: [Int] # Verifique se este tipo está correto (talvez [String] ou String?)
+  modulesCompleted: [Int]
   currentModule: Int
   precision: Float
   correctAnswers: Int
@@ -28,10 +27,15 @@ type User
   progress: [Progress] @hasMany(indexName: "byUser", fields: ["id"])
 }
 
-# Conquistas
+# === Conquistas ===
 type Achievement
   @model
-  @auth(rules: [{ allow: owner }, { allow: groups, groups: ["Admins"] }]) {
+  @auth(
+    rules: [
+      { allow: owner },
+      { allow: groups, groups: ["Admins"] }
+    ]
+  ) {
   id: ID!
   title: String!
   description: String!
@@ -40,10 +44,15 @@ type Achievement
   moduleNumber: Int
 }
 
-# Progresso do usuário em um módulo
+# === Progresso do usuário ===
 type Progress
   @model
-  @auth(rules: [{ allow: owner }, { allow: groups, groups: ["Admins"] }]) {
+  @auth(
+    rules: [
+      { allow: owner },
+      { allow: groups, groups: ["Admins"] }
+    ]
+  ) {
   id: ID!
   user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
@@ -52,15 +61,21 @@ type Progress
   accuracy: Float
   correctAnswers: Int
   wrongAnswers: Int
-  timeSpent: String # Considere usar Int para segundos
+  timeSpent: String
   completed: Boolean
-  # errorDetails: [ErrorDetailInput] # Se precisar salvar erros detalhados
 }
 
-# Módulo
+# === Módulo ===
 type Module
   @model
-  @auth(rules: [{ allow: private, operations: [read] }]) { # private = usuários logados (Cognito ou IAM)
+  @auth(
+    rules: [
+      # ✅ permite leitura para usuários autenticados (Cognito)
+      { allow: private, operations: [read] },
+      # ✅ administradores podem gerenciar módulos
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   title: String!
   description: String!
@@ -70,23 +85,37 @@ type Module
   progress: [Progress] @hasMany(indexName: "byModule", fields: ["id"])
 }
 
-# Lições
+# === Lições ===
 type Lesson
   @model
-  @auth(rules: [{ allow: private, operations: [read] }]) {
+  @auth(
+    rules: [
+      # ✅ usuários logados podem ler lições
+      { allow: private, operations: [read] },
+      # ✅ admins podem gerenciar
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   title: String!
   content: String!
-  image: String # Pode ser chave S3 ou URL
+  image: String
   lessonNumber: Int!
   module: Module @belongsTo(fields: ["moduleId"])
   moduleId: ID! @index(name: "byModule", sortKeyFields: ["lessonNumber"])
 }
 
-# Questões
+# === Questões ===
 type Question
   @model
-  @auth(rules: [{ allow: private, operations: [read] }]) {
+  @auth(
+    rules: [
+      # ✅ leitura liberada para usuários autenticados
+      { allow: private, operations: [read] },
+      # ✅ total controle para admins
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   questionText: String!
   options: [String!]!
@@ -95,27 +124,24 @@ type Question
   moduleId: ID! @index(name: "byModule")
 }
 
-# Símbolos Braille
+# === Símbolos Braille ===
 type BrailleSymbol
   @model
-  @auth(rules: [{ allow: private, operations: [read] }]) {
+  @auth(
+    rules: [
+      { allow: private, operations: [read] },
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   letter: String!
   description: String!
-  imageKey: String! # Chave para buscar no S3 Storage
+  imageKey: String!
 }
 
-# Mutation customizada para registrar usuário via Lambda
+# === Mutations personalizadas ===
 type Mutation {
   adminRegisterUser(name: String!, email: String!, password: String!): String
     @function(name: "AdminRegisterUser-${env}")
-    @auth(rules: [{ allow: groups, groups: ["Admins"] }]) # Protegendo a mutação
+    @auth(rules: [{ allow: groups, groups: ["Admins"] }])
 }
-
-# (Opcional: Tipo para detalhes de erro no Progresso)
-# input ErrorDetailInput {
-#   questionId: String!
-#   questionText: String
-#   userAnswer: String
-#   expectedAnswer: String
-# }
