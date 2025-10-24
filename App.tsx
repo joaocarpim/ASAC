@@ -51,13 +51,14 @@ import SelectedContrastScreen from "./src/screens/settings/SelectedContrast";
 import ModuleContentScreen from "./src/screens/module/ModuleContentScreen";
 import ModulePreQuizScreen from "./src/screens/module/ModulePreQuizScreen";
 import ModuleQuizScreen from "./src/screens/module/ModuleQuizScreen";
-import AlphabetScreen from "./src/screens/module/AlphabetScreen";
+// import AlphabetScreen from "./src/screens/module/AlphabetScreen"; // <- Importação não mais necessária
 import ModuleResultScreen from "./src/screens/module/ModuleResultScreen";
 import BrailleScreen from "./src/screens/module/BrailleScreen";
 import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
 import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
 import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
+import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen"; // <- A tela correta já está importada
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -145,7 +146,6 @@ function AppNavigation() {
         style={{ flex: 1 }}
         options={{ format: "jpg", quality: 0.9 }}
       >
-        {/* ✅ CORREÇÃO: OS GESTOS (panHandlers) FORAM MOVIDOS PARA ESTA VIEW INTERNA */}
         <View
           style={styles.fullscreen}
           {...(magnifier.isActive
@@ -244,7 +244,14 @@ function AppNavigation() {
                     name="ModuleQuiz"
                     component={ModuleQuizScreen}
                   />
-                  <Stack.Screen name="Alphabet" component={AlphabetScreen} />
+
+                  {/* <Stack.Screen name="Alphabet" component={AlphabetScreen} /> // <- LINHA REMOVIDA */}
+                  {/* ✅ LINHA CORRIGIDA: Aponta para o componente correto */}
+                  <Stack.Screen
+                    name="Alphabet"
+                    component={BrailleAlphabetScreen}
+                  />
+
                   <Stack.Screen
                     name="ModuleResult"
                     component={ModuleResultScreen}
