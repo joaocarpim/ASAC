@@ -13,10 +13,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { generateClient } from "aws-amplify/api";
-import { listModules } from "../../graphql/queries";
 import * as APIt from "../../API";
-
 import { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
 import { getUserById, canStartModule } from "../../services/progressService";
@@ -29,6 +26,9 @@ import {
   AccessibleHeader,
   AccessibleButton,
 } from "../../components/AccessibleComponents";
+
+// ⚙️ Importando o conteúdo local dos módulos
+import { modules as localModules } from "../../data/moduleData";
 
 type HomeScreenStyles = ReturnType<typeof createStyles>;
 
@@ -153,7 +153,6 @@ const HomeScreen: React.FC<
   const { user, signOut } = useAuthStore();
   const [loadingUser, setLoadingUser] = useState(true);
   const [dbUser, setDbUser] = useState<APIt.User | null>(null);
-  const [modules, setModules] = useState<APIt.Module[]>([]);
   const [loadingModules, setLoadingModules] = useState(true);
 
   const { theme } = useContrast();
@@ -174,8 +173,6 @@ const HomeScreen: React.FC<
     letterSpacing
   );
 
-  const client = generateClient();
-
   // --- BUSCA DE DADOS ---
   const fetchData = useCallback(async () => {
     if (!user?.userId) {
@@ -188,26 +185,12 @@ const HomeScreen: React.FC<
     setLoadingModules(true);
 
     try {
-      const [uResult, modulesResult] = await Promise.all([
-        getUserById(user.userId),
-        client.graphql({ query: listModules }),
-      ]);
-
+      const uResult = await getUserById(user.userId);
       setDbUser(uResult);
-
-      const fetchedModules = (modulesResult.data?.listModules?.items || [])
-        .filter((m): m is APIt.Module => Boolean(m))
-        .sort((a, b) => (a.moduleNumber ?? 0) - (b.moduleNumber ?? 0));
-
-      setModules(fetchedModules);
     } catch (error) {
-      console.error("Erro ao buscar dados:", error);
-      Alert.alert(
-        "Erro",
-        "Não foi possível carregar os dados. Verifique sua conexão."
-      );
+      console.error("Erro ao buscar usuário:", error);
+      Alert.alert("Erro", "Não foi possível carregar o perfil do usuário.");
       setDbUser(null);
-      setModules([]);
     } finally {
       setLoadingUser(false);
       setLoadingModules(false);
@@ -231,13 +214,9 @@ const HomeScreen: React.FC<
     }, [fetchData])
   );
 
-  const openModule = async (
-    moduleId: string,
-    moduleNumber: number | null | undefined
-  ) => {
-    const modNum = moduleNumber ?? 0;
-    if (!user?.userId || modNum === 0) return;
-    const allowed = await canStartModule(user.userId, modNum);
+  const openModule = async (moduleId: string, moduleNumber: number) => {
+    if (!user?.userId || moduleNumber === 0) return;
+    const allowed = await canStartModule(user.userId, moduleNumber);
     if (!allowed) {
       Alert.alert("Bloqueado", "Conclua o módulo anterior para avançar.");
       return;
@@ -274,6 +253,7 @@ const HomeScreen: React.FC<
     );
   }
 
+  // --- PROGRESSO DO USUÁRIO ---
   let completedModuleNumbers: number[] = [];
   const modulesData = dbUser?.modulesCompleted;
 
@@ -291,9 +271,7 @@ const HomeScreen: React.FC<
   }
 
   const completedCount = completedModuleNumbers.length;
-  const modulesProgressString = loadingModules
-    ? "..."
-    : `${completedCount}/${modules.length || "?"}`;
+  const modulesProgressString = `${completedCount}/${localModules.length}`;
 
   return (
     <View
@@ -384,34 +362,19 @@ const HomeScreen: React.FC<
             </View>
           </View>
 
-          {loadingModules ? (
-            <ActivityIndicator color={theme.text} style={{ marginTop: 20 }} />
-          ) : modules.length === 0 ? (
-            <Text
-              style={[
-                styles.sectionTitle,
-                { textAlign: "center", marginTop: 20, fontStyle: "italic" },
-              ]}
-            >
-              Nenhum módulo disponível.
-            </Text>
-          ) : (
-            <FlatList
-              data={modules}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item: module }) => (
-                <ModuleItem
-                  module={module}
-                  completed={completedModuleNumbers.includes(
-                    module.moduleNumber ?? -1
-                  )}
-                  onPress={() => openModule(module.id, module.moduleNumber)}
-                  styles={styles}
-                />
-              )}
-              contentContainerStyle={styles.modulesList}
-            />
-          )}
+          <FlatList
+            data={localModules}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item: module }) => (
+              <ModuleItem
+                module={module as any}
+                completed={completedModuleNumbers.includes(module.moduleNumber)}
+                onPress={() => openModule(module.id, module.moduleNumber)}
+                styles={styles}
+              />
+            )}
+            contentContainerStyle={styles.modulesList}
+          />
         </View>
 
         {/* --- AÇÕES --- */}

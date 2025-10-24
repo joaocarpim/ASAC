@@ -1,59 +1,54 @@
+// ModuleContentScreen.tsx - separa o botão "Fazer Questionário" do cartão azul; botão agora fica abaixo do card com espaçamento e sombra própria.
 import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   ScrollView,
-  TouchableOpacity,
   StatusBar,
-  Image,
-  TextStyle,
-  ViewStyle,
-  Platform,
   ColorValue,
+  Platform,
+  Dimensions,
 } from "react-native";
-import { generateClient } from 'aws-amplify/api';
-import { getModule, lessonsByModuleIdAndLessonNumber } from '../../graphql/queries';
-import * as APIt from '../../API';
-import { ModelSortDirection } from '../../API';
-
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
 import {
-  AccessibleView, // ✅ Usa AccessibleView
+  AccessibleView,
   AccessibleHeader,
   AccessibleText,
   AccessibleButton,
-} from "../../components/AccessibleComponents"; // Verifique este caminho
-import { useAccessibility } from "../../context/AccessibilityProvider"; // Verifique este caminho
+} from "../../components/AccessibleComponents";
+import { useAccessibility } from "../../context/AccessibilityProvider";
 import { Gesture, GestureDetector, Directions } from "react-native-gesture-handler";
-import { useSettings } from "../../hooks/useSettings"; // Verifique este caminho
-import { useAuthStore } from "../../store/authStore"; // Verifique este caminho
-import { canStartModule } from "../../services/progressService"; // Verifique este caminho
+import { useSettings } from "../../hooks/useSettings";
+import * as moduleDataModule from "../../data/moduleData";
 
-// Função para verificar se a cor é escura
+const { width: WINDOW_WIDTH } = Dimensions.get("window");
+
 function isColorDark(color: ColorValue | undefined): boolean {
-    if (!color || typeof color !== 'string' || !color.startsWith('#')) return false;
-    const hex = color.replace('#', '');
-    if (hex.length !== 6) return false;
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    return luminance < 149;
+  if (!color || typeof color !== "string") return false;
+  const hex = color.replace("#", "");
+  if (hex.length < 3) return false;
+  const toInt = (s: string) => (s.length === 1 ? parseInt(s + s, 16) : parseInt(s, 16));
+  const r = toInt(hex.substring(0, 2));
+  const g = toInt(hex.substring(2, 4));
+  const b = toInt(hex.substring(4, 6));
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance < 149;
 }
 
-export default function ModuleContentScreen({ route, navigation }: RootStackScreenProps<'ModuleContent'>) {
+export default function ModuleContentScreen({
+  route,
+  navigation,
+}: RootStackScreenProps<"ModuleContent">) {
   const { moduleId } = route.params;
-  const [moduleData, setModuleData] = useState<APIt.Module | null>(null);
-  const [lessons, setLessons] = useState<APIt.Lesson[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [moduleData, setModuleData] = useState<any | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const { user } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(true);
+
   const { theme } = useContrast();
   const { speakText } = useAccessibility();
   const {
@@ -73,121 +68,234 @@ export default function ModuleContentScreen({ route, navigation }: RootStackScre
     isDyslexiaFontEnabled
   );
 
-  const client = generateClient();
+  useEffect(() => {
+    setIsLoading(true);
+    const loader = async () => {
+      try {
+        const mdModule: any = moduleDataModule as any;
+        let mod: any = null;
+
+        if (typeof mdModule.getModuleById === "function") {
+          mod = mdModule.getModuleById(moduleId);
+        } else if (typeof mdModule.getModule === "function") {
+          mod = mdModule.getModule(moduleId);
+        } else if (typeof mdModule.getQuizByModuleId === "function") {
+          const q = mdModule.getQuizByModuleId(parseInt(String(moduleId), 10));
+          if (q) {
+            const lessons = q.lessons && q.lessons.length > 0
+              ? q.lessons
+              : (q.quiz ?? q.questions ?? []).map((it: any, idx: number) => ({
+                  lessonNumber: idx + 1,
+                  title: it.question?.slice?.(0, 60) ?? `Questão ${idx + 1}`,
+                  content: it.question ?? "",
+                }));
+            mod = {
+              title: q.title ?? `Módulo ${moduleId}`,
+              lessons,
+              moduleNumber: q.moduleNumber ?? q.moduleId ?? parseInt(String(moduleId), 10),
+            };
+          }
+        } else if (Array.isArray(mdModule.default)) {
+          mod = mdModule.default.find((m: any) => String(m.id) === String(moduleId));
+        }
+
+        setModuleData(mod || null);
+      } catch (e) {
+        console.warn("Erro ao carregar dados do módulo:", e);
+        setModuleData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loader();
+  }, [moduleId]);
 
   useEffect(() => {
-    // ... (lógica fetchModuleAndLessons como antes) ...
-     const fetchModuleAndLessons = async () => { /* ... */ };
-     fetchModuleAndLessons();
-  }, [moduleId, client, navigation]);
+    if (!isLoading && moduleData && speakText) {
+      const lesson = moduleData.lessons?.[currentPageIndex];
+      if (lesson) speakText(`Página ${currentPageIndex + 1}: ${lesson.title}. ${lesson.content}`);
+    }
+  }, [currentPageIndex, moduleData, isLoading, speakText]);
 
-  useEffect(() => {
-    // ... (lógica speakText como antes) ...
-  }, [currentPageIndex, lessons, isLoading, speakText]);
+  const handlePrevious = () => {
+    if (currentPageIndex > 0) setCurrentPageIndex((prev) => prev - 1);
+  };
 
-  const renderLesson = (lesson: APIt.Lesson) => (
-     // ✅ CORREÇÃO: Usa 'accessibilityText' conforme exigido pelo componente
-     <AccessibleView key={lesson.id} style={styles.contentCard} accessibilityText={`Lição ${lesson.lessonNumber}: ${lesson.title}. Conteúdo: ${lesson.content}`}>
-       <AccessibleHeader level={2} style={styles.contentTitle}>
-           {lesson.lessonNumber}. {lesson.title}
-       </AccessibleHeader>
-       {/* {lesson.image && <Image source={{ uri: lesson.image }} style={styles.lessonImage} />} */}
-       <ScrollView nestedScrollEnabled={true} style={{ flexShrink: 1 }}>
-         <AccessibleText baseSize={16} style={styles.contentBody}>
-             {lesson.content}
-         </AccessibleText>
-       </ScrollView>
-     </AccessibleView>
-  );
+  const handleNextPage = () => {
+    if (moduleData && currentPageIndex < (moduleData.lessons?.length ?? 0) - 1) {
+      setCurrentPageIndex((prev) => prev + 1);
+    } else {
+      navigation.navigate("ModuleQuiz", { moduleId });
+    }
+  };
 
-  const handlePrevious = () => { /* ... (código handlePrevious) ... */ };
-  const handleNextPage = async () => { /* ... (código handleNextPage) ... */ };
+  const startQuiz = () => {
+    navigation.navigate("ModuleQuiz", { moduleId });
+  };
 
   const flingLeft = Gesture.Fling().direction(Directions.LEFT).onEnd(handleNextPage);
   const flingRight = Gesture.Fling().direction(Directions.RIGHT).onEnd(handlePrevious);
   const composedGestures = Gesture.Race(flingLeft, flingRight);
 
-  const statusBarStyle = isColorDark(theme.background) ? 'light-content' : 'dark-content';
+  const currentLesson = moduleData?.lessons?.[currentPageIndex];
+  const totalPages = moduleData?.lessons?.length ?? 1;
+  const pageNumber = currentPageIndex + 1;
+  const mainAccessibilityText = currentLesson
+    ? `Página ${pageNumber} de ${totalPages}. ${currentLesson.title}. Conteúdo: ${currentLesson.content}. Deslize para a esquerda para avançar, ou para a direita para voltar.`
+    : `Nenhuma lição encontrada para ${moduleData?.title || "este módulo"}. Deslize para a esquerda para ir ao quiz, ou para a direita para voltar.`;
 
-  if (isLoading && !moduleData) { /* ... (código loading) ... */ }
-  if (!moduleData && !isLoading) { /* ... (código erro) ... */ }
+  const statusBarStyle = isColorDark(theme.background) ? "light-content" : "dark-content";
 
-  const currentLesson = lessons.length > 0 ? lessons[currentPageIndex] : null;
-  const totalPages = lessons.length > 0 ? lessons.length : 1;
-  const pageNumber = lessons.length > 0 ? currentPageIndex + 1 : 1;
-  const mainAccessibilityText = currentLesson ? `Página ${pageNumber} de ${totalPages}. ${currentLesson.title}. Conteúdo: ${currentLesson.content}. Deslize para a esquerda para avançar, ou para a direita para voltar.` : `Nenhuma lição encontrada para ${moduleData!.title}. Deslize para a esquerda para ir ao quiz, ou para a direita para voltar.`;
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={(theme as any).cardText ?? "#000"} />
+      </View>
+    );
+  }
+
+  if (!moduleData) {
+    return (
+      <View style={styles.contentContainer}>
+        <Text style={styles.errorText}>Módulo não encontrado.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
-      <ScreenHeader title={moduleData!.title || "Módulo"} />
+      <ScreenHeader title={moduleData.title || "Módulo"} />
 
       <GestureDetector gesture={composedGestures}>
-        <View style={styles.scrollArea}>
-            {/* ✅ CORREÇÃO: Usa 'accessibilityText' conforme exigido pelo componente */}
-            <AccessibleView style={styles.contentCard} accessibilityText={mainAccessibilityText} >
-                {isLoading ? (
-                    <ActivityIndicator color={theme.cardText} />
-                ) : currentLesson ? (
-                    <>
-                         <AccessibleHeader level={2} style={styles.contentTitle} numberOfLines={2} adjustsFontSizeToFit>
-                             {currentLesson.lessonNumber}. {currentLesson.title}
-                         </AccessibleHeader>
-                         <ScrollView nestedScrollEnabled={true} style={{ flexShrink: 1 }}>
-                             <AccessibleText baseSize={16} style={styles.contentBody}>
-                                 {currentLesson.content}
-                             </AccessibleText>
-                         </ScrollView>
-                    </>
-                ) : (
-                    <View style={styles.contentContainer}>
-                        <Text style={[styles.contentBody, styles.emptyText]}>
-                            Nenhuma lição encontrada.
-                        </Text>
-                         <AccessibleButton
-                            style={[styles.quizButton, { backgroundColor: theme.button ?? '#191970', marginTop: 30 }]}
-                            onPress={handleNextPage}
-                            disabled={isLoading}
-                            accessibilityLabel={`Iniciar questionário do Módulo ${moduleData!.moduleNumber || ''}`} // Label aqui está ok para botão
-                        >
-                            <Text style={[styles.quizButtonText, { color: theme.buttonText ?? '#FFFFFF' }]}>
-                                {isLoading ? 'Verificando...' : 'Fazer Questionário'}
-                            </Text>
-                        </AccessibleButton>
-                    </View>
-                )}
-            </AccessibleView>
-            <Text style={styles.pageIndicator}>{pageNumber} / {totalPages}</Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.scrollWrapper}>
+          <AccessibleView style={styles.contentCard} accessibilityText={mainAccessibilityText}>
+            <View style={styles.cardInner}>
+              {currentLesson ? (
+                <>
+                  <AccessibleHeader level={2} style={styles.contentTitle}>
+                    {currentLesson.lessonNumber}. {currentLesson.title}
+                  </AccessibleHeader>
+                  <AccessibleText baseSize={16} style={styles.contentBody}>
+                    {currentLesson.content}
+                  </AccessibleText>
+                </>
+              ) : (
+                <View style={styles.contentCenter}>
+                  <Text style={[styles.contentBody, styles.emptyText]}>Nenhuma lição encontrada.</Text>
+                </View>
+              )}
+            </View>
+          </AccessibleView>
+
+          {/* Botão separado — fica abaixo do cartão com seu próprio container */}
+          <View style={styles.separateQuizContainer}>
+            <AccessibleButton
+              style={styles.quizButton}
+              onPress={startQuiz}
+              accessibilityLabel={`Iniciar questionário do Módulo ${moduleData.moduleNumber || ""}`}
+              disabled={isLoading}
+            >
+              <Text style={styles.quizButtonText}>Fazer Questionário</Text>
+            </AccessibleButton>
+          </View>
+
+          <Text style={styles.pageIndicator}>
+            {pageNumber} / {totalPages}
+          </Text>
+        </ScrollView>
       </GestureDetector>
     </View>
   );
 }
 
-// ✅ DEFINIÇÃO COMPLETA E ÚNICA DA FUNÇÃO getStyles (COLE NO FINAL DO ARQUIVO)
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
   isBold: boolean,
-  lineHeightMultiplier: number, // Nome correto
+  lineHeightMultiplier: number,
   letterSpacing: number,
   isDyslexiaFont: boolean
 ) =>
   StyleSheet.create({
-    // ... (definição completa dos estilos, como na versão anterior) ...
     container: { flex: 1, backgroundColor: theme.background },
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background },
-    contentContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-    errorText: { fontSize: 18 * fontMultiplier, textAlign: 'center', color: theme.text, lineHeight: 18 * fontMultiplier * lineHeightMultiplier, letterSpacing: letterSpacing, fontFamily: isDyslexiaFont ? 'OpenDyslexic-Regular': undefined },
-    emptyText: { fontSize: 16 * fontMultiplier, textAlign: 'center', marginTop: 30, fontStyle: 'italic', color: theme.text, lineHeight: 16 * fontMultiplier * lineHeightMultiplier, letterSpacing: letterSpacing, fontFamily: isDyslexiaFont ? 'OpenDyslexic-Regular': undefined },
-    scrollArea: { flex: 1, padding: 20 },
-    scrollContent: { paddingBottom: 40 },
-    moduleDescription: { fontSize: 16 * fontMultiplier, marginBottom: 25, fontStyle: 'italic', textAlign: 'center', color: theme.text, lineHeight: 16 * fontMultiplier * lineHeightMultiplier, letterSpacing: letterSpacing, fontFamily: isDyslexiaFont ? 'OpenDyslexic-Regular': undefined },
-    contentCard: { marginBottom: 25, padding: 15, borderRadius: 8, backgroundColor: theme.card, flex: 1 },
-    contentTitle: { fontSize: 20 * fontMultiplier, fontWeight: isBold ? 'bold' : 'bold', marginBottom: 10, color: theme.cardText, lineHeight: 20 * fontMultiplier * lineHeightMultiplier, letterSpacing: letterSpacing, fontFamily: isDyslexiaFont ? 'OpenDyslexic-Regular': undefined, textAlign: 'center' },
-    contentBody: { fontSize: 16 * fontMultiplier, lineHeight: 24 * lineHeightMultiplier, color: theme.cardText, fontWeight: isBold ? 'bold' : 'normal', letterSpacing: letterSpacing, fontFamily: isDyslexiaFont ? 'OpenDyslexic-Regular': undefined, textAlign: 'left' },
-    lessonImage: { width: '100%', height: 200, resizeMode: 'contain', marginBottom: 15, borderRadius: 8 },
-    quizButton: { marginTop: 30, paddingVertical: 15, paddingHorizontal: 30, borderRadius: 25, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 5 },
-    quizButtonText: { fontSize: 16 * fontMultiplier, fontWeight: 'bold' },
-    pageIndicator: { fontSize: 14 * fontMultiplier, fontWeight: isBold ? 'bold' : '600', color: theme.text, marginTop: 10, lineHeight: 14 * fontMultiplier * lineHeightMultiplier, letterSpacing: letterSpacing, fontFamily: isDyslexiaFont ? 'OpenDyslexic-Regular': undefined, textAlign: 'center' },
+    contentContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+    // ADICIONEI errorText aqui para corrigir o erro de compilação
+    errorText: {
+      fontSize: 18 * fontMultiplier,
+      textAlign: "center",
+      color: (theme as any).cardText ?? theme.text,
+    },
+    scrollWrapper: {
+      paddingHorizontal: Math.min(24, WINDOW_WIDTH * 0.04),
+      paddingTop: 18,
+      paddingBottom: 40,
+      alignItems: "center",
+    },
+    contentCard: {
+      width: "100%",
+      maxWidth: 980,
+      borderRadius: 12,
+      backgroundColor: (theme as any).card ?? "#fff",
+      ...Platform.select({
+        ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 10 },
+        android: { elevation: 6 },
+        web: { boxShadow: "0 8px 20px rgba(0,0,0,0.12)" },
+      }),
+    },
+    cardInner: {
+      padding: 22,
+    },
+    contentTitle: {
+      fontSize: 20 * fontMultiplier,
+      fontWeight: isBold ? "700" : "700",
+      marginBottom: 12,
+      color: (theme as any).cardText ?? theme.text,
+      textAlign: "left",
+    },
+    contentBody: {
+      fontSize: 16 * fontMultiplier,
+      lineHeight: Math.round(22 * lineHeightMultiplier),
+      color: (theme as any).cardText ?? theme.text,
+      textAlign: "left",
+    },
+    contentCenter: { paddingVertical: 24, alignItems: "center", justifyContent: "center" },
+    emptyText: {
+      fontSize: 16 * fontMultiplier,
+      color: theme.text,
+      opacity: 0.85,
+    },
+    separateQuizContainer: {
+      marginTop: 18,
+      width: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    quizButton: {
+      alignSelf: "center",
+      minWidth: WINDOW_WIDTH > 600 ? 320 : "85%",
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      backgroundColor: (theme as any).button ?? "#191970",
+      alignItems: "center",
+      justifyContent: "center",
+      ...Platform.select({
+        ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.16, shadowRadius: 12 },
+        android: { elevation: 8 },
+        web: { boxShadow: "0 8px 20px rgba(0,0,0,0.14)" },
+      }),
+    },
+    quizButtonText: {
+      color: (theme as any).buttonText ?? "#FFFFFF",
+      fontSize: 16 * fontMultiplier,
+      fontWeight: "700",
+    },
+    pageIndicator: {
+      marginTop: 12,
+      color: (theme as any).cardText ?? theme.text,
+      opacity: 0.85,
+      fontSize: 13 * fontMultiplier,
+    },
   });

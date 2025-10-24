@@ -1,12 +1,7 @@
 import { create } from "zustand";
-import {
-  getCurrentUser,
-  fetchAuthSession,
-  signOut as amplifySignOut,
-} from "aws-amplify/auth";
+import { fetchAuthSession, signOut as amplifySignOut } from "aws-amplify/auth";
 import { ensureUserExistsInDB, getUserById } from "../services/progressService";
 
-// ... (Sua tipagem 'User' e 'AuthState' permanecem as mesmas)
 export type User = {
   userId: string;
   username: string;
@@ -36,29 +31,55 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
 
-  // A função checkUser permanece a mesma
   checkUser: async () => {
     try {
-      const cognitoUser = await getCurrentUser();
       const session = await fetchAuthSession();
-      const sub = cognitoUser.userId;
-      const username = cognitoUser.username;
-      const email = cognitoUser.signInDetails?.loginId ?? "";
-      const groups = (session.tokens?.accessToken?.payload?.[
-        "cognito:groups"
-      ] ?? []) as string[];
+
+      // Normalize different Amplify session shapes
+      let idPayload: any = {};
+      let accessPayload: any = {};
+      if ((session as any)?.tokens?.idToken?.payload) {
+        idPayload = (session as any).tokens.idToken.payload;
+        accessPayload = (session as any).tokens.accessToken?.payload ?? {};
+      } else if (typeof (session as any).getIdToken === "function") {
+        const idToken = (session as any).getIdToken();
+        const accessToken = (session as any).getAccessToken?.();
+        idPayload = idToken?.payload ?? {};
+        accessPayload = accessToken?.payload ?? {};
+      } else {
+        idPayload = (session as any).idToken ?? {};
+        accessPayload = (session as any).accessToken ?? {};
+      }
+
+      const sub = String(idPayload.sub ?? idPayload["cognito:username"] ?? "");
+      const rawEmail = idPayload.email ?? "";
+      const emailStr = typeof rawEmail === "string" ? rawEmail : String(rawEmail ?? "");
+      const usernameFromEmail = emailStr.includes("@") ? emailStr.split("@")[0] : emailStr;
+      const username = String(idPayload["cognito:username"] ?? usernameFromEmail ?? "");
+      const email = String(emailStr ?? "");
+
+      const groups =
+        ((accessPayload["cognito:groups"] ?? idPayload["cognito:groups"] ?? []) as string[]) ?? [];
       const isAdmin = Array.isArray(groups) && groups.includes("Admins");
+
       const baseUser: User = { userId: sub, username, email, isAdmin };
 
       if (isAdmin) {
         set({ user: baseUser, isLoading: false });
         return;
       }
+
+      if (!sub) {
+        set({ user: null, isLoading: false });
+        return;
+      }
+
       const dbUser = await ensureUserExistsInDB(sub);
       if (!dbUser) {
         set({ user: null, isLoading: false });
         return;
       }
+
       set({
         user: {
           ...baseUser,
@@ -68,11 +89,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (e) {
+      console.warn("⚠️ checkUser erro:", e);
       set({ user: null, isLoading: false });
     }
   },
 
-  // A função refreshUserFromDB permanece a mesma
   refreshUserFromDB: async () => {
     try {
       const u = get().user;
@@ -90,26 +111,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  // A função updateUserData permanece a mesma
   updateUserData: (data) =>
     set((state) => ({
       user: state.user ? { ...state.user, ...data } : null,
     })),
 
-  // ✅ FUNÇÃO SIGNOUT CORRIGIDA
   signOut: async () => {
-    // Primeiro, limpa o estado local IMEDIATAMENTE.
-    // Isso força uma re-renderização síncrona em qualquer componente que usa o hook.
     set({ user: null });
-    console.log("🚪 Estado do usuário limpo. Redirecionamento deve ocorrer.");
-
-    // Depois, executa a limpeza assíncrona com o Amplify em segundo plano.
     try {
       await amplifySignOut({ global: true });
-      console.log("✅ Logout no Amplify concluído.");
     } catch (e) {
       console.warn("⚠️ Erro ao fazer signOut no Amplify:", e);
-      // O estado local já foi limpo, então o usuário já foi deslogado da UI.
     }
   },
 }));
