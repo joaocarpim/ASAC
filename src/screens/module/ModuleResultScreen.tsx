@@ -1,5 +1,5 @@
 // src/screens/module/ModuleResultScreen.tsx
-import React from "react";
+import React, { useState, useEffect } from "react"; // Adicionado useState e useEffect
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
-// 👇 1. IMPORTAR useSettings e useContrast 👇
 import { useSettings } from "../../hooks/useSettings";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
@@ -20,6 +19,7 @@ import {
   AccessibleButton,
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
+import { Audio } from "expo-av"; // << [1] IMPORTAÇÃO DO ÁUDIO
 
 const { width } = Dimensions.get("window");
 
@@ -39,7 +39,10 @@ export default function ModuleResultScreen({
   } = route.params;
   const errors = totalQuestions - correctAnswers;
 
-  // 👇 2. OBTER VALORES DE ACESSIBILIDADE E TEMA 👇
+  // >> [2] STATES PARA OS SONS DE RESULTADO
+  const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
+  const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
+
   const { theme } = useContrast();
   const {
     fontSizeMultiplier,
@@ -49,7 +52,6 @@ export default function ModuleResultScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  // 👇 3. PASSAR VALORES PARA A CRIAÇÃO DE ESTILOS 👇
   const styles = createStyles(
     theme,
     fontSizeMultiplier,
@@ -58,6 +60,45 @@ export default function ModuleResultScreen({
     letterSpacing,
     isDyslexiaFontEnabled
   );
+
+  // >> [3] USEEFFECT PARA CARREGAR E DESCARREGAR OS SONS
+  useEffect(() => {
+    async function loadSounds() {
+      try {
+        const { sound: success } = await Audio.Sound.createAsync(
+          require("../../../assets/som/correct.mp3") // Som para vitória
+        );
+        setSuccessSound(success);
+
+        const { sound: fail } = await Audio.Sound.createAsync(
+          require("../../../assets/som/incorrect.mp3") // Som para falha
+        );
+        setFailureSound(fail);
+      } catch (error) {
+        console.error("Erro ao carregar os sons de resultado", error);
+      }
+    }
+
+    loadSounds();
+
+    // Função de limpeza para liberar memória ao sair da tela
+    return () => {
+      successSound?.unloadAsync();
+      failureSound?.unloadAsync();
+    };
+  }, []);
+
+  // >> [4] USEEFFECT PARA TOCAR O SOM CORRETO QUANDO A TELA CARREGAR
+  useEffect(() => {
+    // Toca o som assim que os objetos de som estiverem prontos
+    if (successSound && failureSound) {
+      if (passed) {
+        successSound.replayAsync();
+      } else {
+        failureSound.replayAsync();
+      }
+    }
+  }, [passed, successSound, failureSound]); // Depende do status 'passed' e dos sons carregados
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -125,7 +166,43 @@ export default function ModuleResultScreen({
         </AccessibleView>
 
         <View style={styles.statsGrid}>
-          {/* ... (outros cards de estatísticas com estilos já aplicados) ... */}
+          {/* Cards de estatísticas: Tempo, Moedas, Pontos, etc. */}
+          <View style={styles.statCard}>
+            <MaterialCommunityIcons
+              name="timer-sand"
+              size={28}
+              color={theme.cardText}
+            />
+            <Text style={styles.statNumber}>{formatTime(timeSpent)}</Text>
+            <Text style={styles.statLabel}>Tempo</Text>
+          </View>
+          <View style={styles.statCard}>
+            <MaterialCommunityIcons
+              name="check-circle-outline"
+              size={28}
+              color="#4CAF50"
+            />
+            <Text style={styles.statNumber}>{correctAnswers}</Text>
+            <Text style={styles.statLabel}>Acertos</Text>
+          </View>
+          <View style={styles.statCard}>
+            <MaterialCommunityIcons
+              name="close-circle-outline"
+              size={28}
+              color="#F44336"
+            />
+            <Text style={styles.statNumber}>{errors}</Text>
+            <Text style={styles.statLabel}>Erros</Text>
+          </View>
+          <View style={styles.statCard}>
+            <MaterialCommunityIcons
+              name="hand-coin"
+              size={28}
+              color="#FFC107"
+            />
+            <Text style={styles.statNumber}>+{coinsEarned}</Text>
+            <Text style={styles.statLabel}>Moedas</Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -163,7 +240,6 @@ export default function ModuleResultScreen({
   );
 }
 
-// 👇 4. RECEBER PARÂMETROS E APLICAR NOS ESTILOS DE TEXTO 👇
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -228,7 +304,7 @@ const createStyles = (
       fontSize: 18 * fontMultiplier,
       textAlign: "center",
       fontWeight: isBold ? "bold" : "500",
-      lineHeight: 24 * lineHeight,
+      lineHeight: 24 * fontMultiplier * lineHeight,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
@@ -286,7 +362,7 @@ const createStyles = (
       justifyContent: "center",
     },
     secondaryButton: {
-      backgroundColor: theme.background,
+      backgroundColor: "transparent",
       borderRadius: 12,
       paddingVertical: 15,
       paddingHorizontal: 25,

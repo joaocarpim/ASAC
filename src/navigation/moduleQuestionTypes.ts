@@ -27,9 +27,9 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
   {
     id: "quiz-module-1",
     moduleId: 1,
-    title: "Questionário - Módulo 1: Introdução ao Sistema Braille",
+    title: "Questionário - Módulo 1: Fundamentos do Braille",
     description:
-      "Avalie seu conhecimento sobre as letras, números e acentos em Braille, bem como a localização dos pontos na célula Braille.",
+      "Avalie seu conhecimento sobre a estrutura da célula Braille, as vogais, consoantes e a formação de suas primeiras palavras.",
     passingScore: 7,
     coinsPerCorrect: 15,
     totalCoins: 150,
@@ -52,7 +52,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       },
       {
         id: "q1-2",
-        question: 'Qual a representação em Braille da letra "E"?',
+        question: "Qual a representação em Braille da letra 'E'?",
         options: ["Pontos 1, 4", "Pontos 1, 5", "Pontos 2, 4", "Pontos 1, 2"],
         correctAnswer: 1,
         explanation:
@@ -63,7 +63,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       },
       {
         id: "q1-3",
-        question: 'Qual a representação em Braille da letra "I"?',
+        question: "Qual a representação em Braille da letra 'I'?",
         options: [
           "Pontos 1, 5",
           "Pontos 2, 4",
@@ -79,51 +79,50 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       },
       {
         id: "q1-4",
-        question:
-          "Para representar o número 5 em Braille, qual letra é utilizada após o sinal de número?",
-        options: ["Letra A", "Letra E", "Letra I", "Letra O"],
-        correctAnswer: 1,
+        question: "Qual consoante é representada pelos pontos 1, 2, 3?",
+        options: ["letra B", "letra C", "letra L", "letra S"],
+        correctAnswer: 2,
         explanation:
-          "O número 5 é representado pela letra E (quinta letra do alfabeto) após o sinal de número.",
+          "A letra L é representada pelos pontos 1, 2 e 3, preenchendo toda a coluna da esquerda.",
         order: 4,
         difficulty: "medium",
         points: 15,
       },
       {
         id: "q1-5",
-        question: "Qual a representação em Braille do sinal de número?",
-        options: [
-          "Pontos 1, 2, 3, 4",
-          "Pontos 2, 3, 4, 5",
-          "Pontos 3, 4, 5, 6",
-          "Pontos 1, 3, 5, 6",
-        ],
-        correctAnswer: 2,
+        question:
+          "Na célula Braille, qual ponto está no canto inferior direito?",
+        options: ["Ponto 3", "Ponto 4", "Ponto 5", "Ponto 6"],
+        correctAnswer: 3,
         explanation:
-          "O sinal de número é representado pelos pontos 3, 4, 5 e 6 na célula Braille.",
+          "O ponto 6 está localizado na linha inferior, na coluna da direita.",
         order: 5,
-        difficulty: "medium",
+        difficulty: "easy",
         points: 15,
       },
       {
         id: "q1-6",
-        question: "Qual a representação em Braille do acento agudo?",
-        options: ["Ponto 2", "Ponto 4", "Ponto 5", "Ponto 6"],
-        correctAnswer: 1,
-        explanation:
-          "O acento agudo é representado pelo ponto 4 na célula Braille.",
+        question: "Quais pontos formam a vogal 'O'?",
+        options: [
+          "Pontos 1, 2, 3",
+          "Pontos 1, 3, 6",
+          "Pontos 1, 3, 5",
+          "Pontos 2, 4, 5",
+        ],
+        correctAnswer: 2,
+        explanation: "A vogal 'O' é representada pelos pontos 1, 3 e 5.",
         order: 6,
-        difficulty: "medium",
+        difficulty: "easy",
         points: 15,
       },
       {
         id: "q1-7",
         question: 'Como se escreve a sílaba "BA" em Braille?',
         options: [
-          "Pontos 1, 2 (B) + Ponto 1 (A)",
-          "Pontos 1, 4 (C) + Ponto 1 (A)",
-          "Pontos 1, 2, 4 (F) + Ponto 1 (A)",
-          "Pontos 1, 2, 5 (H) + Ponto 1 (A)",
+          "Pontos (1, 2) seguidos de (1)",
+          "Pontos (1, 4) seguidos de (1)",
+          "Pontos (1, 2, 4) seguidos de (1)",
+          "Pontos (1, 2, 5) seguidos de (1)",
         ],
         correctAnswer: 0,
         explanation:
@@ -136,10 +135,10 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q1-8",
         question: 'Como se escreve a sílaba "ME" em Braille?',
         options: [
-          "Pontos 1, 3, 4 (M) + Pontos 1, 5 (E)",
-          "Pontos 1, 2, 3 (L) + Pontos 1, 5 (E)",
-          "Pontos 1, 3, 5 (O) + Pontos 1, 5 (E)",
-          "Pontos 1, 2, 3, 4 (P) + Pontos 1, 5 (E)",
+          "Pontos (1, 3, 4) seguidos de (1, 5)",
+          "Pontos (1, 2, 3) seguidos de (1, 5)",
+          "Pontos (1, 3, 5) seguidos de (1, 5)",
+          "Pontos (1, 2, 3, 4) seguidos de (1, 5)",
         ],
         correctAnswer: 0,
         explanation:
@@ -166,13 +165,14 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       },
       {
         id: "q1-10",
-        question: "Qual a representação em Braille do ponto final?",
-        options: ["Ponto 2", "Pontos 2, 5", "Pontos 2, 5, 6", "Pontos 2, 3, 6"],
-        correctAnswer: 2,
+        question:
+          "Qual palavra é formada pela sequência de pontos: (1,4), (1), (2,3,4), (1)?",
+        options: ["LALA", "CASA", "BOLA", "DADO"],
+        correctAnswer: 1,
         explanation:
-          "O ponto final é representado pelos pontos 2, 5 e 6 na célula Braille.",
+          "A sequência (1,4)=C, (1)=A, (2,3,4)=S, (1)=A forma a palavra CASA.",
         order: 10,
-        difficulty: "easy",
+        difficulty: "medium",
         points: 15,
       },
     ],
@@ -180,9 +180,9 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
   {
     id: "quiz-module-2",
     moduleId: 2,
-    title: "Questionário - Módulo 2: Formação de Palavras em Braille",
+    title: "Questionário - Módulo 2: Formação de Palavras e Números",
     description:
-      "Avalie seu conhecimento sobre a formação de palavras em Braille.",
+      "Avalie seu conhecimento sobre a formação de palavras e números em Braille.",
     passingScore: 7,
     coinsPerCorrect: 15,
     totalCoins: 150,
@@ -191,14 +191,13 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-1",
         question: 'Como se escreve a palavra "CASA" em Braille?',
         options: [
-          "C (1,4) A (1) S (2,3,4) A (1)",
-          "C (1,4) A (1) S (2,3,4) O (1,3,5)",
-          "C (1,4) A (1) Z (1,3,5,6) A (1)",
-          "C (1,4) O (1,3,5) S (2,3,4) A (1)",
+          "(1,4) (1) (2,3,4) (1)",
+          "(1,4) (1) (2,3,4) (1,3,5)",
+          "(1,4) (1) (1,3,5,6) (1)",
+          "(1,4) (1,3,5) (2,3,4) (1)",
         ],
         correctAnswer: 0,
-        explanation:
-          "CASA = C(pontos 1,4) + A(ponto 1) + S(pontos 2,3,4) + A(ponto 1).",
+        explanation: "CASA = C(1,4) + A(1) + S(2,3,4) + A(1).",
         order: 1,
         difficulty: "medium",
         points: 15,
@@ -206,11 +205,10 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q2-2",
         question:
-          "Qual palavra é formada pela sequência de Braille: L (1,2,3) I (2,4) V (1,2,3,6) R (1,2,3,5) O (1,3,5)?",
+          "Qual palavra é formada pela sequência: (1,2,3) (2,4) (1,2,3,6) (1,2,3,5) (1,3,5)?",
         options: ["LOBO", "LIVRO", "LUZ", "LAGO"],
         correctAnswer: 1,
-        explanation:
-          "A sequência L(1,2,3) + I(2,4) + V(1,2,3,6) + R(1,2,3,5) + O(1,3,5) forma a palavra LIVRO.",
+        explanation: "A sequência forma a palavra LIVRO.",
         order: 2,
         difficulty: "hard",
         points: 15,
@@ -219,14 +217,13 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-3",
         question: 'Como se escreve a palavra "GATO" em Braille?',
         options: [
-          "G (1,2,4,5) A (1) T (2,3,4,5) O (1,3,5)",
-          "G (1,2,4,5) E (1,5) T (2,3,4,5) O (1,3,5)",
-          "G (1,2,4,5) A (1) D (1,4,5) O (1,3,5)",
-          "G (1,2,4,5) A (1) P (1,2,3,4) O (1,3,5)",
+          "(1,2,4,5) (1) (2,3,4,5) (1,3,5)",
+          "(1,2,4,5) (1,5) (2,3,4,5) (1,3,5)",
+          "(1,2,4,5) (1) (1,4,5) (1,3,5)",
+          "(1,2,4,5) (1) (1,2,3,4) (1,3,5)",
         ],
         correctAnswer: 0,
-        explanation:
-          "GATO = G(pontos 1,2,4,5) + A(ponto 1) + T(pontos 2,3,4,5) + O(pontos 1,3,5).",
+        explanation: "GATO = G(1,2,4,5) + A(1) + T(2,3,4,5) + O(1,3,5).",
         order: 3,
         difficulty: "medium",
         points: 15,
@@ -234,11 +231,10 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q2-4",
         question:
-          "Qual palavra é formada pela sequência de Braille: S (2,3,4) O (1,3,5) L (1,2,3)?",
+          "Qual palavra é formada pela sequência: (2,3,4) (1,3,5) (1,2,3)?",
         options: ["SAL", "SOL", "SUL", "SAO"],
         correctAnswer: 1,
-        explanation:
-          "A sequência S(2,3,4) + O(1,3,5) + L(1,2,3) forma a palavra SOL.",
+        explanation: "A sequência forma a palavra SOL.",
         order: 4,
         difficulty: "easy",
         points: 15,
@@ -247,14 +243,14 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-5",
         question: 'Como se escreve a palavra "PÃO" em Braille?',
         options: [
-          "P (1,2,3,4) A (1) O (1,3,5)",
-          "P (1,2,3,4) A (1) Til (3,4) O (1,3,5)",
-          "P (1,2,3,4) O (1,3,5) A (1)",
-          "P (1,2,3,4) A (1) Cedilha (3,6) O (1,3,5)",
+          "(1,2,3,4) (1) (1,3,5)",
+          "(1,2,3,4) (1) (3,4,5) (1,3,5)",
+          "(1,2,3,4) (1,3,5) (1)",
+          "(1,2,3,4) (1,5) (1,3,5)",
         ],
         correctAnswer: 1,
         explanation:
-          "PÃO = P(pontos 1,2,3,4) + A(ponto 1) + Til(pontos 3,4) + O(pontos 1,3,5). O til é necessário para o acento til do Ã.",
+          "PÃO = P(1,2,3,4) + Ã(representado por A(1) e o sinal de til(3,4,5)). A resposta correta reflete a combinação para Ã.",
         order: 5,
         difficulty: "hard",
         points: 15,
@@ -262,28 +258,26 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q2-6",
         question:
-          "Qual palavra é formada pela sequência de Braille: M (1,3,4) A (1) R (1,2,3,5)?",
+          "Qual palavra é formada pela sequência: (1,3,4) (1) (1,2,3,5)?",
         options: ["MAO", "MAR", "MEU", "MAIS"],
         correctAnswer: 1,
-        explanation:
-          "A sequência M(1,3,4) + A(1) + R(1,2,3,5) forma a palavra MAR.",
+        explanation: "A sequência forma a palavra MAR.",
         order: 6,
         difficulty: "easy",
         points: 15,
       },
       {
         id: "q2-7",
-        question:
-          'Como se escreve a sequência de palavras "EU GOSTO" em Braille?',
+        question: 'Como se escreve "EU GOSTO" em Braille?',
         options: [
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) O (1,3,5)",
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) U (1,3,6)",
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) A (1)",
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) I (2,4)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,6)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(2,4)",
         ],
         correctAnswer: 0,
         explanation:
-          "EU GOSTO = E(1,5) U(1,3,6) [espaço] G(1,2,4,5) O(1,3,5) S(2,3,4) T(2,3,4,5) O(1,3,5).",
+          "A sequência de células correta para 'EU GOSTO' é a primeira opção.",
         order: 7,
         difficulty: "hard",
         points: 15,
@@ -291,28 +285,26 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q2-8",
         question:
-          "Qual a palavra formada pela sequência de letras Braille: D (1,4,5) A (1) D (1,4,5) O (1,3,5)?",
+          "Qual palavra é formada pela sequência: (1,4,5) (1) (1,4,5) (1,3,5)?",
         options: ["DADO", "DIA", "DEPOIS", "DOCE"],
         correctAnswer: 0,
-        explanation:
-          "A sequência D(1,4,5) + A(1) + D(1,4,5) + O(1,3,5) forma a palavra DADO.",
+        explanation: "A sequência forma a palavra DADO.",
         order: 8,
         difficulty: "medium",
         points: 15,
       },
       {
         id: "q2-9",
-        question:
-          'Como se escreve a sequência de palavras "BOLA AZUL" em Braille?',
+        question: 'Como se escreve "BOLA AZUL" em Braille?',
         options: [
-          "B (1,2) O (1,3,5) L (1,2,3) A (1) A (1) Z (1,3,5,6) U (1,3,6) L (1,2,3)",
-          "B (1,2) O (1,3,5) L (1,2,3) A (1) A (1) S (2,3,4) U (1,3,6) L (1,2,3)",
-          "B (1,2) O (1,3,5) L (1,2,3) A (1) A (1) V (1,2,3,6) U (1,3,6) L (1,2,3)",
-          "B (1,2) O (1,3,5) L (1,2,3) A (1) A (1) C (1,4) U (1,3,6) L (1,2,3)",
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,3,5,6)(1,3,6)(1,2,3)",
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(2,3,4)(1,3,6)(1,2,3)",
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,2,3,6)(1,3,6)(1,2,3)",
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,4)(1,3,6)(1,2,3)",
         ],
         correctAnswer: 0,
         explanation:
-          "BOLA AZUL = B(1,2) O(1,3,5) L(1,2,3) A(1) [espaço] A(1) Z(1,3,5,6) U(1,3,6) L(1,2,3).",
+          "A sequência de células correta para 'BOLA AZUL' é a primeira opção.",
         order: 9,
         difficulty: "hard",
         points: 15,
@@ -320,11 +312,10 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q2-10",
         question:
-          "Qual a palavra formada pela sequência de letras Braille: C (1,4) A (1) B (1,2) O (1,3,5)?",
+          "Qual palavra é formada pela sequência: (1,4) (1) (1,2) (1,3,5)?",
         options: ["CABO", "CAIXA", "CARRO", "CASA"],
         correctAnswer: 0,
-        explanation:
-          "A sequência C(1,4) + A(1) + B(1,2) + O(1,3,5) forma a palavra CABO.",
+        explanation: "A sequência forma a palavra CABO.",
         order: 10,
         difficulty: "medium",
         points: 15,
@@ -334,7 +325,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
   {
     id: "quiz-module-3",
     moduleId: 3,
-    title: "Questionário - Módulo 3: Formação de Frases Simples em Braille",
+    title: "Questionário - Módulo 3: Formação de Frases Simples",
     description:
       "Avalie seu conhecimento sobre a formação de frases simples em Braille.",
     passingScore: 7,
@@ -343,17 +334,16 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
     questions: [
       {
         id: "q3-1",
-        question:
-          'Como se escreve a frase "O sol brilha." em Braille, considerando as letras, espaços e o ponto final?',
+        question: 'Como se escreve a frase "O sol brilha." em Braille?',
         options: [
-          "O (1,3,5) espaço S (2,3,4) O (1,3,5) L (1,2,3) espaço B (1,2) R (1,2,3,5) I (2,4) L (1,2,3) H (1,2,5) A (1) . (2,5,6)",
-          "O (1,3,5) espaço S (2,3,4) O (1,3,5) L (1,2,3) espaço B (1,2) R (1,2,3,5) I (2,4) L (1,2,3) H (1,2,5) A (1)",
-          "O (1,3,5) espaço S (2,3,4) O (1,3,5) L (1,2,3) espaço B (1,2) R (1,2,3,5) I (2,4) L (1,2,3) H (1,2,5) A (1) ! (2,3,5,6)",
-          "O (1,3,5) espaço S (2,3,4) O (1,3,5) L (1,2,3) espaço B (1,2) R (1,2,3,5) I (2,4) L (1,2,3) H (1,2,5) A (1) ? (2,6)",
+          "(1,3,5) [espaço] (2,3,4)(1,3,5)(1,2,3) [espaço] (1,2)(1,2,3,5)(2,4)(1,2,3)(1,2,5)(1) (2,5,6)",
+          "(1,3,5) [espaço] (2,3,4)(1,3,5)(1,2,3) [espaço] (1,2)(1,2,3,5)(2,4)(1,2,3)(1,2,5)(1)",
+          "(1,3,5) [espaço] (2,3,4)(1,3,5)(1,2,3) [espaço] (1,2)(1,2,3,5)(2,4)(1,2,3)(1,2,5)(1) (2,3,5,6)",
+          "(1,3,5) [espaço] (2,3,4)(1,3,5)(1,2,3) [espaço] (1,2)(1,2,3,5)(2,4)(1,2,3)(1,2,5)(1) (2,6)",
         ],
         correctAnswer: 0,
         explanation:
-          "A frase completa deve incluir todas as letras, espaços entre palavras e terminar com ponto final (pontos 2,5,6).",
+          "A frase completa deve incluir todas as letras, espaços entre palavras e terminar com ponto final (2,5,6).",
         order: 1,
         difficulty: "hard",
         points: 15,
@@ -377,16 +367,15 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q3-3",
         question:
-          'Na frase "O gato pula.", qual a sequência correta para a palavra "gato" em Braille?',
+          'Na frase "O gato pula.", qual a sequência correta para a palavra "gato"?',
         options: [
-          "G (1,2,4,5) A (1) T (2,3,4,5) O (1,3,5)",
-          "G (1,2,4,5) E (1,5) T (2,3,4,5) O (1,3,5)",
-          "G (1,2,4,5) A (1) D (1,4,5) O (1,3,5)",
-          "G (1,2,4,5) A (1) P (1,2,3,4) O (1,3,5)",
+          "(1,2,4,5) (1) (2,3,4,5) (1,3,5)",
+          "(1,2,4,5) (1,5) (2,3,4,5) (1,3,5)",
+          "(1,2,4,5) (1) (1,4,5) (1,3,5)",
+          "(1,2,4,5) (1) (1,2,3,4) (1,3,5)",
         ],
         correctAnswer: 0,
-        explanation:
-          "GATO = G(pontos 1,2,4,5) + A(ponto 1) + T(pontos 2,3,4,5) + O(pontos 1,3,5).",
+        explanation: "GATO = G(1,2,4,5) + A(1) + T(2,3,4,5) + O(1,3,5).",
         order: 3,
         difficulty: "medium",
         points: 15,
@@ -409,17 +398,16 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       },
       {
         id: "q3-5",
-        question:
-          'Como se escreve a frase "Eu gosto de suco." em Braille, considerando apenas as letras e espaços?',
+        question: 'Como se escreve a frase "Eu gosto de suco." em Braille?',
         options: [
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) O (1,3,5) D (1,4,5) E (1,5) S (2,3,4) U (1,3,6) C (1,4) O (1,3,5) . (2,5,6)",
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) O (1,3,5) D (1,4,5) E (1,5) S (2,3,4) U (1,3,6) C (1,4) O (1,3,5)",
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) O (1,3,5) D (1,4,5) E (1,5) S (2,3,4) U (1,3,6) C (1,4) O (1,3,5) ! (2,3,5,6)",
-          "E (1,5) U (1,3,6) G (1,2,4,5) O (1,3,5) S (2,3,4) T (2,3,4,5) O (1,3,5) D (1,4,5) E (1,5) S (2,3,4) U (1,3,6) C (1,4) O (1,3,5) ? (2,6)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) [espaço] (1,4,5)(1,5) [espaço] (2,3,4)(1,3,6)(1,4)(1,3,5) (2,5,6)",
+          "(1,5)(1,3,6) (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) (1,4,5)(1,5) (2,3,4)(1,3,6)(1,4)(1,3,5)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) [espaço] (1,4,5)(1,5) [espaço] (2,3,4)(1,3,6)(1,4)(1,3,5) (2,3,5,6)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) [espaço] (1,4,5)(1,5) [espaço] (2,3,4)(1,3,6)(1,4)(1,3,5) (2,6)",
         ],
         correctAnswer: 0,
         explanation:
-          "A frase completa deve incluir espaços entre as palavras e terminar com ponto final (pontos 2,5,6).",
+          "A frase completa deve incluir espaços entre as palavras e terminar com ponto final (2,5,6).",
         order: 5,
         difficulty: "hard",
         points: 15,
@@ -427,7 +415,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q3-6",
         question:
-          "Qual frase é formada pela sequência de Braille: O (1,3,5) espaço G (1,2,4,5) A (1) T (2,3,4,5) O (1,3,5) espaço P (1,2,3,4) U (1,3,6) L (1,2,3) A (1) . (2,5,6)?",
+          "Qual frase é formada pela sequência: (1,3,5) [espaço] (1,2,4,5)(1)(2,3,4,5)(1,3,5) [espaço] (1,2,3,4)(1,3,6)(1,2,3)(1) (2,5,6)?",
         options: [
           "O gato come.",
           "O gato pula.",
@@ -443,17 +431,16 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       },
       {
         id: "q3-7",
-        question:
-          'Como se escreve a frase "A bola caiu." em Braille, considerando apenas as letras e espaços?',
+        question: 'Como se escreve a frase "A bola caiu." em Braille?',
         options: [
-          "A (1) B (1,2) O (1,3,5) L (1,2,3) A (1) C (1,4) A (1) I (2,4) U (1,3,6) . (2,5,6)",
-          "A (1) B (1,2) O (1,3,5) L (1,2,3) A (1) C (1,4) A (1) I (2,4) U (1,3,6)",
-          "A (1) B (1,2) O (1,3,5) L (1,2,3) A (1) C (1,4) A (1) I (2,4) U (1,3,6) ! (2,3,5,6)",
-          "A (1) B (1,2) O (1,3,5) L (1,2,3) A (1) C (1,4) A (1) I (2,4) U (1,3,6) ? (2,6)",
+          "(1) [espaço] (1,2)(1,3,5)(1,2,3)(1) [espaço] (1,4)(1)(2,4)(1,3,6) (2,5,6)",
+          "(1) (1,2)(1,3,5)(1,2,3)(1) (1,4)(1)(2,4)(1,3,6)",
+          "(1) [espaço] (1,2)(1,3,5)(1,2,3)(1) [espaço] (1,4)(1)(2,4)(1,3,6) (2,3,5,6)",
+          "(1) [espaço] (1,2)(1,3,5)(1,2,3)(1) [espaço] (1,4)(1)(2,4)(1,3,6) (2,6)",
         ],
         correctAnswer: 0,
         explanation:
-          "A frase deve incluir espaços entre as palavras A, BOLA e CAIU, terminando com ponto final (pontos 2,5,6).",
+          "A frase deve incluir espaços entre as palavras A, BOLA e CAIU, terminando com ponto final (2,5,6).",
         order: 7,
         difficulty: "hard",
         points: 15,
@@ -461,7 +448,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q3-8",
         question:
-          "Qual frase é formada pela sequência de Braille: M (1,3,4) A (1) E (1,5) espaço F (1,2,4) A (1) Z (1,3,5,6) espaço A (1) R (1,2,3,5) R (1,2,3,5) O (1,3,5) Z (1,3,5,6) . (2,5,6)?",
+          "Qual frase é formada pela sequência: (1,3,4)(1)(1,5) [espaço] (1,2,4)(1)(1,3,5,6) [espaço] (1)(1,2,3,5)(1,2,3,5)(1,3,5)(1,3,5,6) (2,5,6)?",
         options: [
           "Mãe faz bolo.",
           "Mãe faz arroz.",

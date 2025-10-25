@@ -1,5 +1,6 @@
-// ModuleQuizScreen.tsx - usa getQuizByModuleId e trata módulo que exporta 'quiz' ou 'questions'
-import React, { useState, useEffect, useRef, useCallback } from "react";
+// src/screens/module/ModuleQuizScreen.tsx
+
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -31,8 +32,9 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useAccessibility } from "../../context/AccessibilityProvider";
-import { getQuizByModuleId } from "../../data/moduleData";
+import { getQuizByModuleId } from "../../navigation/moduleQuestionTypes"; // ✅ CORRIGIDO O CAMINHO
 import { useSettings } from "../../hooks/useSettings";
+import { Audio } from "expo-av"; // << [1] IMPORTAÇÃO DO ÁUDIO
 
 const { width } = Dimensions.get("window");
 
@@ -49,7 +51,10 @@ function isColorDark(color: ColorValue | undefined): boolean {
   return false;
 }
 
-export default function ModuleQuizScreen({ route, navigation }: RootStackScreenProps<"ModuleQuiz">) {
+export default function ModuleQuizScreen({
+  route,
+  navigation,
+}: RootStackScreenProps<"ModuleQuiz">) {
   const { moduleId } = route.params;
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -59,8 +64,14 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
   const [errorDetails, setErrorDetails] = useState<ErrorDetail[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // >> [2] STATES PARA OS SONS
+  const [correctSound, setCorrectSound] = useState<Audio.Sound | null>(null);
+  const [wrongSound, setWrongSound] = useState<Audio.Sound | null>(null);
+
   const { user } = useAuthStore();
-  const { activeProgressId, setActive, startTimer, stopTimer } = useProgressStore();
+  const { activeProgressId, setActive, startTimer, stopTimer } =
+    useProgressStore();
   const { theme } = useContrast();
   const { speakText } = useAccessibility();
   const {
@@ -80,22 +91,48 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
     isDyslexiaFontEnabled
   );
 
+  // >> [3] USEEFFECT PARA CARREGAR E DESCARREGAR OS SONS
+  useEffect(() => {
+    async function loadSounds() {
+      try {
+        const { sound: correct } = await Audio.Sound.createAsync(
+          require("../../../assets/som/correct.mp3")
+        );
+        setCorrectSound(correct);
+
+        const { sound: wrong } = await Audio.Sound.createAsync(
+          require("../../../assets/som/incorrect.mp3")
+        );
+        setWrongSound(wrong);
+      } catch (error) {
+        console.error("Erro ao carregar os sons", error);
+      }
+    }
+
+    loadSounds();
+
+    // Função de limpeza para descarregar os sons ao sair da tela
+    return () => {
+      correctSound?.unloadAsync();
+      wrongSound?.unloadAsync();
+    };
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     const initialize = async () => {
       setIsLoading(true);
-      const moduleObj: any = getQuizByModuleId(parseInt(String(moduleId), 10));
+      const moduleObj = getQuizByModuleId(parseInt(String(moduleId), 10)); //
       if (!moduleObj) {
-        Alert.alert("Erro", "Quiz/módulo não encontrado.");
-        navigation.goBack();
+        Alert.alert("Erro", "Quiz do módulo não encontrado.");
+        if (mounted) navigation.goBack();
         return;
       }
 
-      // suporta ambos: module.quiz (conforme moduleData.ts) ou module.questions (ou codegen)
-      const qList: any[] = moduleObj.quiz ?? moduleObj.questions ?? [];
+      const qList = moduleObj.questions ?? []; //
       if (!qList || qList.length === 0) {
         Alert.alert("Erro", "Nenhuma pergunta encontrada para este módulo.");
-        navigation.goBack();
+        if (mounted) navigation.goBack();
         return;
       }
 
@@ -106,7 +143,7 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
           const progress = await ensureModuleProgress(
             user.userId,
             String(moduleId),
-            moduleObj.moduleNumber ?? moduleObj.moduleId ?? parseInt(String(moduleId), 10)
+            moduleObj.moduleId //
           );
           if (progress?.id) {
             setActive(progress.id);
@@ -122,13 +159,13 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleId]);
 
   useEffect(() => {
     if (!isLoading && questions.length > 0 && speakText) {
       const q = questions[currentQuestionIndex];
-      speakText && speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`);
+      speakText &&
+        speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`); //
     }
   }, [currentQuestionIndex, questions, isLoading, speakText]);
 
@@ -142,6 +179,10 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
     const q = questions[currentQuestionIndex];
 
     if (selectedAnswer === q.correctAnswer) {
+      //
+      // >> [4] TOCAR SOM DE ACERTO
+      correctSound?.replayAsync();
+
       setCorrectCount((prev) => prev + 1);
       Vibration.vibrate(80);
       setShowConfetti(true);
@@ -152,12 +193,15 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
         console.warn("Erro registerCorrect:", e);
       }
     } else {
+      // >> [5] TOCAR SOM DE ERRO
+      wrongSound?.replayAsync();
+
       Vibration.vibrate([0, 100, 50, 100]);
       const err: ErrorDetail = {
-        questionId: q.id,
-        questionText: q.question,
-        userAnswer: q.options?.[selectedAnswer] ?? null,
-        expectedAnswer: q.options?.[q.correctAnswer] ?? null,
+        questionId: q.id, //
+        questionText: q.question, //
+        userAnswer: q.options?.[selectedAnswer] ?? null, //
+        expectedAnswer: q.options?.[q.correctAnswer] ?? null, //
       };
       setErrorDetails((prev) => [...prev, err]);
       try {
@@ -166,7 +210,15 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
         console.warn("Erro registerWrong:", e);
       }
     }
-  }, [selectedAnswer, user, activeProgressId, currentQuestionIndex, questions]);
+  }, [
+    selectedAnswer,
+    user,
+    activeProgressId,
+    currentQuestionIndex,
+    questions,
+    correctSound,
+    wrongSound,
+  ]);
 
   const handleNext = useCallback(async () => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -175,9 +227,19 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
       setIsAnswerChecked(false);
     } else {
       const duration = stopTimer ? stopTimer() : 0;
-      const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
-      const passed = correctCount >= Math.ceil(questions.length * 0.6);
-      const coinsEarned = correctCount * 15;
+      const accuracy =
+        questions.length > 0
+          ? Math.round((correctCount / questions.length) * 100)
+          : 0;
+
+      const moduleData = getQuizByModuleId(parseInt(String(moduleId), 10)); //
+      const passed = moduleData
+        ? correctCount >= moduleData.passingScore //
+        : false;
+
+      const coinsEarned = moduleData
+        ? correctCount * moduleData.coinsPerCorrect //
+        : 0;
       const pointsEarned = correctCount * 10;
 
       if (user?.userId && activeProgressId) {
@@ -192,8 +254,6 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
         } catch (e) {
           console.warn("Erro finishModule:", e);
         }
-      } else {
-        console.warn("Usuário ou progresso ausente ao finalizar quiz; pulando chamada backend.");
       }
 
       navigation.replace("ModuleResult", {
@@ -207,10 +267,21 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
         passed,
       });
     }
-  }, [currentQuestionIndex, correctCount, questions, user, activeProgressId, moduleId, stopTimer, navigation]);
+  }, [
+    currentQuestionIndex,
+    correctCount,
+    questions,
+    user,
+    activeProgressId,
+    moduleId,
+    stopTimer,
+    navigation,
+  ]);
 
   const current = questions[currentQuestionIndex];
-  const statusBarStyle = isColorDark(theme.background) ? "light-content" : "dark-content";
+  const statusBarStyle = isColorDark(theme.background)
+    ? "light-content"
+    : "dark-content";
 
   if (isLoading)
     return (
@@ -252,32 +323,55 @@ export default function ModuleQuizScreen({ route, navigation }: RootStackScreenP
               style={[
                 styles.option,
                 selectedAnswer === idx && styles.optionSelected,
-                isAnswerChecked && idx === current.correctAnswer && styles.optionCorrect,
-                isAnswerChecked && selectedAnswer === idx && idx !== current.correctAnswer && styles.optionWrong,
+                isAnswerChecked &&
+                  idx === current.correctAnswer &&
+                  styles.optionCorrect,
+                isAnswerChecked &&
+                  selectedAnswer === idx &&
+                  idx !== current.correctAnswer &&
+                  styles.optionWrong,
               ]}
               accessibilityLabel={`Opção ${idx + 1}: ${opt}`}
             >
               <Text style={styles.optionText}>{opt}</Text>
             </AccessibleButton>
           ))}
-        {isAnswerChecked && selectedAnswer !== current.correctAnswer && current.explanation && (
-          <AccessibleView accessibilityText={`Explicação: ${current.explanation}`} style={styles.explanationBox}>
-            <Text style={styles.explanationText}>💡 {current.explanation}</Text>
-          </AccessibleView>
-        )}
+        {isAnswerChecked &&
+          selectedAnswer !== current.correctAnswer &&
+          current.explanation && (
+            <AccessibleView
+              accessibilityText={`Explicação: ${current.explanation}`}
+              style={styles.explanationBox}
+            >
+              <Text style={styles.explanationText}>
+                💡 {current.explanation}
+              </Text>
+            </AccessibleView>
+          )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <AccessibleButton style={styles.button} onPress={isAnswerChecked ? handleNext : handleConfirm}>
+        <AccessibleButton
+          style={styles.button}
+          onPress={isAnswerChecked ? handleNext : handleConfirm}
+        >
           <Text style={styles.buttonText}>
-            {isAnswerChecked ? (currentQuestionIndex === questions.length - 1 ? "Ver Resultado" : "Próxima") : "Confirmar"}
+            {isAnswerChecked
+              ? currentQuestionIndex === questions.length - 1
+                ? "Ver Resultado"
+                : "Próxima"
+              : "Confirmar"}
           </Text>
         </AccessibleButton>
       </View>
 
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
-          <ConfettiCannon count={120} origin={{ x: width / 2, y: -20 }} fadeOut />
+          <ConfettiCannon
+            count={120}
+            origin={{ x: width / 2, y: -20 }}
+            fadeOut
+          />
         </View>
       )}
     </View>
@@ -294,16 +388,26 @@ const getStyles = (
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center", 
+      alignItems: "center", 
+    },
     scrollArea: { padding: 15 },
     header: { alignItems: "center", paddingVertical: 10 },
-    headerTitle: { color: theme.text, fontSize: 18 * fontMultiplier, fontWeight: "700" },
+    headerTitle: {
+      color: theme.text,
+      fontSize: 18 * fontMultiplier,
+      fontWeight: "700",
+    },
     questionCounter: { color: theme.text, marginTop: 5 },
     questionText: {
       fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       color: theme.text,
       textAlign: "center",
+      marginHorizontal: 10,
+      marginBottom: 20,
     },
     option: {
       padding: 12,
@@ -317,11 +421,21 @@ const getStyles = (
     optionCorrect: { borderColor: "green", backgroundColor: "#D4EDDA" },
     optionWrong: { borderColor: "red", backgroundColor: "#F8D7DA" },
     optionText: { color: theme.text, fontSize: 15 * fontMultiplier },
-    explanationBox: { marginTop: 10, backgroundColor: "#EEE", padding: 10, borderRadius: 8 },
-    explanationText: { color: theme.text },
+    explanationBox: {
+      marginTop: 10,
+      backgroundColor: theme.card,
+      padding: 10,
+      borderRadius: 8,
+    },
+    explanationText: { color: theme.cardText },
     footer: { padding: 15 },
-    button: { backgroundColor: "#0af", padding: 12, borderRadius: 10, alignItems: "center" },
-    buttonText: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
+    button: {
+      backgroundColor: theme.button,
+      padding: 12,
+      borderRadius: 10,
+      alignItems: "center",
+    },
+    buttonText: { color: theme.buttonText, fontWeight: "bold", fontSize: 16 },
     confettiContainer: {
       position: "absolute",
       top: 0,

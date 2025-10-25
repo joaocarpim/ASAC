@@ -27,7 +27,7 @@
         "AdminRegisterUser": {
           "userPoolId": "us-east-1_00uu9Yg4p",
           "deploymentBucketName": "amplify-asac-dev-11020-deployment",
-          "s3Key": "amplify-builds/AdminRegisterUser-4777706c727633427363-build.zip"
+          "s3Key": "amplify-builds/AdminRegisterUser-4b485136615476536a6d-build.zip"
         }
       }
     }

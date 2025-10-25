@@ -535,13 +535,14 @@ const createStyles = (
       borderRadius: 5,
       marginLeft: 10,
     },
+    // 👇👇👇 AQUI ESTÁ A ÚNICA ALTERAÇÃO 👇👇👇
     actionsContainer: {
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
       gap: 8,
       alignSelf: "center",
-      marginTop: "auto",
+      marginTop: 15, // Alterado de 'auto' para um valor fixo
       paddingBottom: 10,
       paddingHorizontal: 20,
     },

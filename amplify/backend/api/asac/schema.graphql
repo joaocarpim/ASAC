@@ -1,13 +1,18 @@
 # Configuração global de auth
-input AMPLIFY { globalAuthRule: AuthRule = { allow: public } } # TESTE SOMENTE, remova em produção
-
+input AMPLIFY {
+  globalAuthRule: AuthRule = { allow: public }
+} # TESTE SOMENTE, remova em produção
 # === Usuário ===
 type User
   @model
   @auth(
     rules: [
-      { allow: owner, ownerField: "owner", operations: [read, update] },
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      { allow: owner, ownerField: "owner", operations: [read, update] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -30,12 +35,7 @@ type User
 # === Conquistas ===
 type Achievement
   @model
-  @auth(
-    rules: [
-      { allow: owner },
-      { allow: groups, groups: ["Admins"] }
-    ]
-  ) {
+  @auth(rules: [{ allow: owner }, { allow: groups, groups: ["Admins"] }]) {
   id: ID!
   title: String!
   description: String!
@@ -47,12 +47,7 @@ type Achievement
 # === Progresso do usuário ===
 type Progress
   @model
-  @auth(
-    rules: [
-      { allow: owner },
-      { allow: groups, groups: ["Admins"] }
-    ]
-  ) {
+  @auth(rules: [{ allow: owner }, { allow: groups, groups: ["Admins"] }]) {
   id: ID!
   user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
@@ -71,9 +66,13 @@ type Module
   @auth(
     rules: [
       # ✅ permite leitura para usuários autenticados (Cognito)
-      { allow: private, operations: [read] },
+      { allow: private, operations: [read] }
       # ✅ administradores podem gerenciar módulos
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID!
@@ -91,9 +90,13 @@ type Lesson
   @auth(
     rules: [
       # ✅ usuários logados podem ler lições
-      { allow: private, operations: [read] },
+      { allow: private, operations: [read] }
       # ✅ admins podem gerenciar
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID!
@@ -111,9 +114,13 @@ type Question
   @auth(
     rules: [
       # ✅ leitura liberada para usuários autenticados
-      { allow: private, operations: [read] },
+      { allow: private, operations: [read] }
       # ✅ total controle para admins
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID!
@@ -129,8 +136,12 @@ type BrailleSymbol
   @model
   @auth(
     rules: [
-      { allow: private, operations: [read] },
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      { allow: private, operations: [read] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID!

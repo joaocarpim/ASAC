@@ -57,7 +57,7 @@ export const DEFAULT_MODULES: ModuleContent[] = [
         type: "text",
         title: "Bem-vindo(a) ao Mundo do Braille!",
         content:
-          "Olá! Estamos muito felizes em ter você aqui. Este é o primeiro passo de uma jornada fascinante no sistema Braille. O Braille é uma ferramenta poderosa de comunicação e independência, criada para ser lida pelo tato.\n\nNeste primeiro módulo, nosso objetivo é claro: você não vai apenas decorar símbolos, mas sim entender a lógica por trás deles e, ao final, escrever suas primeiras palavras!\n\nVamos começar?",
+          "Olá! Estamos muito felizes em ter você aqui. Este é o primeiro passo de uma jornada fascinante no sistema Braille. O Braille é uma ferramenta poderosa de comunicação e independência, criada para ser lida pelo tato.\n\nNeste primeiro módulo, nosso objetivo é claro: você не vai apenas decorar símbolos, mas sim entender a lógica por trás deles e, ao final, escrever suas primeiras palavras!\n\nVamos começar?",
         order: 1,
       },
       {
@@ -155,7 +155,7 @@ export const DEFAULT_MODULES: ModuleContent[] = [
         type: "text",
         title: "Você chegou à etapa final!",
         content:
-          "Seja muito bem-vindo(a) ao Módulo 3. Nos módulos anteriores, você aprendeu os blocos de construção essenciais: as letras, os números e como juntá-los para formar palavras. Agora, você aprenderá a usar a 'argamassa' que une esses blocos para construir ideias completas: as frases.\n\nNeste módulo, você dominará o uso de espaços, letras maiúsculas e os sinais de pontuação mais importantes. Este é o grande momento em que tudo se conecta!",
+          "Seja muito bem-vindo(a) ao Módulo 3. Nos módulos anteriores, você aprendeu os blocos de construção essenciais: as letras e os números. Agora, você aprenderá a usar a 'argamassa' que une esses blocos para construir ideias completas: as frases.\n\nNeste módulo, você dominará o uso de espaços, letras maiúsculas e os sinais de pontuação mais importantes. Este é o grande momento em que tudo se conecta!",
         order: 1,
       },
       {
@@ -163,7 +163,7 @@ export const DEFAULT_MODULES: ModuleContent[] = [
         type: "text",
         title: "O Espaço: Dando Ar às Palavras",
         content:
-          "Até agora, escrevemos palavras isoladas. Para que uma frase seja legível, as palavras precisam ser claramente separadas umas das outras.\n\n• O Espaço: é representado por uma célula Braille vazia (sem nenhum ponto em relevo)\n\nExemplo: Para escrever 'GATO BOLO':\n• As quatro células para G-A-T-O\n• Uma célula inteira vazia\n• As quatro células para B-O-L-O",
+          "Até agora, escrevemos palavras isoladas. Para que uma frase seja legível, as palavras precisam ser separadas por uma célula Braille vazia (sem nenhum ponto em relevo).\n\nExemplo: Para escrever 'O gato dorme':\n• As células para O(1,3,5) G(1,2,4,5) A(1) T(2,3,4,5) O(1,3,5)\n• Uma célula inteira vazia para o espaço\n• As células para D(1,4,5) O(1,3,5) R(1,2,3,5) M(1,3,4) E(1,5)",
         order: 2,
       },
       {
@@ -177,9 +177,9 @@ export const DEFAULT_MODULES: ModuleContent[] = [
       {
         id: "section-3-4",
         type: "text",
-        title: "O Ponto Final: Concluindo uma Ideia",
+        title: "Pontuação Essencial: Dando Sentido às Frases",
         content:
-          "Uma frase expressa um pensamento completo e, para sinalizar que esse pensamento terminou, usamos o ponto final.\n\n• Ponto Final: Pontos 2, 5, 6\n\nEste sinal é colocado no final da última palavra da frase, sem espaço entre eles, assim como na escrita em tinta.",
+          "A pontuação é vital para dar clareza e emoção ao texto. Veja os sinais mais comuns:\n\n• Ponto Final: Pontos 2, 5, 6 (Indica o fim de uma declaração).\n\n• Vírgula: Ponto 2 (Indica uma pequena pausa na frase).\n\n• Ponto de Interrogação: Pontos 2, 6 (Usado no final de uma pergunta).\n\n• Ponto de Exclamação: Pontos 2, 3, 5 (Usado para expressar surpresa ou ênfase).",
         order: 4,
       },
       {
@@ -187,24 +187,16 @@ export const DEFAULT_MODULES: ModuleContent[] = [
         type: "text",
         title: "Sua Primeira Frase Completa!",
         content:
-          "Agora, vamos unir os três conceitos: Letra Maiúscula, Espaço e Ponto Final.\n\nExemplo - Frase 'Guga toca.':\n• G (maiúsculo): Sinal de Maiúscula + Letra G\n• uga: U + G + A\n• Espaço: Célula Vazia\n• toca: T + O + C + A\n• Ponto Final: Pontos 2, 5, 6\n\nParabéns! Você acabou de estruturar uma frase completa em Braille!",
+          "Agora, vamos unir os conceitos que aprendemos para formar uma frase de ação cotidiana.\n\nExemplo - Frase 'Eu bebo água.':\n\n• E (maiúsculo): Sinal de Maiúscula (Ponto 6) + Letra E (Pontos 1, 5)\n• u: Letra U (Pontos 1, 3, 6)\n• Espaço: Célula Vazia\n• b: Letra B (Pontos 1, 2)\n• e: Letra E (Pontos 1, 5)\n• b: Letra B (Pontos 1, 2)\n• o: Letra O (Pontos 1, 3, 5)\n• Espaço: Célula Vazia\n• á: Letra A (Ponto 1) com acento agudo (Ponto 4)\n• g: Letra G (Pontos 1, 2, 4, 5)\n• u: Letra U (Pontos 1, 3, 6)\n• a: Letra A (Ponto 1)\n• Ponto Final: Pontos 2, 5, 6\n\nParabéns! Você estruturou uma frase completa e útil em Braille!",
         order: 5,
       },
       {
         id: "section-3-6",
         type: "text",
-        title: "Expandindo a Pontuação: A Vírgula",
-        content:
-          "Para dar mais clareza e ritmo às frases, a vírgula é essencial. Ela indica uma pequena pausa.\n\n• Vírgula: Ponto 2\n\nExemplo de uso: Na frase 'Guga, o gato, toca.', a vírgula seria inserida após a palavra 'Guga' e após 'gato'.",
-        order: 6,
-      },
-      {
-        id: "section-3-7",
-        type: "text",
         title: "Missão Cumprida!",
         content:
-          "Você completou a base fundamental do aprendizado de Braille. Neste módulo, você:\n\n• Aprendeu a usar o espaço para separar palavras\n• Dominou o uso do sinal de maiúscula para iniciar frases\n• Utilizou o ponto final e a vírgula para dar sentido e ritmo ao texto\n• Combinou todo o seu conhecimento para escrever frases completas!\n\nCom a base dos Módulos 1, 2 e 3, você já tem as ferramentas para escrever e ler uma infinidade de textos simples.\n\nContinue praticando, pois a fluência vem com a dedicação. Você construiu uma base excelente. Parabéns pela conquista!",
-        order: 7,
+          "Você completou a base fundamental do aprendizado de Braille. Neste módulo, você:\n\n• Aprendeu a usar o espaço para separar palavras\n• Dominou o uso do sinal de maiúscula para iniciar frases\n• Utilizou a pontuação para dar sentido e ritmo ao texto\n• Combinou todo o seu conhecimento para escrever frases completas!\n\nCom a base dos Módulos 1, 2 e 3, você já tem as ferramentas para escrever e ler uma infinidade de textos. Continue praticando, pois a fluência vem com a dedicação. Parabéns pela conquista!",
+        order: 6,
       },
     ],
   },

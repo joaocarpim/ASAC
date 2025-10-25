@@ -1,4 +1,4 @@
-// ModuleContentScreen.tsx - separa o botão "Fazer Questionário" do cartão azul; botão agora fica abaixo do card com espaçamento e sombra própria.
+// ModuleContentScreen.tsx - Com gesto de voltar para a Home
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -19,12 +19,16 @@ import {
   AccessibleView,
   AccessibleHeader,
   AccessibleText,
-  AccessibleButton,
 } from "../../components/AccessibleComponents";
 import { useAccessibility } from "../../context/AccessibilityProvider";
-import { Gesture, GestureDetector, Directions } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 import { useSettings } from "../../hooks/useSettings";
-import * as moduleDataModule from "../../data/moduleData";
+// Certifique-se de que o caminho para seus tipos esteja correto
+import { DEFAULT_MODULES, ModuleContent } from "../../navigation/moduleTypes";
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
 
@@ -32,7 +36,8 @@ function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string") return false;
   const hex = color.replace("#", "");
   if (hex.length < 3) return false;
-  const toInt = (s: string) => (s.length === 1 ? parseInt(s + s, 16) : parseInt(s, 16));
+  const toInt = (s: string) =>
+    s.length === 1 ? parseInt(s + s, 16) : parseInt(s, 16);
   const r = toInt(hex.substring(0, 2));
   const g = toInt(hex.substring(2, 4));
   const b = toInt(hex.substring(4, 6));
@@ -45,7 +50,7 @@ export default function ModuleContentScreen({
   navigation,
 }: RootStackScreenProps<"ModuleContent">) {
   const { moduleId } = route.params;
-  const [moduleData, setModuleData] = useState<any | null>(null);
+  const [moduleData, setModuleData] = useState<ModuleContent | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -70,81 +75,69 @@ export default function ModuleContentScreen({
 
   useEffect(() => {
     setIsLoading(true);
-    const loader = async () => {
-      try {
-        const mdModule: any = moduleDataModule as any;
-        let mod: any = null;
-
-        if (typeof mdModule.getModuleById === "function") {
-          mod = mdModule.getModuleById(moduleId);
-        } else if (typeof mdModule.getModule === "function") {
-          mod = mdModule.getModule(moduleId);
-        } else if (typeof mdModule.getQuizByModuleId === "function") {
-          const q = mdModule.getQuizByModuleId(parseInt(String(moduleId), 10));
-          if (q) {
-            const lessons = q.lessons && q.lessons.length > 0
-              ? q.lessons
-              : (q.quiz ?? q.questions ?? []).map((it: any, idx: number) => ({
-                  lessonNumber: idx + 1,
-                  title: it.question?.slice?.(0, 60) ?? `Questão ${idx + 1}`,
-                  content: it.question ?? "",
-                }));
-            mod = {
-              title: q.title ?? `Módulo ${moduleId}`,
-              lessons,
-              moduleNumber: q.moduleNumber ?? q.moduleId ?? parseInt(String(moduleId), 10),
-            };
-          }
-        } else if (Array.isArray(mdModule.default)) {
-          mod = mdModule.default.find((m: any) => String(m.id) === String(moduleId));
-        }
-
-        setModuleData(mod || null);
-      } catch (e) {
-        console.warn("Erro ao carregar dados do módulo:", e);
-        setModuleData(null);
-      } finally {
-        setIsLoading(false);
-      }
+    const loadModuleContent = () => {
+      const numericModuleId = parseInt(String(moduleId), 10);
+      const content = DEFAULT_MODULES.find(
+        (m: ModuleContent) => m.moduleId === numericModuleId
+      );
+      setModuleData(content || null);
+      setIsLoading(false);
     };
-    loader();
+    loadModuleContent();
   }, [moduleId]);
 
   useEffect(() => {
     if (!isLoading && moduleData && speakText) {
-      const lesson = moduleData.lessons?.[currentPageIndex];
-      if (lesson) speakText(`Página ${currentPageIndex + 1}: ${lesson.title}. ${lesson.content}`);
+      const section = moduleData.sections?.[currentPageIndex];
+      if (section)
+        speakText(
+          `Página ${currentPageIndex + 1}: ${section.title}. ${section.content}`
+        );
     }
   }, [currentPageIndex, moduleData, isLoading, speakText]);
 
+  // 👇👇👇 AQUI ESTÁ A ÚNICA ALTERAÇÃO 👇👇👇
   const handlePrevious = () => {
-    if (currentPageIndex > 0) setCurrentPageIndex((prev) => prev - 1);
+    if (currentPageIndex > 0) {
+      // Se não for a primeira página, apenas volta uma página
+      setCurrentPageIndex((prev) => prev - 1);
+    } else {
+      // Se for a primeira página (index 0), navega para a Home
+      navigation.navigate("Home");
+    }
   };
+  // 👆👆👆 FIM DA ALTERAÇÃO 👆👆👆
 
   const handleNextPage = () => {
-    if (moduleData && currentPageIndex < (moduleData.lessons?.length ?? 0) - 1) {
+    if (
+      moduleData &&
+      currentPageIndex < (moduleData.sections?.length ?? 0) - 1
+    ) {
       setCurrentPageIndex((prev) => prev + 1);
     } else {
-      navigation.navigate("ModuleQuiz", { moduleId });
+      // Navega para a tela de pré-questionário ao finalizar o conteúdo
+      navigation.navigate("ModulePreQuiz", { moduleId });
     }
   };
 
-  const startQuiz = () => {
-    navigation.navigate("ModuleQuiz", { moduleId });
-  };
-
-  const flingLeft = Gesture.Fling().direction(Directions.LEFT).onEnd(handleNextPage);
-  const flingRight = Gesture.Fling().direction(Directions.RIGHT).onEnd(handlePrevious);
+  const flingLeft = Gesture.Fling()
+    .direction(Directions.LEFT)
+    .onEnd(handleNextPage);
+  const flingRight = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(handlePrevious);
   const composedGestures = Gesture.Race(flingLeft, flingRight);
 
-  const currentLesson = moduleData?.lessons?.[currentPageIndex];
-  const totalPages = moduleData?.lessons?.length ?? 1;
+  const currentSection = moduleData?.sections?.[currentPageIndex];
+  const totalPages = moduleData?.sections?.length ?? 1;
   const pageNumber = currentPageIndex + 1;
-  const mainAccessibilityText = currentLesson
-    ? `Página ${pageNumber} de ${totalPages}. ${currentLesson.title}. Conteúdo: ${currentLesson.content}. Deslize para a esquerda para avançar, ou para a direita para voltar.`
-    : `Nenhuma lição encontrada para ${moduleData?.title || "este módulo"}. Deslize para a esquerda para ir ao quiz, ou para a direita para voltar.`;
+  const mainAccessibilityText = currentSection
+    ? `Página ${pageNumber} de ${totalPages}. ${currentSection.title}. Conteúdo: ${currentSection.content}. Deslize para a esquerda para avançar, ou para a direita para voltar.`
+    : `Nenhuma lição encontrada para ${moduleData?.title || "este módulo"}.`;
 
-  const statusBarStyle = isColorDark(theme.background) ? "light-content" : "dark-content";
+  const statusBarStyle = isColorDark(theme.background)
+    ? "light-content"
+    : "dark-content";
 
   if (isLoading) {
     return (
@@ -157,7 +150,7 @@ export default function ModuleContentScreen({
   if (!moduleData) {
     return (
       <View style={styles.contentContainer}>
-        <Text style={styles.errorText}>Módulo não encontrado.</Text>
+        <Text style={styles.errorText}>Conteúdo do módulo não encontrado.</Text>
       </View>
     );
   }
@@ -169,36 +162,31 @@ export default function ModuleContentScreen({
 
       <GestureDetector gesture={composedGestures}>
         <ScrollView contentContainerStyle={styles.scrollWrapper}>
-          <AccessibleView style={styles.contentCard} accessibilityText={mainAccessibilityText}>
+          <AccessibleView
+            style={styles.contentCard}
+            accessibilityText={mainAccessibilityText}
+          >
             <View style={styles.cardInner}>
-              {currentLesson ? (
+              {currentSection ? (
                 <>
                   <AccessibleHeader level={2} style={styles.contentTitle}>
-                    {currentLesson.lessonNumber}. {currentLesson.title}
+                    {currentSection.order}. {currentSection.title}
                   </AccessibleHeader>
                   <AccessibleText baseSize={16} style={styles.contentBody}>
-                    {currentLesson.content}
+                    {currentSection.content}
                   </AccessibleText>
                 </>
               ) : (
                 <View style={styles.contentCenter}>
-                  <Text style={[styles.contentBody, styles.emptyText]}>Nenhuma lição encontrada.</Text>
+                  <Text style={[styles.contentBody, styles.emptyText]}>
+                    Nenhuma seção encontrada.
+                  </Text>
                 </View>
               )}
             </View>
           </AccessibleView>
 
-          {/* Botão separado — fica abaixo do cartão com seu próprio container */}
-          <View style={styles.separateQuizContainer}>
-            <AccessibleButton
-              style={styles.quizButton}
-              onPress={startQuiz}
-              accessibilityLabel={`Iniciar questionário do Módulo ${moduleData.moduleNumber || ""}`}
-              disabled={isLoading}
-            >
-              <Text style={styles.quizButtonText}>Fazer Questionário</Text>
-            </AccessibleButton>
-          </View>
+          {/* O botão foi removido daqui */}
 
           <Text style={styles.pageIndicator}>
             {pageNumber} / {totalPages}
@@ -219,9 +207,18 @@ const getStyles = (
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background },
-    contentContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-    // ADICIONEI errorText aqui para corrigir o erro de compilação
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+    },
+    contentContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
     errorText: {
       fontSize: 18 * fontMultiplier,
       textAlign: "center",
@@ -236,10 +233,16 @@ const getStyles = (
     contentCard: {
       width: "100%",
       maxWidth: 980,
+      minHeight: WINDOW_WIDTH > 600 ? 400 : 300,
       borderRadius: 12,
       backgroundColor: (theme as any).card ?? "#fff",
       ...Platform.select({
-        ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 10 },
+        ios: {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.12,
+          shadowRadius: 10,
+        },
         android: { elevation: 6 },
         web: { boxShadow: "0 8px 20px rgba(0,0,0,0.12)" },
       }),
@@ -260,40 +263,18 @@ const getStyles = (
       color: (theme as any).cardText ?? theme.text,
       textAlign: "left",
     },
-    contentCenter: { paddingVertical: 24, alignItems: "center", justifyContent: "center" },
+    contentCenter: {
+      paddingVertical: 24,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     emptyText: {
       fontSize: 16 * fontMultiplier,
       color: theme.text,
       opacity: 0.85,
     },
-    separateQuizContainer: {
-      marginTop: 18,
-      width: "100%",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    quizButton: {
-      alignSelf: "center",
-      minWidth: WINDOW_WIDTH > 600 ? 320 : "85%",
-      paddingVertical: 14,
-      paddingHorizontal: 20,
-      borderRadius: 12,
-      backgroundColor: (theme as any).button ?? "#191970",
-      alignItems: "center",
-      justifyContent: "center",
-      ...Platform.select({
-        ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.16, shadowRadius: 12 },
-        android: { elevation: 8 },
-        web: { boxShadow: "0 8px 20px rgba(0,0,0,0.14)" },
-      }),
-    },
-    quizButtonText: {
-      color: (theme as any).buttonText ?? "#FFFFFF",
-      fontSize: 16 * fontMultiplier,
-      fontWeight: "700",
-    },
     pageIndicator: {
-      marginTop: 12,
+      marginTop: 18,
       color: (theme as any).cardText ?? theme.text,
       opacity: 0.85,
       fontSize: 13 * fontMultiplier,
