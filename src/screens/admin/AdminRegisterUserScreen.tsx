@@ -3,223 +3,275 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
+  Alert,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Modal,
-  Pressable,
+  ActivityIndicator,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
+import { generateClient } from "aws-amplify/api";
 import { fetchAuthSession } from "aws-amplify/auth";
 
-const logo = require("../../assets/images/logo.png");
-
-const API_URL = "https://oetq8mqfkg.execute-api.us-east-1.amazonaws.com/dev/admin/createuser";
-
-export default function AdminRegisterUserScreen({}: RootStackScreenProps<"AdminRegisterUser">) {
+export default function AdminRegisterUserScreen({
+  navigation,
+}: RootStackScreenProps<"AdminRegisterUser">) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [modalTitle, setModalTitle] = useState("");
-  const [modalMessage, setModalMessage] = useState("");
-
-  const triggerModal = (title: string, message: string) => {
-    setModalTitle(title);
-    setModalMessage(message);
-    setModalVisible(true);
-  };
-
-  // ... (Sua função validateInput está ótima, não precisa mudar)
-  const validateInput = () => {
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      triggerModal("Campos Incompletos", "Por favor, preencha todos os campos.");
-      return false;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      triggerModal("Email Inválido", "Por favor, insira um email válido.");
-      return false;
-    }
-    const passwordErrors: string[] = [];
-    if (password.length < 8) passwordErrors.push("• Pelo menos 8 caracteres");
-    if (!/[A-Z]/.test(password)) passwordErrors.push("• Uma letra MAIÚSCULA");
-    if (!/[a-z]/.test(password)) passwordErrors.push("• Uma letra minúscula");
-    if (!/[0-9]/.test(password)) passwordErrors.push("• Um número");
-    if (passwordErrors.length > 0) {
-      triggerModal("Senha Fraca", passwordErrors.join("\n"));
-      return false;
-    }
-    return true;
-  };
-
 
   const handleRegister = async () => {
-    if (loading || !validateInput()) return;
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      Alert.alert("Erro", "Preencha todos os campos.");
+      return;
+    }
+
+    if (password.length < 8) {
+      Alert.alert("Erro", "A senha deve ter no mínimo 8 caracteres.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const session = await fetchAuthSession();
-      const token = session.tokens?.idToken?.toString();
-      
-      if (!token) {
-        triggerModal(
-          "Erro de Autenticação",
-          "Token de administrador não encontrado. Faça login novamente."
-        );
+      const idToken = session.tokens?.idToken?.toString();
+
+      if (!idToken) {
+        Alert.alert("Erro", "Token de autenticação não encontrado.");
         setLoading(false);
         return;
       }
 
-      console.log("🔑 Enviando Token para a Lambda:", token);
+      console.log("🔑 Enviando Token para a Lambda:", idToken);
 
-      // 📡 Chamada ÚNICA para a Lambda, que fará todo o trabalho
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // ✅ CORREÇÃO 1: Enviando o token diretamente, sem o prefixo "Bearer ".
-          Authorization: token,
-        },
-        body: JSON.stringify({
+      const client = generateClient();
+      
+      const ADMIN_REGISTER_MUTATION = `
+        mutation AdminRegisterUser($name: String!, $email: String!, $password: String!) {
+          adminRegisterUser(name: $name, email: $email, password: $password)
+        }
+      `;
+
+      const result = await client.graphql({
+        query: ADMIN_REGISTER_MUTATION,
+        variables: {
           name: name.trim(),
-          email: email.trim().toLowerCase(),
-          password,
-        }),
+          email: email.trim(),
+          password: password,
+        },
       });
 
-      const data: any = await response.json();
-      console.log("📥 Resposta da Lambda:", data);
+      console.log("📥 Resposta da Lambda:", result);
 
-      if (!response.ok) {
-        throw new Error(data?.error || "Erro ao registrar usuário.");
+      // Verificar se result tem a propriedade data
+      if ('data' in result && result.data) {
+        const response = result.data as any;
+        
+        if (response.adminRegisterUser) {
+          Alert.alert(
+            "Sucesso",
+            `Usuário ${name} cadastrado com sucesso!`,
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  setName("");
+                  setEmail("");
+                  setPassword("");
+                  navigation.goBack();
+                },
+              },
+            ]
+          );
+        } else {
+          Alert.alert("Erro", "Falha ao cadastrar usuário.");
+        }
+      } else {
+        Alert.alert("Erro", "Resposta inválida da API.");
       }
-
-      // ✅ CORREÇÃO 2: A chamada GraphQL duplicada foi removida.
-      // A Lambda já é responsável por salvar no banco de dados.
-
-      triggerModal("Sucesso!", data?.message || "Usuário registrado com sucesso.");
+    } catch (error: any) {
+      console.error("❌ Erro ao registrar usuário:", error);
       
-      setName("");
-      setEmail("");
-      setPassword("");
-
-    } catch (err: any) {
-      console.error("❌ Erro no processo de registro:", err);
-      triggerModal("Erro", err?.message || "Ocorreu um problema no registro.");
+      let errorMessage = "Erro desconhecido ao cadastrar usuário.";
+      
+      if (error?.errors && error.errors.length > 0) {
+        errorMessage = error.errors[0].message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert("Erro", errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // O resto do seu código (JSX e styles) pode continuar o mesmo.
-  // Colei aqui para garantir que esteja completo.
-
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalCenteredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>{modalTitle}</Text>
-            <Text style={styles.modalMessage}>{modalMessage}</Text>
-            <Pressable
-              style={styles.modalButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>OK</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
-      <ScreenHeader title="Registrar Assistido" />
+      <ScreenHeader title="Cadastrar Assistido" />
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.logoContainer}>
-          <Image source={logo} style={styles.logo} />
-          <Text style={styles.logoText}>ASAC</Text>
-        </View>
-        <View style={styles.formContainer}>
-          <Text style={styles.promptText}>
-            Realize o registro dos assistidos
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Nome completo"
-            placeholderTextColor="#FFFFFF80"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            editable={!loading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#FFFFFF80"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={email}
-            onChangeText={setEmail}
-            editable={!loading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Senha"
-            placeholderTextColor="#FFFFFF80"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            editable={!loading}
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <MaterialCommunityIcons
+            name="account-plus"
+            size={80}
+            color="#191970"
           />
         </View>
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? "Registrando..." : "Registrar"}
+        <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <MaterialCommunityIcons
+              name="account"
+              size={24}
+              color="#191970"
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nome completo"
+              placeholderTextColor="#999"
+              value={name}
+              onChangeText={setName}
+              editable={!loading}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <MaterialCommunityIcons
+              name="email"
+              size={24}
+              color="#191970"
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!loading}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <MaterialCommunityIcons
+              name="lock"
+              size={24}
+              color="#191970"
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Senha"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!loading}
+            />
+          </View>
+
+          <Text style={styles.hint}>
+            💡 A senha deve ter no mínimo 8 caracteres
           </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <TouchableOpacity
+            style={[styles.registerButton, loading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={24}
+                  color="#FFFFFF"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.registerButtonText}>Cadastrar</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Seus estilos estão ótimos, mantive eles aqui
-  container: { flex: 1, backgroundColor: "#F0EFEA" },
-  scrollContainer: { flexGrow: 1, justifyContent: "space-around", paddingHorizontal: 20, paddingBottom: 40 },
-  logoContainer: { alignItems: "center", marginBottom: 30 },
-  logo: { width: 120, height: 120, resizeMode: "contain" },
-  logoText: { fontSize: 48, fontWeight: "bold", color: "#191970", marginTop: 10 },
-  formContainer: { width: "100%", alignItems: "center" },
-  promptText: { fontSize: 16, color: "#191970", fontWeight: "bold", marginBottom: 20, textAlign: "center" },
-  input: { width: "100%", backgroundColor: "#191970", color: "#FFFFFF", padding: 15, borderRadius: 8, fontSize: 16, marginBottom: 15 },
-  button: { width: "100%", backgroundColor: "#191970", padding: 15, borderRadius: 8, alignItems: "center", marginTop: 20 },
-  buttonDisabled: { backgroundColor: "#191970AA" },
-  buttonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
-  modalCenteredView: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.6)" },
-  modalView: { margin: 20, backgroundColor: "white", borderRadius: 20, padding: 25, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, width: "85%" },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 15, textAlign: "center", color: "#191970" },
-  modalMessage: { fontSize: 16, marginBottom: 20, textAlign: "center", lineHeight: 22 },
-  modalButton: { borderRadius: 10, paddingVertical: 12, paddingHorizontal: 30, elevation: 2, backgroundColor: "#191970" },
-  modalButtonText: { color: "white", fontWeight: "bold", textAlign: "center", fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: "#F0EFEA",
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  iconContainer: {
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  form: {
+    marginTop: 10,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 15,
+    fontSize: 16,
+    color: "#191970",
+  },
+  hint: {
+    color: "#666",
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  registerButton: {
+    backgroundColor: "#191970",
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  registerButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
 });

@@ -16,7 +16,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import * as APIt from "../../API";
 import { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
-import { getUserById, canStartModule } from "../../services/progressService";
+import { getUserById, canStartModule, ensureUserInDB } from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
@@ -27,8 +27,7 @@ import {
   AccessibleButton,
 } from "../../components/AccessibleComponents";
 
-// ⚙️ Importando o conteúdo local dos módulos
-import { modules as localModules } from "../../data/moduleData";
+import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
 
 type HomeScreenStyles = ReturnType<typeof createStyles>;
 
@@ -47,7 +46,12 @@ interface ActionButtonProps {
 }
 
 interface ModuleItemProps {
-  module: APIt.Module;
+  module: {
+    id: string;
+    moduleId: number;
+    title: string;
+    description: string;
+  };
   completed: boolean;
   onPress: () => void;
   styles: HomeScreenStyles;
@@ -109,13 +113,13 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
   styles,
 }) => {
   const status = completed ? "Concluído" : "Não concluído";
-  const accessibilityText = `Módulo ${module.moduleNumber}: ${module.title}, ${module.description}. Status: ${status}. Toque para abrir.`;
+  const accessibilityText = `Módulo ${module.moduleId}: ${module.title}, ${module.description}. Status: ${status}. Toque para abrir.`;
 
   let iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"] =
     "book-outline";
-  if (module.moduleNumber === 1) iconName = "alphabet-latin";
-  else if (module.moduleNumber === 2) iconName = "hand-wave-outline";
-  else if (module.moduleNumber === 3) iconName = "star-box-outline";
+  if (module.moduleId === 1) iconName = "alphabet-latin";
+  else if (module.moduleId === 2) iconName = "hand-wave-outline";
+  else if (module.moduleId === 3) iconName = "star-box-outline";
 
   const iconStyle = styles.moduleIcon as TextStyle;
 
@@ -133,7 +137,7 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
         />
       </View>
       <View style={styles.moduleTextContainer}>
-        <Text style={styles.moduleTitle}>Módulo {module.moduleNumber}</Text>
+        <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
         <Text style={styles.moduleSubtitle}>{module.title}</Text>
       </View>
       <View
@@ -173,7 +177,6 @@ const HomeScreen: React.FC<
     letterSpacing
   );
 
-  // --- BUSCA DE DADOS ---
   const fetchData = useCallback(async () => {
     if (!user?.userId) {
       setLoadingUser(false);
@@ -185,7 +188,14 @@ const HomeScreen: React.FC<
     setLoadingModules(true);
 
     try {
-      const uResult = await getUserById(user.userId);
+      // ✅ CORREÇÃO: Garante que o usuário existe no DB antes de buscar
+      let uResult = await getUserById(user.userId);
+      
+      if (!uResult && user.email && user.name) {
+        console.log("⚠️ Usuário não encontrado no DB, criando...");
+        uResult = await ensureUserInDB(user.userId, user.name, user.email);
+      }
+      
       setDbUser(uResult);
     } catch (error) {
       console.error("Erro ao buscar usuário:", error);
@@ -195,7 +205,7 @@ const HomeScreen: React.FC<
       setLoadingUser(false);
       setLoadingModules(false);
     }
-  }, [user?.userId]);
+  }, [user?.userId, user?.email, user?.name]);
 
   useFocusEffect(
     useCallback(() => {
@@ -214,14 +224,14 @@ const HomeScreen: React.FC<
     }, [fetchData])
   );
 
-  const openModule = async (moduleId: string, moduleNumber: number) => {
-    if (!user?.userId || moduleNumber === 0) return;
-    const allowed = await canStartModule(user.userId, moduleNumber);
+  const openModule = async (moduleId: number) => {
+    if (!user?.userId || moduleId === 0) return;
+    const allowed = await canStartModule(user.userId, moduleId);
     if (!allowed) {
       Alert.alert("Bloqueado", "Conclua o módulo anterior para avançar.");
       return;
     }
-    navigation.navigate("ModuleContent", { moduleId });
+    navigation.navigate("ModuleContent", { moduleId: String(moduleId) });
   };
 
   const handleLogout = () => {
@@ -253,25 +263,31 @@ const HomeScreen: React.FC<
     );
   }
 
-  // --- PROGRESSO DO USUÁRIO ---
+  // ✅ CORREÇÃO DO CÁLCULO DE MÓDULOS CONCLUÍDOS
+  const modulesData = dbUser?.modulesCompleted ?? [];
   let completedModuleNumbers: number[] = [];
-  const modulesData = dbUser?.modulesCompleted;
 
   if (modulesData) {
-    if (typeof modulesData === "string" && modulesData.length > 0) {
+    if (typeof modulesData === "string") {
       completedModuleNumbers = modulesData
         .split(",")
-        .map((numStr) => parseInt(numStr.trim(), 10))
-        .filter((num): num is number => Number.isInteger(num));
+        .map((num) => parseInt(num.trim(), 10))
+        .filter((num) => !isNaN(num));
     } else if (Array.isArray(modulesData)) {
-      completedModuleNumbers = modulesData.filter((n): n is number =>
-        Number.isInteger(n)
-      );
+      completedModuleNumbers = modulesData
+        .map((item) => {
+          if (typeof item === "number") return item;
+          if (typeof item === "string") return parseInt(item, 10);
+          if (typeof item === "object" && (item as any).moduleNumber)
+            return (item as any).moduleNumber;
+          return NaN;
+        })
+        .filter((num) => !isNaN(num));
     }
   }
 
   const completedCount = completedModuleNumbers.length;
-  const modulesProgressString = `${completedCount}/${localModules.length}`;
+  const modulesProgressString = `${completedCount}/${DEFAULT_MODULES.length}`;
 
   return (
     <View
@@ -286,7 +302,6 @@ const HomeScreen: React.FC<
         translucent={Platform.OS === "android"}
       />
       <View style={{ flex: 1 }}>
-        {/* --- CABEÇALHO --- */}
         <View style={styles.header}>
           <View>
             <AccessibleHeader level={1} style={styles.headerTitle}>
@@ -309,7 +324,6 @@ const HomeScreen: React.FC<
           </AccessibleButton>
         </View>
 
-        {/* --- ESTATÍSTICAS --- */}
         <View style={styles.statsContainer}>
           <StatCard
             iconName="hand-coin"
@@ -331,7 +345,6 @@ const HomeScreen: React.FC<
           />
         </View>
 
-        {/* --- MÓDULOS --- */}
         <View style={{ flex: 1 }}>
           <View style={styles.sectionHeader}>
             <AccessibleHeader level={2} style={styles.sectionTitle}>
@@ -363,13 +376,13 @@ const HomeScreen: React.FC<
           </View>
 
           <FlatList
-            data={localModules}
+            data={DEFAULT_MODULES}
             keyExtractor={(item) => item.id}
             renderItem={({ item: module }) => (
               <ModuleItem
-                module={module as any}
-                completed={completedModuleNumbers.includes(module.moduleNumber)}
-                onPress={() => openModule(module.id, module.moduleNumber)}
+                module={module}
+                completed={completedModuleNumbers.includes(module.moduleId)}
+                onPress={() => openModule(module.moduleId)}
                 styles={styles}
               />
             )}
@@ -377,7 +390,6 @@ const HomeScreen: React.FC<
           />
         </View>
 
-        {/* --- AÇÕES --- */}
         <View style={styles.actionsContainer}>
           <ActionButton
             iconName="podium-gold"
@@ -405,7 +417,6 @@ const HomeScreen: React.FC<
 
 // --- ESTILOS ---
 const BOX_SIZE = 90;
-
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -535,14 +546,13 @@ const createStyles = (
       borderRadius: 5,
       marginLeft: 10,
     },
-    // 👇👇👇 AQUI ESTÁ A ÚNICA ALTERAÇÃO 👇👇👇
     actionsContainer: {
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
       gap: 8,
       alignSelf: "center",
-      marginTop: 15, // Alterado de 'auto' para um valor fixo
+      marginTop: 15,
       paddingBottom: 10,
       paddingHorizontal: 20,
     },

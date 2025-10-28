@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   StatusBar,
   SafeAreaView,
   ImageSourcePropType,
+  ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
@@ -19,14 +20,13 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-// 👇 1. IMPORTAR OS COMPONENTES DE GESTO 👇
 import {
   Gesture,
   GestureDetector,
   Directions,
 } from "react-native-gesture-handler";
+import { getAllUsers } from "../../services/progressService";
 
-// --- DADOS E TIPOS ---
 type RankingItemData = {
   id: string;
   name: string;
@@ -35,58 +35,7 @@ type RankingItemData = {
   modules: string;
   avatar: ImageSourcePropType;
 };
-const rankingData: RankingItemData[] = [
-  {
-    id: "1",
-    name: "Ana Silva Nogueira",
-    coins: 495,
-    points: 36730,
-    modules: "3/3",
-    avatar: require("../../assets/images/avatar1.png"),
-  },
-  {
-    id: "2",
-    name: "Cláudio Silvano Filho",
-    coins: 470,
-    points: 33200,
-    modules: "2/3",
-    avatar: require("../../assets/images/avatar2.png"),
-  },
-  {
-    id: "3",
-    name: "Anderson Pereira Silva",
-    coins: 357,
-    points: 17700,
-    modules: "2/3",
-    avatar: require("../../assets/images/avatar3.png"),
-  },
-  {
-    id: "4",
-    name: "Laura Andrade Neto",
-    coins: 320,
-    points: 15500,
-    modules: "1/3",
-    avatar: require("../../assets/images/avatar4.png"),
-  },
-  {
-    id: "5",
-    name: "Marcos Pereira",
-    coins: 310,
-    points: 14800,
-    modules: "1/3",
-    avatar: require("../../assets/images/avatar1.png"),
-  },
-  {
-    id: "6",
-    name: "Juliana Costa",
-    coins: 290,
-    points: 13500,
-    modules: "1/3",
-    avatar: require("../../assets/images/avatar2.png"),
-  },
-];
 
-// --- ITEM INDIVIDUAL ---
 const RankingListItem = ({
   data,
   rank,
@@ -146,7 +95,6 @@ const RankingListItem = ({
   );
 };
 
-// --- TELA PRINCIPAL ---
 export default function RankingScreen() {
   const navigation = useNavigation();
   const { theme } = useContrast();
@@ -158,6 +106,9 @@ export default function RankingScreen() {
     isDyslexiaFontEnabled,
   } = useSettings();
 
+  const [rankingData, setRankingData] = useState<RankingItemData[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const styles = createStyles(
     theme,
     fontSizeMultiplier,
@@ -167,7 +118,42 @@ export default function RankingScreen() {
     isDyslexiaFontEnabled
   );
 
-  // 👇 2. DEFINIR A FUNÇÃO E O GESTO 👇
+  const fetchRanking = useCallback(async () => {
+    setLoading(true);
+    try {
+      const users = await getAllUsers();
+      
+      const ranked = users
+        .map((user: any) => {
+          const modulesCompleted = Array.isArray(user.modulesCompleted) 
+            ? user.modulesCompleted.length 
+            : 0;
+          
+          return {
+            id: user.id,
+            name: user.name || "Usuário",
+            coins: user.coins || 0,
+            points: user.points || 0,
+            modules: `${modulesCompleted}/3`,
+            avatar: require("../../assets/images/avatar1.png"),
+          };
+        })
+        .sort((a: RankingItemData, b: RankingItemData) => b.points - a.points);
+      
+      setRankingData(ranked);
+    } catch (error) {
+      console.error("Erro ao buscar ranking:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchRanking();
+    }, [fetchRanking])
+  );
+
   const handleGoBack = () => {
     navigation.goBack();
   };
@@ -176,8 +162,37 @@ export default function RankingScreen() {
     .direction(Directions.RIGHT)
     .onEnd(handleGoBack);
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.pageContainer}>
+        <StatusBar
+          barStyle={theme.statusBarStyle}
+          backgroundColor={theme.background}
+        />
+        <View style={styles.header}>
+          <AccessibleButton
+            onPress={handleGoBack}
+            accessibilityText="Voltar para a tela anterior"
+          >
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={28}
+              color={styles.headerTitle.color}
+            />
+          </AccessibleButton>
+          <AccessibleHeader level={1} style={styles.headerTitle}>
+            Classificação Geral
+          </AccessibleHeader>
+          <View style={styles.headerIconPlaceholder} />
+        </View>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={theme.text} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    // 👇 3. ENVOLVER A TELA COM O DETECTOR DE GESTOS 👇
     <GestureDetector gesture={flingRight}>
       <SafeAreaView style={styles.pageContainer}>
         <StatusBar
@@ -186,7 +201,7 @@ export default function RankingScreen() {
         />
         <View style={styles.header}>
           <AccessibleButton
-            onPress={handleGoBack} // Reutilizando a função
+            onPress={handleGoBack}
             accessibilityText="Voltar para a tela anterior"
           >
             <MaterialCommunityIcons
@@ -223,8 +238,6 @@ export default function RankingScreen() {
   );
 }
 
-// --- ESTILOS ---
-// A função createStyles permanece exatamente a mesma
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
+import { useFocusEffect } from "@react-navigation/native";
+import { getUserById } from "../../services/progressService";
 
-// 👇 DEFINIÇÃO DOS TIPOS 👇
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 type StatGridItemProps = {
   icon: IconName;
@@ -32,6 +34,69 @@ export default function AdminUserDetailScreen({
   navigation,
 }: RootStackScreenProps<"AdminUserDetail">) {
   const { userId, userName } = route.params;
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUserData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await getUserById(userId);
+      setUserData(user);
+    } catch (error) {
+      console.error("Erro ao buscar dados do usuário:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserData();
+    }, [fetchUserData])
+  );
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
+        <ScreenHeader title={userName} />
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color="#191970" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
+        <ScreenHeader title={userName} />
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text style={{ color: "#191970", fontSize: 16 }}>
+            Usuário não encontrado
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const modulesCompleted = Array.isArray(userData.modulesCompleted)
+    ? userData.modulesCompleted.length
+    : 0;
+
+  const totalAnswers =
+    (userData.correctAnswers || 0) + (userData.wrongAnswers || 0);
+  const precision =
+    totalAnswers > 0
+      ? Math.round(((userData.correctAnswers || 0) / totalAnswers) * 100)
+      : 0;
 
   return (
     <View style={styles.container}>
@@ -43,24 +108,44 @@ export default function AdminUserDetailScreen({
           <View style={styles.cardRow}>
             <View style={styles.cardColumn}>
               <Text style={styles.cardLabel}>Email</Text>
-              <Text style={styles.cardValue}>ana@email.com</Text>
+              <Text style={styles.cardValue}>{userData.email || "N/A"}</Text>
             </View>
             <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Senha</Text>
-              <Text style={styles.cardValue}>********</Text>
+              <Text style={styles.cardLabel}>Role</Text>
+              <Text style={styles.cardValue}>{userData.role || "user"}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.statsGrid}>
-          <StatGridItem icon="hand-coin" value="495" label="Moedas" />
-          <StatGridItem icon="trophy-variant" value="36.730" label="Pontos" />
-          <StatGridItem icon="book-open-variant" value="3/3" label="Módulos" />
-          <StatGridItem icon="target" value="70%" label="Precisão" />
-          <StatGridItem icon="check-all" value="13" label="Acertos" />
+          <StatGridItem
+            icon="hand-coin"
+            value={(userData.coins || 0).toString()}
+            label="Moedas"
+          />
+          <StatGridItem
+            icon="trophy-variant"
+            value={(userData.points || 0).toLocaleString("pt-BR")}
+            label="Pontos"
+          />
+          <StatGridItem
+            icon="book-open-variant"
+            value={`${modulesCompleted}/3`}
+            label="Módulos"
+          />
+          <StatGridItem
+            icon="target"
+            value={`${precision}%`}
+            label="Precisão"
+          />
+          <StatGridItem
+            icon="check-all"
+            value={(userData.correctAnswers || 0).toString()}
+            label="Acertos"
+          />
           <StatGridItem
             icon="clock-time-eight-outline"
-            value="7:34"
+            value={formatTime(userData.timeSpent || 0)}
             label="Tempo"
           />
         </View>
@@ -68,19 +153,33 @@ export default function AdminUserDetailScreen({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Módulos</Text>
           <View style={styles.modulesButtons}>
-            <TouchableOpacity style={styles.moduleButton}>
-              <Text style={styles.moduleButtonText}>1</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.moduleButton}>
-              <Text style={styles.moduleButtonText}>2</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.moduleButton}>
-              <Text style={styles.moduleButtonText}>3</Text>
-            </TouchableOpacity>
+            {[1, 2, 3].map((moduleNum) => {
+              const isCompleted = Array.isArray(userData.modulesCompleted)
+                ? userData.modulesCompleted.includes(moduleNum)
+                : false;
+              return (
+                <TouchableOpacity
+                  key={moduleNum}
+                  style={[
+                    styles.moduleButton,
+                    isCompleted && styles.moduleButtonCompleted,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.moduleButtonText,
+                      isCompleted && styles.moduleButtonTextCompleted,
+                    ]}
+                  >
+                    {moduleNum}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acessíveis</Text>
+          <Text style={styles.sectionTitle}>Detalhes</Text>
           <TouchableOpacity
             style={styles.errorButton}
             onPress={() =>
@@ -92,7 +191,9 @@ export default function AdminUserDetailScreen({
               size={28}
               color="#FFFFFF"
             />
-            <Text style={styles.statValue}>13</Text>
+            <Text style={styles.statValue}>
+              {userData.wrongAnswers || 0}
+            </Text>
             <Text style={styles.statLabel}>Erros</Text>
           </TouchableOpacity>
         </View>
@@ -101,7 +202,6 @@ export default function AdminUserDetailScreen({
   );
 }
 
-// Estilos permanecem os mesmos
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0EFEA" },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -149,14 +249,18 @@ const styles = StyleSheet.create({
   },
   modulesButtons: { flexDirection: "row", justifyContent: "space-between" },
   moduleButton: {
-    backgroundColor: "#191970",
+    backgroundColor: "#CCCCCC",
     width: "31%",
     height: 60,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },
-  moduleButtonText: { color: "#FFFFFF", fontSize: 24, fontWeight: "bold" },
+  moduleButtonCompleted: {
+    backgroundColor: "#191970",
+  },
+  moduleButtonText: { color: "#666666", fontSize: 24, fontWeight: "bold" },
+  moduleButtonTextCompleted: { color: "#FFFFFF" },
   errorButton: {
     backgroundColor: "#D32F2F",
     borderRadius: 12,

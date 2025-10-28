@@ -1,4 +1,3 @@
-
 import { fetchAuthSession } from "aws-amplify/auth";
 import awsconfig from "../aws-exports";
 
@@ -9,6 +8,7 @@ export type ErrorDetail = {
   expectedAnswer?: string | null;
 };
 
+/* --------------------- AUTH HELPERS --------------------- */
 async function getIdTokenFromSession(): Promise<string | null> {
   try {
     const session: any = await fetchAuthSession();
@@ -38,6 +38,7 @@ async function getIdTokenFromSession(): Promise<string | null> {
   }
 }
 
+/* --------------------- GENERIC GRAPHQL REQUEST --------------------- */
 async function graphqlRequest<T = any>(
   query: any,
   variables: Record<string, any> = {},
@@ -45,7 +46,8 @@ async function graphqlRequest<T = any>(
 ): Promise<T | null> {
   try {
     const authType: string | undefined =
-      (awsconfig && (awsconfig.aws_appsync_authenticationType as string)) || process.env.APPSYNC_AUTH_TYPE;
+      (awsconfig && (awsconfig.aws_appsync_authenticationType as string)) ||
+      process.env.APPSYNC_AUTH_TYPE;
     const url: string | undefined =
       (awsconfig && (awsconfig.aws_appsync_graphqlEndpoint as string)) || process.env.APPSYNC_URL;
     const apiKey: string | undefined = awsconfig?.aws_appsync_apiKey || process.env.APPSYNC_API_KEY;
@@ -66,23 +68,11 @@ async function graphqlRequest<T = any>(
     if (authType === "API_KEY" || authType === "APIKEY") {
       if (apiKey) headers["x-api-key"] = apiKey;
       else console.warn("[graphqlRequest] authType=API_KEY mas apiKey não encontrado");
-    } else if (authType === "AMAZON_COGNITO_USER_POOLS" || !authType) {
-      const idToken = await getIdTokenFromSession();
-      if (idToken) {
-        headers.Authorization = idToken.startsWith("Bearer ") ? idToken : `Bearer ${idToken}`;
-      } else {
-        console.warn(`[graphqlRequest] idToken não disponível (${context})`);
-      }
-    } else if (authType === "AWS_IAM") {
-      console.warn("[graphqlRequest] authType=AWS_IAM detectado. Requisições IAM requerem assinatura SigV4. Não implementado aqui.");
-      if (apiKey) headers["x-api-key"] = apiKey;
     } else {
       const idToken = await getIdTokenFromSession();
       if (idToken) headers.Authorization = idToken.startsWith("Bearer ") ? idToken : `Bearer ${idToken}`;
       else if (apiKey) headers["x-api-key"] = apiKey;
     }
-
-    console.debug(`[graphqlRequest] ${context} authType=${authType} url=${url} hasAuth=${!!(headers.Authorization || headers["x-api-key"])}`);
 
     const res = await fetch(url, {
       method: "POST",
@@ -112,10 +102,69 @@ async function graphqlRequest<T = any>(
   }
 }
 
-/* --------------------- FALBACK LOCAL EM MEMÓRIA --------------------- */
-// key: `${userId}:${moduleId}` -> progress object
+/* --------------------- USUÁRIO --------------------- */
+export async function getUserById(userId: string) {
+  const QUERY = `query GetUser($id: ID!) {
+    getUser(id: $id) {
+      id name email role coins points modulesCompleted currentModule
+      achievements { items { id title createdAt } }
+    }
+  }`;
+  const data = await graphqlRequest<any>(QUERY, { id: userId }, "GetUserById");
+  return data?.getUser ?? null;
+}
+
+export async function createUserAsAdmin(userId: string, name: string, email: string) {
+  const MUT = `mutation CreateUser($input: CreateUserInput!) {
+    createUser(input: $input) {
+      id name email role coins points modulesCompleted currentModule
+    }
+  }`;
+  const input = {
+    id: userId,
+    name,
+    email,
+    role: "user",
+    coins: 0,
+    points: 0,
+    modulesCompleted: [],
+    currentModule: 1,
+    correctAnswers: 0,
+    wrongAnswers: 0,
+    timeSpent: 0,
+    precision: 0,
+  };
+  const data = await graphqlRequest<any>(MUT, { input }, "CreateUserAsAdmin");
+  if (!data?.createUser) {
+    console.warn("[createUserAsAdmin] Falha ao criar usuário no DB, usando fallback local");
+    const fallbackUser = { ...input };
+    localUserStore.set(userId, fallbackUser);
+    return fallbackUser;
+  }
+  return data.createUser;
+}
+
+export async function ensureUserInDB(userId: string, name: string, email: string) {
+  let user = await getUserById(userId);
+  if (!user) {
+    console.log(`⚠️ Usuário ${userId} não existe no DB. Criando...`);
+    user = await createUserAsAdmin(userId, name, email);
+  }
+  return user;
+}
+
+/* --------------------- GARANTIR USUÁRIO NO DB --------------------- */
+export async function ensureUserExistsInDB(userId: string) {
+  const user = await getUserById(userId);
+  if (!user) {
+    console.warn(`Usuário com id ${userId} não encontrado no banco de dados.`);
+    return null;
+  }
+  return user;
+}
+
+/* --------------------- OUTRAS FUNÇÕES --------------------- */
 const localProgressStore = new Map<string, any>();
-// key: userId -> user object
 const localUserStore = new Map<string, any>();
 
 function findLocalProgressById(id: string) {
@@ -125,277 +174,252 @@ function findLocalProgressById(id: string) {
   return null;
 }
 
-function createLocalProgress(userId: string, moduleId: string, moduleNumber: number) {
-  const id = `local-${userId}-${moduleId}-${Date.now()}`;
+function createLocalProgress(userId: string, moduleId: string | number, moduleNumber?: number) {
+  const mid = String(moduleId);
+  const id = `local-${userId}-${mid}-${Date.now()}`;
+  const computedModuleNumber = (moduleNumber ?? Number(mid)) || 0;
   const progress = {
     id,
     userId,
-    moduleId,
-    moduleNumber,
-    correct: 0,
-    wrong: 0,
+    moduleId: mid,
+    moduleNumber: computedModuleNumber,
+    correctAnswers: 0,
+    wrongAnswers: 0,
     accuracy: 0,
-    durationSec: 0,
-    finished: false,
+    timeSpent: 0,
+    completed: false,
     startedAt: new Date().toISOString(),
-    finishedAt: null,
-    errorDetails: [],
+    errorDetails: [] as ErrorDetail[],
   };
-  localProgressStore.set(`${userId}:${moduleId}`, progress);
+  localProgressStore.set(`${userId}:${mid}`, progress);
   return progress;
 }
 
-/* --------------------- FUNÇÕES DE USUÁRIO --------------------- */
-
-export async function ensureUserExistsInDB(userId: string) {
-  const GET_USER = `query GetUser($id: ID!) {
-    getUser(id: $id) {
-      id name email role coins points modulesCompleted currentModule precision correctAnswers timeSpent
-      achievements { items { id title createdAt } }
-    }
+/* --------------------- CREATE ACHIEVEMENT --------------------- */
+export async function createAchievement(userId: string, title: string) {
+  const MUT = `mutation CreateAchievement($input: CreateAchievementInput!) {
+    createAchievement(input: $input) { id title createdAt }
   }`;
-  const data = await graphqlRequest<any>(GET_USER, { id: userId }, "GetUser");
-  return data?.getUser ?? localUserStore.get(userId) ?? null;
-}
 
-export async function createUserAsAdmin(input: { id: string; name: string; email: string; role?: string }) {
-  const MUT = `mutation CreateUser($input: CreateUserInput!) {
-    createUser(input: $input) {
-      id name email role coins points modulesCompleted currentModule precision correctAnswers timeSpent
-    }
-  }`;
-  const data = await graphqlRequest<any>(MUT, { input }, "CreateUserAsAdmin");
-  if (!data?.createUser) {
-    // fallback: store locally
-    const u = { ...input, coins: 0, points: 0, modulesCompleted: [], achievements: [] };
-    localUserStore.set(input.id, u);
-    return u;
-  }
-  return data.createUser ?? null;
-}
+  const input = { userId, title };
 
-export async function getUserById(userId: string) {
-  const GET_USER = `query GetUser($id: ID!) {
-    getUser(id: $id) {
-      id name email role coins points modulesCompleted currentModule precision correctAnswers timeSpent
-      achievements { items { id title createdAt } }
+  const data = await graphqlRequest<any>(MUT, { input }, "CreateAchievement");
+  return (
+    data?.createAchievement ?? {
+      id: `temp-${Date.now()}`,
+      title,
+      createdAt: new Date().toISOString(),
     }
-  }`;
-  const data = await graphqlRequest<any>(GET_USER, { id: userId }, "GetUserById");
-  if (!data?.getUser) {
-    return localUserStore.get(userId) ?? null;
-  }
-  return data.getUser ?? null;
-}
-
-async function updateUserRaw(input: any) {
-  const MUT = `mutation UpdateUser($input: UpdateUserInput!) {
-    updateUser(input: $input) {
-      id coins points modulesCompleted currentModule
-      achievements { items { id title createdAt } }
-    }
-  }`;
-  const data = await graphqlRequest<any>(MUT, { input }, "UpdateUser");
-  if (!data?.updateUser) {
-    console.warn("[updateUserRaw] backend indisponível ou mutation não existe — usando fallback local");
-    // merge with existing local user if present
-    const existing = input?.id ? (localUserStore.get(input.id) || {}) : {};
-    const merged = { ...existing, ...input };
-    if (input?.id) localUserStore.set(input.id, merged);
-    return merged;
-  }
-  return data.updateUser ?? null;
+  );
 }
 
 /* --------------------- PROGRESSO DE MÓDULOS --------------------- */
-
-export async function getModuleProgressByUser(userId: string, moduleId: string) {
-  // Usa listProgresses (fácil compatibilidade com schemas gerados pelo Amplify)
+export async function getModuleProgressByUser(userId: string, moduleId: string | number) {
+  const mid = String(moduleId);
   const QUERY = `query ListProgresses($filter: ModelProgressFilterInput) {
     listProgresses(filter: $filter) {
-      items {
-        id userId moduleId moduleNumber correct wrong accuracy durationSec finished startedAt finishedAt errorDetails
-      }
+      items { id userId moduleId moduleNumber accuracy correctAnswers wrongAnswers timeSpent completed }
     }
   }`;
-  const filter = { userId: { eq: userId }, moduleId: { eq: moduleId } };
-  const data = await graphqlRequest<any>(QUERY, { filter }, "ModuleProgressByUser");
-  if (!data?.listProgresses?.items?.[0]) {
-    // fallback: buscar no armazenamento local
-    const local = localProgressStore.get(`${userId}:${moduleId}`) ?? null;
-    return local;
-  }
-  return data.listProgresses.items[0] ?? null;
+  const filter = { userId: { eq: userId }, moduleId: { eq: mid } };
+  const data = await graphqlRequest<any>(QUERY, { filter }, "ListProgresses");
+  return data?.listProgresses?.items?.[0] ?? localProgressStore.get(`${userId}:${mid}`) ?? null;
 }
 
-export async function createModuleProgress(userId: string, moduleId: string, moduleNumber: number) {
-  const MUT = `mutation CreateModuleProgress($input: CreateModuleProgressInput!) {
-    createModuleProgress(input: $input) {
-      id userId moduleId moduleNumber correct wrong accuracy durationSec finished startedAt
+export async function createModuleProgress(userId: string, moduleId: string | number, moduleNumber?: number) {
+  const mid = String(moduleId);
+  const MUT = `mutation CreateProgress($input: CreateProgressInput!) {
+    createProgress(input: $input) {
+      id userId moduleId moduleNumber accuracy correctAnswers wrongAnswers timeSpent completed
     }
   }`;
+  const computedModuleNumber = (moduleNumber ?? Number(mid)) || 0;
   const input = {
     userId,
-    moduleId,
-    moduleNumber,
-    correct: 0,
-    wrong: 0,
+    moduleId: mid,
+    moduleNumber: computedModuleNumber,
     accuracy: 0,
-    durationSec: 0,
-    finished: false,
-    startedAt: new Date().toISOString(),
-    errorDetails: [],
+    correctAnswers: 0,
+    wrongAnswers: 0,
+    timeSpent: 0,
+    completed: false,
   };
-  const data = await graphqlRequest<any>(MUT, { input }, "CreateModuleProgress");
-  if (!data?.createModuleProgress) {
-    console.warn("[createModuleProgress] mutation não disponível — criando progresso local temporário");
-    return createLocalProgress(userId, moduleId, moduleNumber);
+  const data = await graphqlRequest<any>(MUT, { input }, "CreateProgress");
+  if (!data?.createProgress) {
+    console.warn("[createModuleProgress] mutation ausente — fallback local");
+    return createLocalProgress(userId, mid, input.moduleNumber);
   }
-  // persist returned progress in local store as cache
-  const created = data.createModuleProgress;
-  localProgressStore.set(`${userId}:${moduleId}`, created);
+  const created = data.createProgress;
+  localProgressStore.set(`${userId}:${mid}`, created);
   return created ?? null;
 }
 
-export async function ensureModuleProgress(userId: string, moduleId: string, moduleNumber: number) {
+export async function ensureModuleProgress(userId: string, moduleId: string | number, moduleNumber?: number) {
   const existing = await getModuleProgressByUser(userId, moduleId);
   if (existing) return existing;
   const created = await createModuleProgress(userId, moduleId, moduleNumber);
-  if (created) return created;
-  // fallback local
-  const local = createLocalProgress(userId, moduleId, moduleNumber);
-  return local;
+  return created ?? createLocalProgress(userId, moduleId, moduleNumber);
 }
 
+/* --------------------- UPDATE MODULE PROGRESS --------------------- */
 async function updateModuleProgressRaw(input: any) {
-  const MUT = `mutation UpdateModuleProgress($input: UpdateModuleProgressInput!) {
-    updateModuleProgress(input: $input) {
-      id userId moduleId moduleNumber correct wrong accuracy durationSec finished finishedAt errorDetails
+  const MUT = `mutation UpdateProgress($input: UpdateProgressInput!) {
+    updateProgress(input: $input) {
+      id userId moduleId moduleNumber accuracy correctAnswers wrongAnswers timeSpent completed
     }
   }`;
-  const data = await graphqlRequest<any>(MUT, { input }, "UpdateModuleProgress");
-  if (!data?.updateModuleProgress) {
-    console.warn("[updateModuleProgressRaw] mutation não disponível. Aplicando fallback local (retornando objeto input).");
-    // tentar atualizar progresso local por id
+  const data = await graphqlRequest<any>(MUT, { input }, "UpdateProgress");
+  if (!data?.updateProgress) {
+    console.warn("[updateModuleProgressRaw] mutation não disponível, aplicando fallback local.");
     const found = input?.id ? findLocalProgressById(input.id) : null;
     if (found) {
       const updated = { ...found.value, ...input };
       localProgressStore.set(found.key, updated);
       return updated;
     }
-    // se tiver userId/moduleId, setamos diretamente
     if (input?.userId && input?.moduleId) {
-      const key = `${input.userId}:${input.moduleId}`;
-      const existing = localProgressStore.get(key) || { id: `local-${input.userId}-${input.moduleId}-${Date.now()}`, userId: input.userId, moduleId: input.moduleId, moduleNumber: input.moduleNumber ?? 0, correct: 0, wrong: 0, accuracy: 0, finished: false, startedAt: new Date().toISOString(), errorDetails: [] };
+      const key = `${input.userId}:${String(input.moduleId)}`;
+      const existing = localProgressStore.get(key) || createLocalProgress(input.userId, input.moduleId, input.moduleNumber);
       const merged = { ...existing, ...input };
       localProgressStore.set(key, merged);
       return merged;
     }
-    // retorno input como fallback mínimo
     return { ...input };
   }
-  const updated = data.updateModuleProgress;
-  // se backend respondeu, atualizamos cache local também
-  if (updated?.userId && updated?.moduleId) localProgressStore.set(`${updated.userId}:${updated.moduleId}`, updated);
+  const updated = data.updateProgress;
+  if (updated?.userId && updated?.moduleId) localProgressStore.set(`${updated.userId}:${String(updated.moduleId)}`, updated);
   return updated ?? null;
 }
 
-/* --------------------- REGISTRO DE RESPOSTAS --------------------- */
-
-export async function registerCorrect(userId: string, progressId: string) {
-  const GET = `query GetProgress($id: ID!) {
-    getModuleProgress(id: $id) { id correct wrong errorDetails userId moduleId }
+/* --------------------- ATUALIZAÇÃO DE USUÁRIO --------------------- */
+async function updateUserRaw(input: any) {
+  const MUT = `mutation UpdateUser($input: UpdateUserInput!) {
+    updateUser(input: $input) {
+      id name email role coins points modulesCompleted currentModule
+    }
   }`;
-  const data = await graphqlRequest<any>(GET, { id: progressId }, "GetProgress");
-  const cur = data?.getModuleProgress ?? null;
 
-  // se backend não fornecer, busca por id no local
-  const curObj = cur ?? (findLocalProgressById(progressId)?.value ?? { id: progressId, correct: 0, wrong: 0, errorDetails: [] });
-
-  const newCorrect = (curObj.correct || 0) + 1;
-  const total = newCorrect + (curObj.wrong || 0);
-  const accuracy = total > 0 ? newCorrect / total : 0;
-
-  await updateModuleProgressRaw({ id: progressId, correct: newCorrect, accuracy });
-
-  const user = await getUserById(userId);
-  const newCoins = (user?.coins || 0) + 15;
-  await updateUserRaw({ id: userId, coins: newCoins });
-
-  return { newCorrect, accuracy, newCoins };
-}
-
-export async function registerWrong(progressId: string, errorDetail: ErrorDetail) {
-  const GET = `query GetProgress($id: ID!) {
-    getModuleProgress(id: $id) { id correct wrong errorDetails userId moduleId }
-  }`;
-  const data = await graphqlRequest<any>(GET, { id: progressId }, "GetProgress");
-  const cur = data?.getModuleProgress ?? (findLocalProgressById(progressId)?.value ?? { id: progressId, correct: 0, wrong: 0, errorDetails: [] });
-
-  const newWrong = (cur.wrong || 0) + 1;
-  const total = (cur.correct || 0) + newWrong;
-  const accuracy = total > 0 ? (cur.correct || 0) / total : 0;
-  const newErrors = [...(cur.errorDetails || []), errorDetail];
-
-  await updateModuleProgressRaw({ id: progressId, wrong: newWrong, accuracy, errorDetails: newErrors });
-  return { newWrong, accuracy, newErrors };
+  const data = await graphqlRequest<any>(MUT, { input }, "UpdateUser");
+  if (!data?.updateUser) {
+    console.warn("[updateUserRaw] mutation não disponível, aplicando fallback local.");
+    const existing = localUserStore.get(input.id) || {};
+    const updated = { ...existing, ...input };
+    localUserStore.set(input.id, updated);
+    return updated;
+  }
+  const updated = data.updateUser;
+  if (updated?.id) localUserStore.set(updated.id, updated);
+  return updated ?? null;
 }
 
 /* --------------------- FINALIZAR MÓDULO --------------------- */
-
-export async function finishModule(userId: string, progressId: string, moduleNumber: number, durationSec: number, achievementTitle: string) {
+export async function finishModule(
+  userId: string,
+  progressId: string,
+  moduleNumber: number,
+  timeSpent: number,
+  achievementTitle: string,
+  coinsEarned: number = 150
+) {
   await updateModuleProgressRaw({
     id: progressId,
-    finished: true,
-    durationSec,
-    finishedAt: new Date().toISOString(),
+    completed: true,
+    timeSpent,
   });
 
   const user = await getUserById(userId);
   if (!user) return null;
 
-  const currentPoints = user.points || 0;
-  const newPoints = currentPoints + 12250;
+  const newPoints = (user.points || 0) + 12250;
+  const newCoins = (user.coins || 0) + coinsEarned;
+  
+  // ✅ Adicionar módulo à lista de módulos concluídos
+  const currentCompleted = user.modulesCompleted || [];
+  const modulesCompleted = Array.isArray(currentCompleted) ? currentCompleted : [];
+  
+  // Adiciona o módulo se ainda não estiver na lista
+  if (!modulesCompleted.includes(moduleNumber)) {
+    modulesCompleted.push(moduleNumber);
+  }
 
-  const newModulesCompleted = [...(user.modulesCompleted || []), moduleNumber];
+  // ✅ Atualizar tudo de uma vez
+  await updateUserRaw({ 
+    id: userId, 
+    points: newPoints,
+    coins: newCoins,
+    modulesCompleted: modulesCompleted
+  });
 
-  const newAchievements = [
-    ...(user.achievements?.items || []),
-    { id: `temp-${Date.now()}`, title: achievementTitle, createdAt: new Date().toISOString() },
-  ];
+  const achievement = await createAchievement(userId, achievementTitle);
 
-  await updateUserRaw({ id: userId, points: newPoints, modulesCompleted: newModulesCompleted, achievements: newAchievements });
-  return { newPoints, newModulesCompleted, newAchievements };
+  return { newPoints, newCoins, achievement, modulesCompleted };
 }
 
 /* --------------------- BLOQUEIO DE MÓDULOS --------------------- */
-
 export async function canStartModule(userId: string, moduleNumber: number) {
   if (moduleNumber <= 1) return true;
 
-  // usa listProgresses para aumentar compatibilidade com schemas gerados
   const LIST = `query ListProgresses($filter: ModelProgressFilterInput) {
     listProgresses(filter: $filter) {
-      items { id userId moduleId moduleNumber finished }
+      items { id userId moduleId moduleNumber completed }
     }
   }`;
 
-  const filter = {
-    userId: { eq: userId },
-    moduleNumber: { eq: moduleNumber - 1 },
-  };
-  const data = await graphqlRequest<any>(LIST, { filter }, "ListProgress");
+  const filter = { userId: { eq: userId } };
+  const data = await graphqlRequest<any>(LIST, { filter }, "ListProgressesForCanStart");
 
   if (!data?.listProgresses?.items) {
-    // fallback: checar localProgressStore
     for (const prog of localProgressStore.values()) {
-      if (String(prog.userId) === String(userId) && Number(prog.moduleNumber) === Number(moduleNumber - 1) && prog.finished === true) {
+      if (String(prog.userId) === String(userId) && prog.completed === true) {
         return true;
       }
     }
     return false;
   }
 
-  const item = data?.listProgresses?.items?.[0];
-  return !!item && item.finished === true;
+  const completedModules = data.listProgresses.items.filter((p: any) => p.completed === true);
+  return completedModules.length >= moduleNumber - 1;
+}
+
+/* --------------------- REGISTRAR ACERTOS E ERROS --------------------- */
+export async function registerCorrect(userId: string, progressId: string) {
+  const progress = findLocalProgressById(progressId);
+  if (progress) {
+    const updated = {
+      ...progress.value,
+      correctAnswers: (progress.value.correctAnswers || 0) + 1,
+    };
+    localProgressStore.set(progress.key, updated);
+  }
+  // Pode adicionar mutation para atualizar no DB se necessário
+  return true;
+}
+
+export async function registerWrong(progressId: string, errorDetail: ErrorDetail) {
+  const progress = findLocalProgressById(progressId);
+  if (progress) {
+    const errors = progress.value.errorDetails || [];
+    errors.push(errorDetail);
+    const updated = {
+      ...progress.value,
+      wrongAnswers: (progress.value.wrongAnswers || 0) + 1,
+      errorDetails: errors,
+    };
+    localProgressStore.set(progress.key, updated);
+  }
+  return true;
+}
+
+/* --------------------- LISTAR TODOS OS USUÁRIOS --------------------- */
+export async function getAllUsers() {
+  const QUERY = `query ListUsers {
+    listUsers {
+      items {
+        id name email coins points modulesCompleted currentModule
+        correctAnswers wrongAnswers timeSpent precision
+      }
+    }
+  }`;
+  const data = await graphqlRequest<any>(QUERY, {}, "ListAllUsers");
+  return data?.listUsers?.items ?? [];
 }

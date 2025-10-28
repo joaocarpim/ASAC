@@ -75,6 +75,7 @@ export const getAchievement = /* GraphQL */ `
       id
       title
       description
+      moduleNumber
       user {
         id
         owner
@@ -94,10 +95,8 @@ export const getAchievement = /* GraphQL */ `
         __typename
       }
       userId
-      moduleNumber
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -113,11 +112,10 @@ export const listAchievements = /* GraphQL */ `
         id
         title
         description
-        userId
         moduleNumber
+        userId
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken
@@ -158,6 +156,7 @@ export const getProgress = /* GraphQL */ `
         __typename
       }
       moduleId
+      moduleNumber
       accuracy
       correctAnswers
       wrongAnswers
@@ -165,7 +164,6 @@ export const getProgress = /* GraphQL */ `
       completed
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -181,6 +179,7 @@ export const listProgresses = /* GraphQL */ `
         id
         userId
         moduleId
+        moduleNumber
         accuracy
         correctAnswers
         wrongAnswers
@@ -188,7 +187,6 @@ export const listProgresses = /* GraphQL */ `
         completed
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken
@@ -425,11 +423,10 @@ export const achievementsByUserId = /* GraphQL */ `
         id
         title
         description
-        userId
         moduleNumber
+        userId
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken
@@ -456,6 +453,7 @@ export const progressesByUserId = /* GraphQL */ `
         id
         userId
         moduleId
+        moduleNumber
         accuracy
         correctAnswers
         wrongAnswers
@@ -463,7 +461,6 @@ export const progressesByUserId = /* GraphQL */ `
         completed
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken
@@ -490,6 +487,7 @@ export const progressesByModuleId = /* GraphQL */ `
         id
         userId
         moduleId
+        moduleNumber
         accuracy
         correctAnswers
         wrongAnswers
@@ -497,7 +495,6 @@ export const progressesByModuleId = /* GraphQL */ `
         completed
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken

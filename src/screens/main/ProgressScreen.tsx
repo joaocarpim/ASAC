@@ -1,14 +1,13 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  TouchableOpacity,
   StatusBar,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
 import {
@@ -17,16 +16,18 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-// 👇 1. IMPORTAR OS COMPONENTES DE GESTO 👇
 import {
   Gesture,
   GestureDetector,
   Directions,
 } from "react-native-gesture-handler";
+import { useAuthStore } from "../../store/authStore";
+import { getUserById } from "../../services/progressService";
 
 export default function ProgressScreen() {
   const navigation = useNavigation();
   const { theme } = useContrast();
+  const { user } = useAuthStore();
   const {
     fontSizeMultiplier,
     isBoldTextEnabled,
@@ -34,6 +35,15 @@ export default function ProgressScreen() {
     letterSpacing,
     isDyslexiaFontEnabled,
   } = useSettings();
+
+  const [userProgress, setUserProgress] = useState({
+    accuracy: 0,
+    correct: 0,
+    durationSec: 0,
+    finishedModules: 0,
+    totalModules: 3,
+  });
+  const [loading, setLoading] = useState(true);
 
   const styles = createStyles(
     theme,
@@ -44,17 +54,46 @@ export default function ProgressScreen() {
     isDyslexiaFontEnabled
   );
 
-  const userProgress = {
-    accuracy: 0.7,
-    correct: 13,
-    durationSec: 2220,
-    finishedModules: 1,
-    totalModules: 3,
-  };
+  const fetchProgress = useCallback(async () => {
+    if (!user?.userId) return;
+    
+    setLoading(true);
+    try {
+      const dbUser = await getUserById(user.userId);
+      if (dbUser) {
+        const modulesCompleted = Array.isArray(dbUser.modulesCompleted) 
+          ? dbUser.modulesCompleted.length 
+          : 0;
+        
+        const totalAnswers = (dbUser.correctAnswers || 0) + (dbUser.wrongAnswers || 0);
+        const accuracy = totalAnswers > 0 
+          ? (dbUser.correctAnswers || 0) / totalAnswers 
+          : 0;
+
+        setUserProgress({
+          accuracy,
+          correct: dbUser.correctAnswers || 0,
+          durationSec: dbUser.timeSpent || 0,
+          finishedModules: modulesCompleted,
+          totalModules: 3,
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar progresso:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProgress();
+    }, [fetchProgress])
+  );
+
   const formatDuration = (s: number) =>
     new Date(s * 1000).toISOString().substr(14, 5);
 
-  // 👇 2. DEFINIR A FUNÇÃO E O GESTO 👇
   const handleGoBack = () => {
     navigation.goBack();
   };
@@ -66,22 +105,58 @@ export default function ProgressScreen() {
   const renderModuleBlocks = () => {
     const blocks = [];
     for (let i = 1; i <= userProgress.totalModules; i++) {
+      const isCompleted = i <= userProgress.finishedModules;
       blocks.push(
         <AccessibleButton
           key={i}
-          style={styles.moduloBlock}
-          onPress={() => alert(`Módulo ${i}`)}
-          accessibilityText={`Módulo ${i}. Toque para ver detalhes.`}
+          style={[
+            styles.moduloBlock,
+            isCompleted && styles.moduloBlockCompleted
+          ]}
+          onPress={() => {}}
+          accessibilityText={`Módulo ${i}. ${isCompleted ? 'Concluído' : 'Não concluído'}`}
         >
-          <Text style={styles.moduloBlockText}>{i}</Text>
+          {isCompleted ? (
+            <Text style={styles.moduloBlockText}>{i}</Text>
+          ) : (
+            <MaterialCommunityIcons name="lock" size={22} color={theme.buttonText} />
+          )}
         </AccessibleButton>
       );
     }
     return blocks;
   };
 
+  if (loading) {
+    return (
+      <GestureDetector gesture={flingRight}>
+        <View style={styles.page}>
+          <StatusBar
+            barStyle={theme.statusBarStyle}
+            backgroundColor={theme.background}
+          />
+          <View style={styles.header}>
+            <AccessibleButton onPress={handleGoBack} accessibilityText="Voltar">
+              <MaterialCommunityIcons
+                name="arrow-left"
+                size={28}
+                color={styles.headerTitle.color}
+              />
+            </AccessibleButton>
+            <AccessibleHeader level={1} style={styles.headerTitle}>
+              Meu Progresso
+            </AccessibleHeader>
+            <View style={styles.headerIconPlaceholder} />
+          </View>
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <ActivityIndicator size="large" color={theme.text} />
+          </View>
+        </View>
+      </GestureDetector>
+    );
+  }
+
   return (
-    // 👇 3. ENVOLVER A TELA COM O DETECTOR DE GESTOS 👇
     <GestureDetector gesture={flingRight}>
       <AccessibleView
         style={styles.page}
@@ -92,10 +167,7 @@ export default function ProgressScreen() {
           backgroundColor={theme.background}
         />
         <View style={styles.header}>
-          <AccessibleButton
-            onPress={handleGoBack} // Reutilizando a função
-            accessibilityText="Voltar"
-          >
+          <AccessibleButton onPress={handleGoBack} accessibilityText="Voltar">
             <MaterialCommunityIcons
               name="arrow-left"
               size={28}
@@ -163,12 +235,12 @@ export default function ProgressScreen() {
               </View>
             </AccessibleView>
           </View>
-          <AccessibleView accessibilityText="Meu progresso. Acompanhe seu desenvolvimento no Molingo.">
+          <AccessibleView accessibilityText="Meu progresso. Acompanhe seu desenvolvimento no ASAC.">
             <View style={styles.progressSummaryCard}>
               <View style={styles.progressTextContent}>
                 <Text style={styles.progressSummaryTitle}>Meu progresso</Text>
                 <Text style={styles.progressSummarySubtitle}>
-                  Acompanhe seu desenvolvimento no Molingo
+                  Acompanhe seu desenvolvimento no ASAC
                 </Text>
               </View>
               <MaterialCommunityIcons
@@ -187,7 +259,6 @@ export default function ProgressScreen() {
   );
 }
 
-// A função createStyles permanece exatamente a mesma
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -242,7 +313,6 @@ const createStyles = (
       marginHorizontal: 4,
       marginVertical: 6,
     },
-
     metricValue: {
       color: theme.cardText,
       fontSize: 14 * fontMultiplier,
@@ -321,6 +391,10 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
       marginHorizontal: 5,
+      opacity: 0.5,
+    },
+    moduloBlockCompleted: {
+      opacity: 1,
     },
     moduloBlockText: {
       color: theme.buttonText,

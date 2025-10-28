@@ -4,9 +4,9 @@
 export const onCreateUser = /* GraphQL */ `
   subscription OnCreateUser(
     $filter: ModelSubscriptionUserFilterInput
-    $owner: String
+    $id: String
   ) {
-    onCreateUser(filter: $filter, owner: $owner) {
+    onCreateUser(filter: $filter, id: $id) {
       id
       owner
       name
@@ -37,9 +37,9 @@ export const onCreateUser = /* GraphQL */ `
 export const onUpdateUser = /* GraphQL */ `
   subscription OnUpdateUser(
     $filter: ModelSubscriptionUserFilterInput
-    $owner: String
+    $id: String
   ) {
-    onUpdateUser(filter: $filter, owner: $owner) {
+    onUpdateUser(filter: $filter, id: $id) {
       id
       owner
       name
@@ -70,9 +70,9 @@ export const onUpdateUser = /* GraphQL */ `
 export const onDeleteUser = /* GraphQL */ `
   subscription OnDeleteUser(
     $filter: ModelSubscriptionUserFilterInput
-    $owner: String
+    $id: String
   ) {
-    onDeleteUser(filter: $filter, owner: $owner) {
+    onDeleteUser(filter: $filter, id: $id) {
       id
       owner
       name
@@ -103,12 +103,13 @@ export const onDeleteUser = /* GraphQL */ `
 export const onCreateAchievement = /* GraphQL */ `
   subscription OnCreateAchievement(
     $filter: ModelSubscriptionAchievementFilterInput
-    $owner: String
+    $userId: String
   ) {
-    onCreateAchievement(filter: $filter, owner: $owner) {
+    onCreateAchievement(filter: $filter, userId: $userId) {
       id
       title
       description
+      moduleNumber
       user {
         id
         owner
@@ -128,10 +129,8 @@ export const onCreateAchievement = /* GraphQL */ `
         __typename
       }
       userId
-      moduleNumber
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -139,12 +138,13 @@ export const onCreateAchievement = /* GraphQL */ `
 export const onUpdateAchievement = /* GraphQL */ `
   subscription OnUpdateAchievement(
     $filter: ModelSubscriptionAchievementFilterInput
-    $owner: String
+    $userId: String
   ) {
-    onUpdateAchievement(filter: $filter, owner: $owner) {
+    onUpdateAchievement(filter: $filter, userId: $userId) {
       id
       title
       description
+      moduleNumber
       user {
         id
         owner
@@ -164,10 +164,8 @@ export const onUpdateAchievement = /* GraphQL */ `
         __typename
       }
       userId
-      moduleNumber
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -175,12 +173,13 @@ export const onUpdateAchievement = /* GraphQL */ `
 export const onDeleteAchievement = /* GraphQL */ `
   subscription OnDeleteAchievement(
     $filter: ModelSubscriptionAchievementFilterInput
-    $owner: String
+    $userId: String
   ) {
-    onDeleteAchievement(filter: $filter, owner: $owner) {
+    onDeleteAchievement(filter: $filter, userId: $userId) {
       id
       title
       description
+      moduleNumber
       user {
         id
         owner
@@ -200,10 +199,8 @@ export const onDeleteAchievement = /* GraphQL */ `
         __typename
       }
       userId
-      moduleNumber
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -211,9 +208,9 @@ export const onDeleteAchievement = /* GraphQL */ `
 export const onCreateProgress = /* GraphQL */ `
   subscription OnCreateProgress(
     $filter: ModelSubscriptionProgressFilterInput
-    $owner: String
+    $userId: String
   ) {
-    onCreateProgress(filter: $filter, owner: $owner) {
+    onCreateProgress(filter: $filter, userId: $userId) {
       id
       user {
         id
@@ -244,6 +241,7 @@ export const onCreateProgress = /* GraphQL */ `
         __typename
       }
       moduleId
+      moduleNumber
       accuracy
       correctAnswers
       wrongAnswers
@@ -251,7 +249,6 @@ export const onCreateProgress = /* GraphQL */ `
       completed
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -259,9 +256,9 @@ export const onCreateProgress = /* GraphQL */ `
 export const onUpdateProgress = /* GraphQL */ `
   subscription OnUpdateProgress(
     $filter: ModelSubscriptionProgressFilterInput
-    $owner: String
+    $userId: String
   ) {
-    onUpdateProgress(filter: $filter, owner: $owner) {
+    onUpdateProgress(filter: $filter, userId: $userId) {
       id
       user {
         id
@@ -292,6 +289,7 @@ export const onUpdateProgress = /* GraphQL */ `
         __typename
       }
       moduleId
+      moduleNumber
       accuracy
       correctAnswers
       wrongAnswers
@@ -299,7 +297,6 @@ export const onUpdateProgress = /* GraphQL */ `
       completed
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -307,9 +304,9 @@ export const onUpdateProgress = /* GraphQL */ `
 export const onDeleteProgress = /* GraphQL */ `
   subscription OnDeleteProgress(
     $filter: ModelSubscriptionProgressFilterInput
-    $owner: String
+    $userId: String
   ) {
-    onDeleteProgress(filter: $filter, owner: $owner) {
+    onDeleteProgress(filter: $filter, userId: $userId) {
       id
       user {
         id
@@ -340,6 +337,7 @@ export const onDeleteProgress = /* GraphQL */ `
         __typename
       }
       moduleId
+      moduleNumber
       accuracy
       correctAnswers
       wrongAnswers
@@ -347,7 +345,6 @@ export const onDeleteProgress = /* GraphQL */ `
       completed
       createdAt
       updatedAt
-      owner
       __typename
     }
   }

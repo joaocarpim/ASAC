@@ -1,25 +1,23 @@
-# Configuração global de auth
+# Configuração global de auth (TESTE SOMENTE, remova em produção)
 input AMPLIFY {
   globalAuthRule: AuthRule = { allow: public }
-} # TESTE SOMENTE, remova em produção
+}
+
 # === Usuário ===
 type User
   @model
   @auth(
     rules: [
-      { allow: owner, ownerField: "owner", operations: [read, update] }
-      {
-        allow: groups
-        groups: ["Admins"]
-        operations: [create, read, update, delete]
-      }
+      { allow: private, operations: [read] }
+      { allow: owner, ownerField: "id", operations: [read, update] }
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
   id: ID! @primaryKey
   owner: String
   name: String!
   email: String! @index(name: "byEmail")
-  role: String! # "user" ou "admin"
+  role: String!
   coins: Int
   points: Int
   modulesCompleted: [Int]
@@ -27,78 +25,71 @@ type User
   precision: Float
   correctAnswers: Int
   wrongAnswers: Int
-  timeSpent: String
-  achievements: [Achievement] @hasMany(indexName: "byUser", fields: ["id"])
-  progress: [Progress] @hasMany(indexName: "byUser", fields: ["id"])
+  timeSpent: Float
+  achievements: [Achievement] @hasMany(fields: ["id"])
+  progress: [Progress] @hasMany(fields: ["id"])
 }
 
 # === Conquistas ===
 type Achievement
   @model
-  @auth(rules: [{ allow: owner }, { allow: groups, groups: ["Admins"] }]) {
+  @auth(rules: [
+    { allow: private, operations: [read] }
+    { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
+    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+  ]) {
   id: ID!
   title: String!
-  description: String!
+  description: String
+  moduleNumber: Int
   user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
-  moduleNumber: Int
 }
 
 # === Progresso do usuário ===
 type Progress
   @model
-  @auth(rules: [{ allow: owner }, { allow: groups, groups: ["Admins"] }]) {
+  @auth(rules: [
+    { allow: private, operations: [read] }
+    { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
+    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+  ]) {
   id: ID!
   user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
   module: Module @belongsTo(fields: ["moduleId"])
   moduleId: ID! @index(name: "byModule")
+  moduleNumber: Int
   accuracy: Float
   correctAnswers: Int
   wrongAnswers: Int
-  timeSpent: String
+  timeSpent: Float
   completed: Boolean
 }
 
 # === Módulo ===
 type Module
   @model
-  @auth(
-    rules: [
-      # ✅ permite leitura para usuários autenticados (Cognito)
-      { allow: private, operations: [read] }
-      # ✅ administradores podem gerenciar módulos
-      {
-        allow: groups
-        groups: ["Admins"]
-        operations: [create, read, update, delete]
-      }
-    ]
-  ) {
+  @auth(rules: [
+    { allow: private, operations: [read] }
+    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+  ]) {
   id: ID!
   title: String!
   description: String!
   moduleNumber: Int!
-  lessons: [Lesson] @hasMany(indexName: "byModule", fields: ["id"])
-  questions: [Question] @hasMany(indexName: "byModule", fields: ["id"])
-  progress: [Progress] @hasMany(indexName: "byModule", fields: ["id"])
+  lessons: [Lesson] @hasMany(fields: ["id"])
+  questions: [Question] @hasMany(fields: ["id"])
+  progress: [Progress] @hasMany(fields: ["id"])
 }
 
 # === Lições ===
 type Lesson
   @model
-  @auth(
-    rules: [
-      # ✅ usuários logados podem ler lições
-      { allow: private, operations: [read] }
-      # ✅ admins podem gerenciar
-      {
-        allow: groups
-        groups: ["Admins"]
-        operations: [create, read, update, delete]
-      }
-    ]
-  ) {
+  @auth(rules: [
+    { allow: private, operations: [read] }
+    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+  ]) {
   id: ID!
   title: String!
   content: String!
@@ -111,18 +102,10 @@ type Lesson
 # === Questões ===
 type Question
   @model
-  @auth(
-    rules: [
-      # ✅ leitura liberada para usuários autenticados
-      { allow: private, operations: [read] }
-      # ✅ total controle para admins
-      {
-        allow: groups
-        groups: ["Admins"]
-        operations: [create, read, update, delete]
-      }
-    ]
-  ) {
+  @auth(rules: [
+    { allow: private, operations: [read] }
+    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+  ]) {
   id: ID!
   questionText: String!
   options: [String!]!
@@ -134,16 +117,10 @@ type Question
 # === Símbolos Braille ===
 type BrailleSymbol
   @model
-  @auth(
-    rules: [
-      { allow: private, operations: [read] }
-      {
-        allow: groups
-        groups: ["Admins"]
-        operations: [create, read, update, delete]
-      }
-    ]
-  ) {
+  @auth(rules: [
+    { allow: private, operations: [read] }
+    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+  ]) {
   id: ID!
   letter: String!
   description: String!

@@ -118,6 +118,7 @@ export const createAchievement = /* GraphQL */ `
       id
       title
       description
+      moduleNumber
       user {
         id
         owner
@@ -137,10 +138,8 @@ export const createAchievement = /* GraphQL */ `
         __typename
       }
       userId
-      moduleNumber
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -154,6 +153,7 @@ export const updateAchievement = /* GraphQL */ `
       id
       title
       description
+      moduleNumber
       user {
         id
         owner
@@ -173,10 +173,8 @@ export const updateAchievement = /* GraphQL */ `
         __typename
       }
       userId
-      moduleNumber
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -190,6 +188,7 @@ export const deleteAchievement = /* GraphQL */ `
       id
       title
       description
+      moduleNumber
       user {
         id
         owner
@@ -209,10 +208,8 @@ export const deleteAchievement = /* GraphQL */ `
         __typename
       }
       userId
-      moduleNumber
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -253,6 +250,7 @@ export const createProgress = /* GraphQL */ `
         __typename
       }
       moduleId
+      moduleNumber
       accuracy
       correctAnswers
       wrongAnswers
@@ -260,7 +258,6 @@ export const createProgress = /* GraphQL */ `
       completed
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -301,6 +298,7 @@ export const updateProgress = /* GraphQL */ `
         __typename
       }
       moduleId
+      moduleNumber
       accuracy
       correctAnswers
       wrongAnswers
@@ -308,7 +306,6 @@ export const updateProgress = /* GraphQL */ `
       completed
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -349,6 +346,7 @@ export const deleteProgress = /* GraphQL */ `
         __typename
       }
       moduleId
+      moduleNumber
       accuracy
       correctAnswers
       wrongAnswers
@@ -356,7 +354,6 @@ export const deleteProgress = /* GraphQL */ `
       completed
       createdAt
       updatedAt
-      owner
       __typename
     }
   }

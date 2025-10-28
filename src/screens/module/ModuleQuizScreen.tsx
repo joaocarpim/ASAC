@@ -32,9 +32,9 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useAccessibility } from "../../context/AccessibilityProvider";
-import { getQuizByModuleId } from "../../navigation/moduleQuestionTypes"; // ✅ CORRIGIDO O CAMINHO
+import { getQuizByModuleId } from "../../navigation/moduleQuestionTypes";
 import { useSettings } from "../../hooks/useSettings";
-import { Audio } from "expo-av"; // << [1] IMPORTAÇÃO DO ÁUDIO
+import { Audio } from "expo-av";
 
 const { width } = Dimensions.get("window");
 
@@ -65,7 +65,6 @@ export default function ModuleQuizScreen({
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // >> [2] STATES PARA OS SONS
   const [correctSound, setCorrectSound] = useState<Audio.Sound | null>(null);
   const [wrongSound, setWrongSound] = useState<Audio.Sound | null>(null);
 
@@ -91,7 +90,6 @@ export default function ModuleQuizScreen({
     isDyslexiaFontEnabled
   );
 
-  // >> [3] USEEFFECT PARA CARREGAR E DESCARREGAR OS SONS
   useEffect(() => {
     async function loadSounds() {
       try {
@@ -111,7 +109,6 @@ export default function ModuleQuizScreen({
 
     loadSounds();
 
-    // Função de limpeza para descarregar os sons ao sair da tela
     return () => {
       correctSound?.unloadAsync();
       wrongSound?.unloadAsync();
@@ -122,14 +119,14 @@ export default function ModuleQuizScreen({
     let mounted = true;
     const initialize = async () => {
       setIsLoading(true);
-      const moduleObj = getQuizByModuleId(parseInt(String(moduleId), 10)); //
+      const moduleObj = getQuizByModuleId(parseInt(String(moduleId), 10));
       if (!moduleObj) {
         Alert.alert("Erro", "Quiz do módulo não encontrado.");
         if (mounted) navigation.goBack();
         return;
       }
 
-      const qList = moduleObj.questions ?? []; //
+      const qList = moduleObj.questions ?? [];
       if (!qList || qList.length === 0) {
         Alert.alert("Erro", "Nenhuma pergunta encontrada para este módulo.");
         if (mounted) navigation.goBack();
@@ -143,7 +140,7 @@ export default function ModuleQuizScreen({
           const progress = await ensureModuleProgress(
             user.userId,
             String(moduleId),
-            moduleObj.moduleId //
+            moduleObj.moduleId
           );
           if (progress?.id) {
             setActive(progress.id);
@@ -165,7 +162,7 @@ export default function ModuleQuizScreen({
     if (!isLoading && questions.length > 0 && speakText) {
       const q = questions[currentQuestionIndex];
       speakText &&
-        speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`); //
+        speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`);
     }
   }, [currentQuestionIndex, questions, isLoading, speakText]);
 
@@ -179,10 +176,7 @@ export default function ModuleQuizScreen({
     const q = questions[currentQuestionIndex];
 
     if (selectedAnswer === q.correctAnswer) {
-      //
-      // >> [4] TOCAR SOM DE ACERTO
       correctSound?.replayAsync();
-
       setCorrectCount((prev) => prev + 1);
       Vibration.vibrate(80);
       setShowConfetti(true);
@@ -193,15 +187,13 @@ export default function ModuleQuizScreen({
         console.warn("Erro registerCorrect:", e);
       }
     } else {
-      // >> [5] TOCAR SOM DE ERRO
       wrongSound?.replayAsync();
-
       Vibration.vibrate([0, 100, 50, 100]);
       const err: ErrorDetail = {
-        questionId: q.id, //
-        questionText: q.question, //
-        userAnswer: q.options?.[selectedAnswer] ?? null, //
-        expectedAnswer: q.options?.[q.correctAnswer] ?? null, //
+        questionId: q.id,
+        questionText: q.question,
+        userAnswer: q.options?.[selectedAnswer] ?? null,
+        expectedAnswer: q.options?.[q.correctAnswer] ?? null,
       };
       setErrorDetails((prev) => [...prev, err]);
       try {
@@ -232,24 +224,26 @@ export default function ModuleQuizScreen({
           ? Math.round((correctCount / questions.length) * 100)
           : 0;
 
-      const moduleData = getQuizByModuleId(parseInt(String(moduleId), 10)); //
+      const moduleData = getQuizByModuleId(parseInt(String(moduleId), 10));
       const passed = moduleData
-        ? correctCount >= moduleData.passingScore //
+        ? correctCount >= moduleData.passingScore
         : false;
 
       const coinsEarned = moduleData
-        ? correctCount * moduleData.coinsPerCorrect //
+        ? correctCount * moduleData.coinsPerCorrect
         : 0;
-      const pointsEarned = correctCount * 10;
+      const pointsEarned = 12250; // ✅ Pontos fixos por módulo
 
       if (user?.userId && activeProgressId) {
         try {
+          // ✅ CORREÇÃO: Agora passa o coinsEarned como 6º parâmetro
           await finishModule(
             user.userId,
             activeProgressId,
             parseInt(String(moduleId), 10),
             duration,
-            `Concluiu o módulo ${moduleId}`
+            `Concluiu o módulo ${moduleId}`,
+            coinsEarned // ✅ ADICIONADO!
           );
         } catch (e) {
           console.warn("Erro finishModule:", e);
@@ -390,8 +384,8 @@ const getStyles = (
     container: { flex: 1, backgroundColor: theme.background },
     loadingContainer: {
       flex: 1,
-      justifyContent: "center", 
-      alignItems: "center", 
+      justifyContent: "center",
+      alignItems: "center",
     },
     scrollArea: { padding: 15 },
     header: { alignItems: "center", paddingVertical: 10 },

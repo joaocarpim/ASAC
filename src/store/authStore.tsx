@@ -38,6 +38,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Normalize different Amplify session shapes
       let idPayload: any = {};
       let accessPayload: any = {};
+      
+      // Handling the session structure based on Amplify's response
       if ((session as any)?.tokens?.idToken?.payload) {
         idPayload = (session as any).tokens.idToken.payload;
         accessPayload = (session as any).tokens.accessToken?.payload ?? {};
@@ -51,6 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         accessPayload = (session as any).accessToken ?? {};
       }
 
+      // Extracting necessary user information
       const sub = String(idPayload.sub ?? idPayload["cognito:username"] ?? "");
       const rawEmail = idPayload.email ?? "";
       const emailStr = typeof rawEmail === "string" ? rawEmail : String(rawEmail ?? "");
@@ -58,12 +61,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const username = String(idPayload["cognito:username"] ?? usernameFromEmail ?? "");
       const email = String(emailStr ?? "");
 
+      // Checking if the user is an admin based on groups
       const groups =
         ((accessPayload["cognito:groups"] ?? idPayload["cognito:groups"] ?? []) as string[]) ?? [];
       const isAdmin = Array.isArray(groups) && groups.includes("Admins");
 
       const baseUser: User = { userId: sub, username, email, isAdmin };
 
+      // If the user is an admin, set the user object and exit early
       if (isAdmin) {
         set({ user: baseUser, isLoading: false });
         return;
@@ -74,7 +79,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      const dbUser = await ensureUserExistsInDB(sub);
+      // Ensuring the user exists in the DB
+      let dbUser = await ensureUserExistsInDB(sub);
+
       if (!dbUser) {
         set({ user: null, isLoading: false });
         return;
@@ -89,7 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (e) {
-      console.warn("⚠️ checkUser erro:", e);
+      console.warn("⚠️ Erro ao verificar o usuário:", e);
       set({ user: null, isLoading: false });
     }
   },
