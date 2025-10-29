@@ -1,4 +1,4 @@
-// src/screens/module/AlphabetScreen.tsx — versão final com carrossel lateral 100% acessível por voz
+// src/screens/module/AlphabetScreen.tsx
 
 import React, { useState, useEffect } from "react";
 import {
@@ -15,7 +15,6 @@ import { listBrailleSymbols } from "../../graphql/queries";
 import { getUrl } from "aws-amplify/storage";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { AccessibleView } from "../../components/AccessibleComponents";
-// 👇 1. IMPORTAR OS COMPONENTES DE GESTO E NAVEGAÇÃO 👇
 import { useNavigation } from "@react-navigation/native";
 import {
   Gesture,
@@ -93,16 +92,16 @@ const AlphabetItem = ({ item }: { item: BrailleSymbol }) => {
 export default function AlphabetScreen() {
   const [alphabet, setAlphabet] = useState<BrailleSymbol[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigation = useNavigation(); // Hook de navegação
+  const navigation = useNavigation();
 
-  // 👇 2. DEFINIR A FUNÇÃO E O GESTO 👇
-  const handleGoBack = () => {
-    navigation.goBack();
+  // ✅ ALTERAÇÃO: A função agora navega para a "Home"
+  const handleGoHome = () => {
+    navigation.navigate("Home" as never);
   };
 
   const flingRight = Gesture.Fling()
     .direction(Directions.RIGHT)
-    .onEnd(handleGoBack);
+    .onEnd(handleGoHome); // ✅ ALTERAÇÃO: Usando a nova função
 
   useEffect(() => {
     const fetchAlphabet = async () => {
@@ -144,12 +143,10 @@ export default function AlphabetScreen() {
   }
 
   return (
-    // 👇 3. ENVOLVER A TELA COM O DETECTOR DE GESTOS 👇
     <GestureDetector gesture={flingRight}>
       <View style={styles.container}>
         <ScreenHeader title="Alfabeto Braille" />
 
-        {/* 🎠 Carrossel lateral visível */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator
@@ -167,7 +164,6 @@ export default function AlphabetScreen() {
           ))}
         </ScrollView>
 
-        {/* ♿ Área invisível, mas acessível por voz — garante leitura de todos os símbolos */}
         <View
           accessible={true}
           accessibilityElementsHidden={false}

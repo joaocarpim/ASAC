@@ -1,4 +1,3 @@
-// ModuleContentScreen.tsx - Com gesto de voltar para a Home
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -27,7 +26,6 @@ import {
   Directions,
 } from "react-native-gesture-handler";
 import { useSettings } from "../../hooks/useSettings";
-// Certifique-se de que o caminho para seus tipos esteja correto
 import { DEFAULT_MODULES, ModuleContent } from "../../navigation/moduleTypes";
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
@@ -96,17 +94,13 @@ export default function ModuleContentScreen({
     }
   }, [currentPageIndex, moduleData, isLoading, speakText]);
 
-  // 👇👇👇 AQUI ESTÁ A ÚNICA ALTERAÇÃO 👇👇👇
   const handlePrevious = () => {
     if (currentPageIndex > 0) {
-      // Se não for a primeira página, apenas volta uma página
       setCurrentPageIndex((prev) => prev - 1);
     } else {
-      // Se for a primeira página (index 0), navega para a Home
       navigation.navigate("Home");
     }
   };
-  // 👆👆👆 FIM DA ALTERAÇÃO 👆👆👆
 
   const handleNextPage = () => {
     if (
@@ -115,7 +109,6 @@ export default function ModuleContentScreen({
     ) {
       setCurrentPageIndex((prev) => prev + 1);
     } else {
-      // Navega para a tela de pré-questionário ao finalizar o conteúdo
       navigation.navigate("ModulePreQuiz", { moduleId });
     }
   };
@@ -186,8 +179,6 @@ export default function ModuleContentScreen({
             </View>
           </AccessibleView>
 
-          {/* O botão foi removido daqui */}
-
           <Text style={styles.pageIndicator}>
             {pageNumber} / {totalPages}
           </Text>
@@ -203,7 +194,7 @@ const getStyles = (
   isBold: boolean,
   lineHeightMultiplier: number,
   letterSpacing: number,
-  isDyslexiaFont: boolean
+  isDyslexiaFontEnabled: boolean
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
@@ -223,6 +214,8 @@ const getStyles = (
       fontSize: 18 * fontMultiplier,
       textAlign: "center",
       color: (theme as any).cardText ?? theme.text,
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     scrollWrapper: {
       paddingHorizontal: Math.min(24, WINDOW_WIDTH * 0.04),
@@ -247,21 +240,23 @@ const getStyles = (
         web: { boxShadow: "0 8px 20px rgba(0,0,0,0.12)" },
       }),
     },
-    cardInner: {
-      padding: 22,
-    },
+    cardInner: { padding: 22 },
     contentTitle: {
       fontSize: 20 * fontMultiplier,
       fontWeight: isBold ? "700" : "700",
       marginBottom: 12,
       color: (theme as any).cardText ?? theme.text,
       textAlign: "left",
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     contentBody: {
       fontSize: 16 * fontMultiplier,
       lineHeight: Math.round(22 * lineHeightMultiplier),
       color: (theme as any).cardText ?? theme.text,
       textAlign: "left",
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     contentCenter: {
       paddingVertical: 24,
@@ -272,11 +267,15 @@ const getStyles = (
       fontSize: 16 * fontMultiplier,
       color: theme.text,
       opacity: 0.85,
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     pageIndicator: {
       marginTop: 18,
       color: (theme as any).cardText ?? theme.text,
       opacity: 0.85,
       fontSize: 13 * fontMultiplier,
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
   });

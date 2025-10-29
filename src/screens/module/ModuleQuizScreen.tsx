@@ -1,5 +1,3 @@
-// src/screens/module/ModuleQuizScreen.tsx
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -156,7 +154,7 @@ export default function ModuleQuizScreen({
     return () => {
       mounted = false;
     };
-  }, [moduleId]);
+  }, [moduleId, navigation, user, setActive, startTimer]);
 
   useEffect(() => {
     if (!isLoading && questions.length > 0 && speakText) {
@@ -232,18 +230,17 @@ export default function ModuleQuizScreen({
       const coinsEarned = moduleData
         ? correctCount * moduleData.coinsPerCorrect
         : 0;
-      const pointsEarned = 12250; // ✅ Pontos fixos por módulo
+      const pointsEarned = 12250;
 
       if (user?.userId && activeProgressId) {
         try {
-          // ✅ CORREÇÃO: Agora passa o coinsEarned como 6º parâmetro
           await finishModule(
             user.userId,
             activeProgressId,
             parseInt(String(moduleId), 10),
             duration,
             `Concluiu o módulo ${moduleId}`,
-            coinsEarned // ✅ ADICIONADO!
+            coinsEarned
           );
         } catch (e) {
           console.warn("Erro finishModule:", e);
@@ -281,14 +278,14 @@ export default function ModuleQuizScreen({
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.text} />
-        <Text style={{ color: theme.text, marginTop: 8 }}>Carregando...</Text>
+        <Text style={styles.loadingText}>Carregando...</Text>
       </View>
     );
 
   if (!current)
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ color: theme.text }}>Nenhuma pergunta disponível.</Text>
+        <Text style={styles.loadingText}>Nenhuma pergunta disponível.</Text>
       </View>
     );
 
@@ -378,7 +375,7 @@ const getStyles = (
   isBold: boolean,
   lineHeightMultiplier: number,
   letterSpacing: number,
-  isDyslexiaFont: boolean
+  isDyslexiaFontEnabled: boolean
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
@@ -387,14 +384,25 @@ const getStyles = (
       justifyContent: "center",
       alignItems: "center",
     },
+    loadingText: {
+      // ✅ NOVO ESTILO
+      color: theme.text,
+      marginTop: 8,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
     scrollArea: { padding: 15 },
     header: { alignItems: "center", paddingVertical: 10 },
     headerTitle: {
       color: theme.text,
       fontSize: 18 * fontMultiplier,
       fontWeight: "700",
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
     },
-    questionCounter: { color: theme.text, marginTop: 5 },
+    questionCounter: {
+      color: theme.text,
+      marginTop: 5,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+    },
     questionText: {
       fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
@@ -402,6 +410,7 @@ const getStyles = (
       textAlign: "center",
       marginHorizontal: 10,
       marginBottom: 20,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
     },
     option: {
       padding: 12,
@@ -414,22 +423,34 @@ const getStyles = (
     optionSelected: { borderColor: "#0af" },
     optionCorrect: { borderColor: "green", backgroundColor: "#D4EDDA" },
     optionWrong: { borderColor: "red", backgroundColor: "#F8D7DA" },
-    optionText: { color: theme.text, fontSize: 15 * fontMultiplier },
+    optionText: {
+      color: theme.text,
+      fontSize: 15 * fontMultiplier,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+    },
     explanationBox: {
       marginTop: 10,
       backgroundColor: theme.card,
       padding: 10,
       borderRadius: 8,
     },
-    explanationText: { color: theme.cardText },
-    footer: { padding: 15 },
+    explanationText: {
+      color: theme.cardText,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+    },
+    footer: { padding: 15, paddingBottom: 90 },
     button: {
       backgroundColor: theme.button,
       padding: 12,
       borderRadius: 10,
       alignItems: "center",
     },
-    buttonText: { color: theme.buttonText, fontWeight: "bold", fontSize: 16 },
+    buttonText: {
+      color: theme.buttonText,
+      fontWeight: "bold",
+      fontSize: 16,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+    },
     confettiContainer: {
       position: "absolute",
       top: 0,

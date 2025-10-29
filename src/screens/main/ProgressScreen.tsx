@@ -16,11 +16,8 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-import {
-  Gesture,
-  GestureDetector,
-  Directions,
-} from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+// ✅ REMOVIDO: A importação do 'react-native-reanimated' foi removida.
 import { useAuthStore } from "../../store/authStore";
 import { getUserById } from "../../services/progressService";
 
@@ -56,19 +53,19 @@ export default function ProgressScreen() {
 
   const fetchProgress = useCallback(async () => {
     if (!user?.userId) return;
-    
+
     setLoading(true);
     try {
       const dbUser = await getUserById(user.userId);
       if (dbUser) {
-        const modulesCompleted = Array.isArray(dbUser.modulesCompleted) 
-          ? dbUser.modulesCompleted.length 
+        const modulesCompleted = Array.isArray(dbUser.modulesCompleted)
+          ? dbUser.modulesCompleted.length
           : 0;
-        
-        const totalAnswers = (dbUser.correctAnswers || 0) + (dbUser.wrongAnswers || 0);
-        const accuracy = totalAnswers > 0 
-          ? (dbUser.correctAnswers || 0) / totalAnswers 
-          : 0;
+
+        const totalAnswers =
+          (dbUser.correctAnswers || 0) + (dbUser.wrongAnswers || 0);
+        const accuracy =
+          totalAnswers > 0 ? (dbUser.correctAnswers || 0) / totalAnswers : 0;
 
         setUserProgress({
           accuracy,
@@ -94,13 +91,21 @@ export default function ProgressScreen() {
   const formatDuration = (s: number) =>
     new Date(s * 1000).toISOString().substr(14, 5);
 
-  const handleGoBack = () => {
-    navigation.goBack();
+  const handleGoHome = () => {
+    navigation.navigate("Home" as never);
   };
 
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handleGoBack);
+  const panGesture = Gesture.Pan().onEnd((event) => {
+    const SWIPE_THRESHOLD = 50;
+
+    if (
+      event.translationX > SWIPE_THRESHOLD &&
+      event.translationX > Math.abs(event.translationY)
+    ) {
+      // ✅ ALTERADO: Chamando a função de navegação diretamente.
+      handleGoHome();
+    }
+  });
 
   const renderModuleBlocks = () => {
     const blocks = [];
@@ -111,15 +116,21 @@ export default function ProgressScreen() {
           key={i}
           style={[
             styles.moduloBlock,
-            isCompleted && styles.moduloBlockCompleted
+            isCompleted && styles.moduloBlockCompleted,
           ]}
           onPress={() => {}}
-          accessibilityText={`Módulo ${i}. ${isCompleted ? 'Concluído' : 'Não concluído'}`}
+          accessibilityText={`Módulo ${i}. ${
+            isCompleted ? "Concluído" : "Não concluído"
+          }`}
         >
           {isCompleted ? (
             <Text style={styles.moduloBlockText}>{i}</Text>
           ) : (
-            <MaterialCommunityIcons name="lock" size={22} color={theme.buttonText} />
+            <MaterialCommunityIcons
+              name="lock"
+              size={22}
+              color={theme.buttonText}
+            />
           )}
         </AccessibleButton>
       );
@@ -129,14 +140,17 @@ export default function ProgressScreen() {
 
   if (loading) {
     return (
-      <GestureDetector gesture={flingRight}>
+      <GestureDetector gesture={panGesture}>
         <View style={styles.page}>
           <StatusBar
             barStyle={theme.statusBarStyle}
             backgroundColor={theme.background}
           />
           <View style={styles.header}>
-            <AccessibleButton onPress={handleGoBack} accessibilityText="Voltar">
+            <AccessibleButton
+              onPress={handleGoHome}
+              accessibilityText="Voltar para a tela inicial"
+            >
               <MaterialCommunityIcons
                 name="arrow-left"
                 size={28}
@@ -148,7 +162,9 @@ export default function ProgressScreen() {
             </AccessibleHeader>
             <View style={styles.headerIconPlaceholder} />
           </View>
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
             <ActivityIndicator size="large" color={theme.text} />
           </View>
         </View>
@@ -157,17 +173,20 @@ export default function ProgressScreen() {
   }
 
   return (
-    <GestureDetector gesture={flingRight}>
+    <GestureDetector gesture={panGesture}>
       <AccessibleView
         style={styles.page}
-        accessibilityText="Tela de Meu Progresso. Deslize para a direita para voltar."
+        accessibilityText="Tela de Meu Progresso. Deslize para a direita para voltar para a tela inicial."
       >
         <StatusBar
           barStyle={theme.statusBarStyle}
           backgroundColor={theme.background}
         />
         <View style={styles.header}>
-          <AccessibleButton onPress={handleGoBack} accessibilityText="Voltar">
+          <AccessibleButton
+            onPress={handleGoHome}
+            accessibilityText="Voltar para a tela inicial"
+          >
             <MaterialCommunityIcons
               name="arrow-left"
               size={28}
@@ -268,7 +287,7 @@ const createStyles = (
   isDyslexiaFont: boolean
 ) =>
   StyleSheet.create({
-    page: { flex: 1, backgroundColor: theme.background, marginTop: "-5%" },
+    page: { flex: 1, backgroundColor: theme.background },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -291,33 +310,31 @@ const createStyles = (
       flex: 1,
       paddingHorizontal: 20,
       justifyContent: "flex-start",
-      paddingTop: 20,
+      paddingTop: 40,
     },
     centered: { alignItems: "center" },
     rocketEmoji: { fontSize: 60, marginTop: 10, marginBottom: 20 },
     metricsRow: {
       flexDirection: "row",
-      justifyContent: "space-between",
+      justifyContent: "center",
       width: "100%",
       marginBottom: 20,
     },
     metricCard: {
       backgroundColor: theme.card,
-      marginLeft: -5,
-      borderRadius: 8,
-      paddingVertical: 8,
-      paddingHorizontal: 40,
+      borderRadius: 12,
+      paddingVertical: 15,
+      paddingHorizontal: 30,
       alignItems: "center",
-      width: "25%",
-      height: 75,
-      marginHorizontal: 4,
-      marginVertical: 6,
+      justifyContent: "center",
+      flex: 1,
+      marginHorizontal: 5,
     },
     metricValue: {
       color: theme.cardText,
       fontSize: 14 * fontMultiplier,
       fontWeight: "bold",
-      marginTop: 4,
+      marginTop: 6,
       lineHeight: 14 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -325,7 +342,7 @@ const createStyles = (
     metricLabel: {
       color: theme.cardText,
       fontSize: 10 * fontMultiplier,
-      marginTop: 2,
+      marginTop: 4,
       textAlign: "center",
       fontWeight: isBold ? "bold" : "normal",
       lineHeight: 10 * fontMultiplier * lineHeight,
@@ -370,9 +387,9 @@ const createStyles = (
       fontSize: 15 * fontMultiplier,
       fontWeight: "bold",
       color: theme.text,
-      marginBottom: 8,
+      marginBottom: 10,
       textAlign: "center",
-      marginTop: "-5%",
+      marginTop: 20,
       lineHeight: 15 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -381,7 +398,7 @@ const createStyles = (
       flexDirection: "row",
       justifyContent: "center",
       width: "100%",
-      marginTop: "-2%",
+      marginTop: 10,
     },
     moduloBlock: {
       width: 45,

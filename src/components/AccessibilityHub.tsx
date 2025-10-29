@@ -8,7 +8,6 @@ import {
   Animated,
 } from "react-native";
 
-import FloatingAccessibilityButton from "./FloatingAccessibilityButton";
 import MagnifierButton from "./MagnifierButton";
 
 const AccessibilityHub: React.FC = () => {
@@ -43,7 +42,6 @@ const AccessibilityHub: React.FC = () => {
   return (
     <View style={styles.hubContainer}>
       <Animated.View style={[styles.menuContainer, animatedMenuStyle]}>
-        <FloatingAccessibilityButton />
         <MagnifierButton />
       </Animated.View>
 

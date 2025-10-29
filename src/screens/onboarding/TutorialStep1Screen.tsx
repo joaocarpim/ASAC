@@ -1,4 +1,3 @@
-// screens/onboarding/TutorialStep1Screen.tsx
 import React from "react";
 import {
   StyleSheet,
@@ -8,7 +7,6 @@ import {
   TouchableOpacity,
   StatusBar,
 } from "react-native";
-
 import { RootStackScreenProps } from "../../navigation/types";
 
 const logo = require("../../assets/images/logo.png");
@@ -19,19 +17,17 @@ export default function TutorialStep1Screen({
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#191970" />
-
-      <Image source={logo} style={styles.logo} />
-
-      <View style={styles.topSection}>
-        <Text style={styles.topText}>Acesse os módulos</Text>
+      <View style={styles.contentWrapper}>
+        <View style={styles.topSection}>
+          <Text style={styles.topText}>Acesse os módulos</Text>
+          <Image source={logo} style={styles.logo} />
+        </View>
+        <View style={styles.middleSection}>
+          <Text style={styles.middleText}>
+            Faça os questionários e{"\n"}garanta pontos
+          </Text>
+        </View>
       </View>
-
-      <View style={styles.middleSection}>
-        <Text style={styles.middleText}>
-          Faça os questionários e{"\n"}garanta pontos
-        </Text>
-      </View>
-
       <View style={styles.bottomSection}>
         <TouchableOpacity
           style={styles.button}
@@ -45,39 +41,21 @@ export default function TutorialStep1Screen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#191970",
-  },
-  // A logo agora é posicionada de forma absoluta
-  logo: {
-    width: 280, // Tamanho maior
-    height: 280, // Tamanho maior
-    resizeMode: "contain",
-    position: "absolute", // Chave da solução!
-    top: 55, // Distância do topo
-    right: -70, // Distância da direita
-    zIndex: 1, // Garante que a logo fique por cima, se necessário
-  },
+  container: { flex: 1, backgroundColor: "#191970" },
+  contentWrapper: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
   topSection: {
-    // A seção do topo agora serve apenas para o texto
-    paddingTop: 80,
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   topText: {
-    fontSize: 34, // Aumentei um pouco para equilibrar
+    fontSize: 34,
     fontWeight: "bold",
     color: "#FFA500",
-    maxWidth: "65%", // O texto pode ocupar mais espaço agora
+    maxWidth: "60%",
   },
-  middleSection: {
-    flex: 1,
-    top: 55, // Distância do topo
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 30,
-  },
+  logo: { width: 140, height: 140, resizeMode: "contain", marginTop: -20 },
+  middleSection: { flex: 1, justifyContent: "center", alignItems: "center" },
   middleText: {
     fontSize: 24,
     color: "#FFFFFF",
@@ -98,16 +76,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    width: "100%", // Ocupa a largura da seção inferior
+    width: "100%",
     elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
+  buttonText: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
 });

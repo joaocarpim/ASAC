@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, StatusBar, StyleSheet, Alert } from "react-native";
+import { View, Text, Image, StatusBar, StyleSheet } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -15,7 +15,8 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { Theme } from "../../types/contrast";
 import { Audio } from "expo-av";
 import ConfettiCannon from "react-native-confetti-cannon";
-import { useNavigation } from "@react-navigation/native"; // ✅ 1. Importar o hook de navegação
+import { useNavigation } from "@react-navigation/native";
+import { useSettings } from "../../hooks/useSettings";
 
 const BRAILLE_ALPHABET = [
   {
@@ -274,16 +275,17 @@ function getAccessibilityInfo(item: { letter: string; desc: string }) {
 export default function BrailleAlphabetScreen() {
   const [pageIndex, setPageIndex] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [isFinished, setIsFinished] = useState(false); // ✅ 2. Novo estado de conclusão
+  const [isFinished, setIsFinished] = useState(false);
   const { theme } = useContrast();
   const { speakText } = useAccessibility();
-  const navigation = useNavigation(); // ✅ 3. Objeto de navegação
+  const navigation = useNavigation();
+  const { isDyslexiaFontEnabled } = useSettings();
 
   const soundObject = useRef<Audio.Sound | null>(null);
 
   const totalPages = BRAILLE_ALPHABET.length;
   const current = BRAILLE_ALPHABET[pageIndex];
-  const styles = getStyles(theme);
+  const styles = getStyles(theme, isDyslexiaFontEnabled);
   const accInfo = getAccessibilityInfo(current);
 
   const playCelebrationSound = async () => {
@@ -315,6 +317,10 @@ export default function BrailleAlphabetScreen() {
     return () => clearTimeout(timer);
   }, [pageIndex, isFinished]);
 
+  const handleGoHome = () => {
+    navigation.navigate("Home" as never);
+  };
+
   const handleNext = () => {
     if (pageIndex < totalPages - 1) {
       setPageIndex((prev) => prev + 1);
@@ -322,71 +328,87 @@ export default function BrailleAlphabetScreen() {
       setShowConfetti(true);
       playCelebrationSound();
       speakText(
-        "Parabéns! Você concluiu a lição. Toque duas vezes para voltar à tela inicial."
+        "Parabéns! Você concluiu a lição. Deslize para a direita ou toque duas vezes para voltar à tela inicial."
       );
       setIsFinished(true);
     }
   };
 
   const handlePrev = () => {
-    if (isFinished) {
-      setIsFinished(false);
-      setShowConfetti(false);
-    } else if (pageIndex > 0) {
+    if (pageIndex > 0) {
       setPageIndex((prev) => prev - 1);
     }
   };
 
-  const tap = Gesture.Tap().onEnd(() => {
+  const singleTap = Gesture.Tap().onEnd(() => {
     if (!isFinished) {
-      // Garante que o toque simples só funcione na tela do alfabeto
       speakText(`${accInfo.title}. ${current.desc}`);
     }
   });
 
-  const flingLeft = Gesture.Fling()
-    .direction(Directions.LEFT)
-    .onEnd(handleNext);
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handlePrev);
-
-  const doubleTapToHome = Gesture.Tap()
+  const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd(() => {
-      navigation.navigate("Home" as never); // Navega de volta
+      if (isFinished) {
+        handleGoHome();
+      }
     });
 
-  const composedGestures = Gesture.Race(flingLeft, flingRight, tap);
+  const flingLeft = Gesture.Fling()
+    .direction(Directions.LEFT)
+    .onEnd(() => {
+      if (!isFinished) handleNext();
+    });
+
+  const flingRight = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(() => {
+      if (isFinished || pageIndex === 0) {
+        handleGoHome();
+      } else {
+        handlePrev();
+      }
+    });
+
+  const combinedGestures = Gesture.Race(
+    flingLeft,
+    flingRight,
+    doubleTap,
+    singleTap
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor={theme.background} barStyle="light-content" />
-      <ScreenHeader
-        title={isFinished ? "Parabéns!" : "Aprendendo o Alfabeto Braille"}
-      />
+    <GestureDetector gesture={combinedGestures}>
+      <View style={styles.container}>
+        <StatusBar
+          backgroundColor={theme.background}
+          barStyle="light-content"
+        />
+        <ScreenHeader
+          title={isFinished ? "Parabéns!" : "Aprendendo o Alfabeto Braille"}
+        />
 
-      {showConfetti && (
-        <ConfettiCannon count={200} origin={{ x: -10, y: 0 }} fadeOut={true} />
-      )}
+        {showConfetti && (
+          <ConfettiCannon
+            count={200}
+            origin={{ x: -10, y: 0 }}
+            fadeOut={true}
+          />
+        )}
 
-      {isFinished ? (
-        // --- TELA DE CONCLUSÃO ---
-        <GestureDetector gesture={doubleTapToHome}>
+        {isFinished ? (
           <View
             style={styles.page}
             accessible={true}
-            accessibilityLabel="Parabéns! Você concluiu a lição. Toque duas vezes para voltar à tela inicial."
+            accessibilityLabel="Parabéns! Você concluiu a lição. Deslize para a direita ou toque duas vezes para voltar à tela inicial."
           >
             <Text style={styles.completionText}>Parabéns!</Text>
             <Text style={styles.completionSubText}>
-              Clique duas vezes na tela para voltar à tela inicial
+              Deslize para a direita ou toque duas vezes para voltar à tela
+              inicial
             </Text>
           </View>
-        </GestureDetector>
-      ) : (
-        // --- TELA DO ALFABETO ---
-        <GestureDetector gesture={composedGestures}>
+        ) : (
           <View
             style={styles.page}
             accessible={true}
@@ -412,13 +434,13 @@ export default function BrailleAlphabetScreen() {
               {pageIndex + 1} / {totalPages}
             </Text>
           </View>
-        </GestureDetector>
-      )}
-    </View>
+        )}
+      </View>
+    </GestureDetector>
   );
 }
 
-const getStyles = (theme: Theme) =>
+const getStyles = (theme: Theme, isDyslexiaFontEnabled: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     page: {
@@ -433,28 +455,36 @@ const getStyles = (theme: Theme) =>
       color: theme.text,
       marginBottom: 20,
       textAlign: "center",
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     image: { width: 220, height: 220, resizeMode: "contain", marginBottom: 20 },
-    description: { fontSize: 18, textAlign: "center", color: theme.text },
+    description: {
+      fontSize: 18,
+      textAlign: "center",
+      color: theme.text,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
     pageIndicator: {
       position: "absolute",
       bottom: 20,
       fontSize: 16,
       color: theme.text,
       textAlign: "center",
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-
     completionText: {
       fontSize: 32,
       fontWeight: "bold",
       color: theme.text,
       textAlign: "center",
       marginBottom: 10,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     completionSubText: {
       fontSize: 18,
       color: theme.text,
       textAlign: "center",
       paddingHorizontal: 20,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
   });

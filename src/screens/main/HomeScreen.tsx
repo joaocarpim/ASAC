@@ -16,7 +16,11 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import * as APIt from "../../API";
 import { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
-import { getUserById, canStartModule, ensureUserInDB } from "../../services/progressService";
+import {
+  getUserById,
+  canStartModule,
+  ensureUserInDB,
+} from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
@@ -53,6 +57,7 @@ interface ModuleItemProps {
     description: string;
   };
   completed: boolean;
+  isLocked: boolean;
   onPress: () => void;
   styles: HomeScreenStyles;
 }
@@ -109,10 +114,11 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 const ModuleItem: React.FC<ModuleItemProps> = ({
   module,
   completed,
+  isLocked,
   onPress,
   styles,
 }) => {
-  const status = completed ? "Concluído" : "Não concluído";
+  const status = completed ? "Concluído" : isLocked ? "Bloqueado" : "Pendente";
   const accessibilityText = `Módulo ${module.moduleId}: ${module.title}, ${module.description}. Status: ${status}. Toque para abrir.`;
 
   let iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"] =
@@ -122,12 +128,13 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
   else if (module.moduleId === 3) iconName = "star-box-outline";
 
   const iconStyle = styles.moduleIcon as TextStyle;
+  const lockIconStyle = styles.lockIcon as TextStyle;
 
   return (
     <AccessibleButton
       accessibilityText={accessibilityText}
       onPress={onPress}
-      style={styles.moduleItem}
+      style={[styles.moduleItem, isLocked && { opacity: 0.65 }]}
     >
       <View style={styles.moduleIconContainer}>
         <MaterialCommunityIcons
@@ -140,12 +147,21 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
         <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
         <Text style={styles.moduleSubtitle}>{module.title}</Text>
       </View>
-      <View
-        style={[
-          styles.moduleStatusIndicator,
-          { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
-        ]}
-      />
+
+      {isLocked ? (
+        <MaterialCommunityIcons
+          name="lock-outline"
+          size={lockIconStyle.fontSize}
+          color={lockIconStyle.color}
+        />
+      ) : (
+        <View
+          style={[
+            styles.moduleStatusIndicator,
+            { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
+          ]}
+        />
+      )}
     </AccessibleButton>
   );
 };
@@ -188,14 +204,13 @@ const HomeScreen: React.FC<
     setLoadingModules(true);
 
     try {
-      // ✅ CORREÇÃO: Garante que o usuário existe no DB antes de buscar
       let uResult = await getUserById(user.userId);
-      
+
       if (!uResult && user.email && user.name) {
         console.log("⚠️ Usuário não encontrado no DB, criando...");
         uResult = await ensureUserInDB(user.userId, user.name, user.email);
       }
-      
+
       setDbUser(uResult);
     } catch (error) {
       console.error("Erro ao buscar usuário:", error);
@@ -263,7 +278,6 @@ const HomeScreen: React.FC<
     );
   }
 
-  // ✅ CORREÇÃO DO CÁLCULO DE MÓDULOS CONCLUÍDOS
   const modulesData = dbUser?.modulesCompleted ?? [];
   let completedModuleNumbers: number[] = [];
 
@@ -357,7 +371,7 @@ const HomeScreen: React.FC<
               >
                 <MaterialCommunityIcons
                   name="dots-horizontal-circle-outline"
-                  size={24}
+                  size={32}
                   color={theme.text}
                 />
               </AccessibleButton>
@@ -368,7 +382,7 @@ const HomeScreen: React.FC<
               >
                 <MaterialCommunityIcons
                   name="cog-outline"
-                  size={24}
+                  size={32}
                   color={theme.text}
                 />
               </AccessibleButton>
@@ -378,14 +392,24 @@ const HomeScreen: React.FC<
           <FlatList
             data={DEFAULT_MODULES}
             keyExtractor={(item) => item.id}
-            renderItem={({ item: module }) => (
-              <ModuleItem
-                module={module}
-                completed={completedModuleNumbers.includes(module.moduleId)}
-                onPress={() => openModule(module.moduleId)}
-                styles={styles}
-              />
-            )}
+            renderItem={({ item: module }) => {
+              const isLocked =
+                module.moduleId > 1 &&
+                !completedModuleNumbers.includes(module.moduleId - 1);
+              const isCompleted = completedModuleNumbers.includes(
+                module.moduleId
+              );
+
+              return (
+                <ModuleItem
+                  module={module}
+                  completed={isCompleted}
+                  isLocked={isLocked}
+                  onPress={() => openModule(module.moduleId)}
+                  styles={styles}
+                />
+              );
+            }}
             contentContainerStyle={styles.modulesList}
           />
         </View>
@@ -488,12 +512,16 @@ const createStyles = (
       fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginTop: 2,
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     statLabel: {
       color: theme.cardText,
       fontSize: 11 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     sectionHeader: {
       flexDirection: "row",
@@ -503,12 +531,14 @@ const createStyles = (
       marginTop: 10,
       paddingHorizontal: 20,
     },
-    sectionHeaderIcons: { flexDirection: "row", gap: 12 },
     sectionTitle: {
       fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       color: theme.text,
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
+    sectionHeaderIcons: { flexDirection: "row", gap: 12 },
     modulesList: { paddingHorizontal: 20, paddingBottom: 10, gap: 8 },
     moduleItem: {
       backgroundColor: theme.card,
@@ -534,26 +564,35 @@ const createStyles = (
       fontSize: 14 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginBottom: 2,
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     moduleSubtitle: {
       color: theme.cardText,
       fontSize: 12 * fontMultiplier,
       opacity: 0.9,
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     moduleStatusIndicator: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
       marginLeft: 10,
     },
+    lockIcon: {
+      fontSize: 26 * fontMultiplier,
+      color: theme.text,
+      marginLeft: 10,
+    } as TextStyle,
     actionsContainer: {
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
       gap: 8,
+      margin: 5,
       alignSelf: "center",
-      marginTop: 15,
-      paddingBottom: 10,
+      paddingBottom: 70,
       paddingHorizontal: 20,
     },
     actionButton: {
@@ -574,6 +613,8 @@ const createStyles = (
       fontSize: 11 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
+      // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
   });
 

@@ -16,7 +16,6 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-// 👇 1. IMPORTAR OS COMPONENTES DE GESTO 👇
 import {
   Gesture,
   GestureDetector,
@@ -43,7 +42,6 @@ export default function AchievementsScreen() {
     isDyslexiaFontEnabled
   );
 
-  // 👇 2. DEFINIR A FUNÇÃO E O GESTO 👇
   const handleGoBack = () => {
     navigation.goBack();
   };
@@ -76,7 +74,6 @@ export default function AchievementsScreen() {
   const progressAccessibilityText = `Progresso Atual: ${progressoAtual} de ${modulosTotais} módulos concluídos.`;
 
   return (
-    // 👇 3. ENVOLVER A TELA COM O DETECTOR DE GESTOS 👇
     <GestureDetector gesture={flingRight}>
       <AccessibleView
         style={styles.page}
@@ -87,10 +84,7 @@ export default function AchievementsScreen() {
           backgroundColor={theme.background}
         />
         <View style={styles.header}>
-          <AccessibleButton
-            onPress={handleGoBack} // Reutilizando a função
-            accessibilityText="Voltar"
-          >
+          <AccessibleButton onPress={handleGoBack} accessibilityText="Voltar">
             <MaterialCommunityIcons
               name="arrow-left"
               size={28}
@@ -135,7 +129,6 @@ export default function AchievementsScreen() {
   );
 }
 
-// A função createStyles permanece exatamente a mesma
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -167,21 +160,24 @@ const createStyles = (
     container: {
       flex: 1,
       alignItems: "center",
-      justifyContent: "flex-start",
-      paddingTop: 20,
+      // AJUSTE: Centraliza o conteúdo verticalmente na tela.
+      justifyContent: "center",
       paddingHorizontal: 20,
     },
-    seloEmoji: { fontSize: 90, marginBottom: 25 },
+    // AJUSTE: Diminuído o espaçamento inferior pois o layout agora é mais natural.
+    seloEmoji: { fontSize: 90, marginBottom: 15 },
     card: {
       backgroundColor: theme.card,
       borderRadius: 16,
-      paddingVertical: 15,
-      paddingHorizontal: 60,
+      // AJUSTE: Aumentado o padding vertical e diminuído o horizontal para se adaptar melhor.
+      paddingVertical: 20,
+      paddingHorizontal: 25,
       alignItems: "center",
       width: "100%",
       position: "relative",
-      marginBottom: 25,
-      marginTop: "-10%",
+      // AJUSTE: Aumentado o espaçamento para o próximo elemento.
+      marginBottom: 30,
+      // AJUSTE: Removida a margem negativa.
     },
     mascoteIcon: {
       position: "absolute",
@@ -212,10 +208,11 @@ const createStyles = (
     progressoContainer: {
       backgroundColor: theme.card,
       borderRadius: 16,
-      padding: 5,
+      // AJUSTE: Aumentado o padding para dar mais respiro.
+      padding: 15,
       width: "100%",
       alignItems: "center",
-      marginTop: "-5%",
+      // AJUSTE: Removida a margem negativa.
     },
     progressoTitle: {
       fontSize: 15 * fontMultiplier,
@@ -251,7 +248,8 @@ const createStyles = (
     progressoSubtitle: {
       fontSize: 12 * fontMultiplier,
       color: theme.cardText,
-      marginTop: 3,
+      // AJUSTE: Aumentado espaçamento superior para melhor leitura.
+      marginTop: 10,
       fontWeight: isBold ? "bold" : "normal",
       lineHeight: 12 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
