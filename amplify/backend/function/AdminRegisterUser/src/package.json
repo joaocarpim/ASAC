@@ -1,13 +1,10 @@
 {
   "name": "adminregisteruser",
   "version": "2.0.1",
-  "description": "Lambda function to create Cognito users using AWS SDK v3",
+  "description": "Lambda function to create Cognito users",
   "main": "index.js",
   "license": "Apache-2.0",
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.658.0"
-  },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.92"
   }
 }

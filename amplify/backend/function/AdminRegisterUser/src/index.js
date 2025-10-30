@@ -1,4 +1,3 @@
-// index.js
 /* Amplify Params - DO NOT EDIT
    AUTH_ASAC2F4153AA_USERPOOLID
    REGION
@@ -12,49 +11,24 @@ const {
   AdminGetUserCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
-const fetch = globalThis.fetch;
-
 const REGION = process.env.REGION || "us-east-1";
 const USER_POOL_ID = process.env.AUTH_ASAC2F4153AA_USERPOOLID;
-
-const GRAPHQL_URL =
-  process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT &&
-  process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT.startsWith("http")
-    ? process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT
-    : "https://izr4ayivprhodgqzf3gm6ijwh4.appsync-api.us-east-1.amazonaws.com/graphql";
+const GRAPHQL_URL = process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT;
 
 const cognito = new CognitoIdentityProviderClient({ region: REGION });
 
 exports.handler = async (event) => {
-  console.log("📩 Evento recebido:", JSON.stringify(event, null, 2));
-
-  const headersBase = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Credentials": true,
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
-    "Access-Control-Allow-Methods": "OPTIONS,POST",
-    "Content-Type": "application/json",
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers: headersBase, body: JSON.stringify({ ok: true }) };
-  }
+  console.log("📩 Evento AppSync recebido:", JSON.stringify(event, null, 2));
 
   try {
-    const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body || {};
-    const { email, name, password } = body;
+    const { name, email, password } = event.arguments || {};
 
     if (!email || !name || !password) {
-      return {
-        statusCode: 400,
-        headers: headersBase,
-        body: JSON.stringify({ error: "Campos obrigatórios: email, name, password" }),
-      };
+      throw new Error("Campos obrigatórios: email, name, password");
     }
 
     const username = email.toLowerCase();
 
-    // 1️⃣ Criar usuário no Cognito
     try {
       await cognito.send(new AdminCreateUserCommand({
         UserPoolId: USER_POOL_ID,
@@ -73,7 +47,6 @@ exports.handler = async (event) => {
       console.log("⚠️ Usuário já existe, definindo senha permanente.");
     }
 
-    // 2️⃣ Definir senha permanente
     await cognito.send(new AdminSetUserPasswordCommand({
       UserPoolId: USER_POOL_ID,
       Username: username,
@@ -82,7 +55,6 @@ exports.handler = async (event) => {
     }));
     console.log("🔑 Senha permanente definida:", username);
 
-    // 3️⃣ Buscar o `sub` do usuário
     const getUserResp = await cognito.send(
       new AdminGetUserCommand({ UserPoolId: USER_POOL_ID, Username: username })
     );
@@ -91,13 +63,12 @@ exports.handler = async (event) => {
     const userSub = subAttr ? subAttr.Value : null;
     console.log("🆔 Sub Cognito do novo usuário:", userSub);
 
-    // 4️⃣ Inserir também no AppSync
-    if (GRAPHQL_URL) {
-      const adminToken = event.headers?.Authorization || event.headers?.authorization;
-      if (!adminToken) {
-        console.warn("❗ Nenhum Authorization header recebido, pulando GraphQL");
-      } else {
-        const mutation = /* GraphQL */ `
+    if (GRAPHQL_URL && userSub) {
+      const authHeader = event.request?.headers?.authorization || 
+                        event.request?.headers?.Authorization;
+
+      if (authHeader) {
+        const mutation = `
           mutation CreateUser($input: CreateUserInput!) {
             createUser(input: $input) {
               id
@@ -108,50 +79,61 @@ exports.handler = async (event) => {
           }
         `;
 
-        const gqlResp = await fetch(GRAPHQL_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: adminToken,
-          },
-          body: JSON.stringify({
-            query: mutation,
-            variables: {
-             input: {
-              id: userSub,
-              owner: userSub, // ✅ ADICIONE ESTA LINHA
-              name,
-              email: username,
-              role: "user",
-              },
+        try {
+          const response = await fetch(GRAPHQL_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": authHeader,
             },
-          }),
-        });
+            body: JSON.stringify({
+              query: mutation,
+              variables: {
+                input: {
+                  id: userSub,
+                  owner: userSub,
+                  name,
+                  email: username,
+                  role: "user",
+                  coins: 0,
+                  points: 0,
+                  modulesCompleted: [],
+                  currentModule: 1,
+                  precision: 0.0,
+                  correctAnswers: 0,
+                  wrongAnswers: 0,
+                  timeSpent: 0.0,
+                },
+              },
+            }),
+          });
 
-        const gqlJson = await gqlResp.json();
-        if (gqlJson.errors) {
-          console.error("⚠️ Erro GraphQL:", JSON.stringify(gqlJson.errors));
-          throw new Error("Falha ao inserir no AppSync");
+          const gqlJson = await response.json();
+          
+          if (gqlJson.errors) {
+            console.error("⚠️ Erro GraphQL:", JSON.stringify(gqlJson.errors, null, 2));
+            throw new Error(`Falha ao inserir no DynamoDB: ${gqlJson.errors[0].message}`);
+          }
+          
+          console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data.createUser);
+        } catch (fetchError) {
+          console.error("❌ Erro ao chamar GraphQL:", fetchError);
+          throw new Error(`Falha ao criar registro no banco: ${fetchError.message}`);
         }
-        console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data.createUser);
       }
     }
 
-    return {
-      statusCode: 200,
-      headers: headersBase,
-      body: JSON.stringify({
-        success: true,
-        message: "Usuário criado com sucesso.",
-        sub: userSub, // ✅ retornado ao app
-      }),
+    const result = {
+      success: true,
+      message: "Usuário criado com sucesso.",
+      sub: userSub,
     };
+
+    console.log("✅ Retornando resultado:", result);
+    return JSON.stringify(result);
+
   } catch (error) {
     console.error("❌ Erro ao criar usuário:", error);
-    return {
-      statusCode: 500,
-      headers: headersBase,
-      body: JSON.stringify({ error: error?.message || "Erro interno" }),
-    };
+    throw new Error(error?.message || "Erro interno ao criar usuário");
   }
 };

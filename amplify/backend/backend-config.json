@@ -1,19 +1,5 @@
 {
   "api": {
-    "AdminApi": {
-      "dependsOn": [
-        {
-          "attributes": [
-            "Name",
-            "Arn"
-          ],
-          "category": "function",
-          "resourceName": "AdminRegisterUser"
-        }
-      ],
-      "providerPlugin": "awscloudformation",
-      "service": "API Gateway"
-    },
     "asac": {
       "dependsOn": [
         {
@@ -89,14 +75,9 @@
         },
         {
           "attributes": [
-            "BucketName"
-          ],
-          "category": "storage",
-          "resourceName": "s3112eaa39"
-        },
-        {
-          "attributes": [
-            "GraphQLAPIIdOutput"
+            "GraphQLAPIIdOutput",
+            "GraphQLAPIEndpointOutput",
+            "GraphQLAPIKeyOutput"
           ],
           "category": "api",
           "resourceName": "asac"
@@ -116,14 +97,6 @@
       ]
     },
     "AMPLIFY_function_AdminRegisterUser_s3Key": {
-      "usedBy": [
-        {
-          "category": "function",
-          "resourceName": "AdminRegisterUser"
-        }
-      ]
-    },
-    "AMPLIFY_function_AdminRegisterUser_userPoolId": {
       "usedBy": [
         {
           "category": "function",

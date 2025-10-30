@@ -13,7 +13,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { generateClient } from "aws-amplify/api";
-import { fetchAuthSession } from "aws-amplify/auth";
 
 export default function AdminRegisterUserScreen({
   navigation,
@@ -37,17 +36,6 @@ export default function AdminRegisterUserScreen({
     setLoading(true);
 
     try {
-      const session = await fetchAuthSession();
-      const idToken = session.tokens?.idToken?.toString();
-
-      if (!idToken) {
-        Alert.alert("Erro", "Token de autenticação não encontrado.");
-        setLoading(false);
-        return;
-      }
-
-      console.log("🔑 Enviando Token para a Lambda:", idToken);
-
       const client = generateClient();
       
       const ADMIN_REGISTER_MUTATION = `
@@ -56,50 +44,99 @@ export default function AdminRegisterUserScreen({
         }
       `;
 
+      console.log("📤 Enviando requisição GraphQL...");
+
       const result = await client.graphql({
         query: ADMIN_REGISTER_MUTATION,
         variables: {
           name: name.trim(),
-          email: email.trim(),
+          email: email.trim().toLowerCase(),
           password: password,
         },
       });
 
-      console.log("📥 Resposta da Lambda:", result);
+      console.log("📥 Resposta completa:", JSON.stringify(result, null, 2));
 
-      // Verificar se result tem a propriedade data
+      // Verificar se há erros no GraphQL
+      if ('errors' in result && result.errors && result.errors.length > 0) {
+        console.error("❌ Erros GraphQL:", JSON.stringify(result.errors, null, 2));
+        
+        const errorMsg = result.errors[0].message || "Erro ao cadastrar usuário";
+        Alert.alert("Erro GraphQL", errorMsg);
+        setLoading(false);
+        return;
+      }
+
+      // Verificar resposta
       if ('data' in result && result.data) {
         const response = result.data as any;
+        console.log("✅ Data recebida:", response);
         
+        // A Lambda retorna um JSON string, precisamos parsear
         if (response.adminRegisterUser) {
-          Alert.alert(
-            "Sucesso",
-            `Usuário ${name} cadastrado com sucesso!`,
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  setName("");
-                  setEmail("");
-                  setPassword("");
-                  navigation.goBack();
-                },
-              },
-            ]
-          );
+          try {
+            const lambdaResponse = JSON.parse(response.adminRegisterUser);
+            console.log("📦 Resposta da Lambda parseada:", lambdaResponse);
+            
+            if (lambdaResponse.success) {
+              // Limpar campos IMEDIATAMENTE
+              const userName = name;
+              const userEmail = email;
+              setName("");
+              setEmail("");
+              setPassword("");
+              
+              // Voltar para o Dashboard ANTES do alerta
+              navigation.goBack();
+              
+              // Mostrar alerta depois (opcional)
+              setTimeout(() => {
+                Alert.alert(
+                  "✅ Sucesso",
+                  `Usuário cadastrado!\n\n${userName}\n${userEmail}`
+                );
+              }, 300);
+            } else {
+              Alert.alert("Erro", lambdaResponse.error || "Falha ao cadastrar usuário.");
+            }
+          } catch (parseError) {
+            console.error("❌ Erro ao parsear resposta:", parseError);
+            // Se não for JSON, pode ser string direta
+            if (typeof response.adminRegisterUser === 'string') {
+              Alert.alert("Erro", response.adminRegisterUser);
+            } else {
+              Alert.alert("Erro", "Resposta inválida da Lambda.");
+            }
+          }
         } else {
-          Alert.alert("Erro", "Falha ao cadastrar usuário.");
+          Alert.alert("Erro", "Resposta vazia da Lambda.");
         }
       } else {
         Alert.alert("Erro", "Resposta inválida da API.");
       }
     } catch (error: any) {
       console.error("❌ Erro ao registrar usuário:", error);
+      console.error("❌ Erro completo:", JSON.stringify(error, null, 2));
       
       let errorMessage = "Erro desconhecido ao cadastrar usuário.";
       
+      // Tratamento detalhado de erros
       if (error?.errors && error.errors.length > 0) {
-        errorMessage = error.errors[0].message;
+        const firstError = error.errors[0];
+        console.error("❌ Primeiro erro:", firstError);
+        
+        errorMessage = firstError.message || JSON.stringify(firstError);
+        
+        // Se for erro de autorização
+        if (errorMessage.includes("UnauthorizedException") || 
+            errorMessage.includes("Unauthorized")) {
+          errorMessage = "Você não tem permissão para cadastrar usuários.";
+        }
+        
+        // Se for erro do Cognito
+        if (errorMessage.includes("UsernameExistsException")) {
+          errorMessage = "Este email já está cadastrado.";
+        }
       } else if (error?.message) {
         errorMessage = error.message;
       }

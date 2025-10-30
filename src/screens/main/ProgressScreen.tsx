@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   StatusBar,
+  TouchableOpacity,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -12,12 +13,10 @@ import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
 import {
   AccessibleView,
-  AccessibleButton,
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-// ✅ REMOVIDO: A importação do 'react-native-reanimated' foi removida.
+import { Gesture, GestureDetector, Directions } from "react-native-gesture-handler";
 import { useAuthStore } from "../../store/authStore";
 import { getUserById } from "../../services/progressService";
 
@@ -36,9 +35,11 @@ export default function ProgressScreen() {
   const [userProgress, setUserProgress] = useState({
     accuracy: 0,
     correct: 0,
+    wrong: 0,
     durationSec: 0,
     finishedModules: 0,
     totalModules: 3,
+    modulesCompletedList: [] as number[],
   });
   const [loading, setLoading] = useState(true);
 
@@ -59,8 +60,8 @@ export default function ProgressScreen() {
       const dbUser = await getUserById(user.userId);
       if (dbUser) {
         const modulesCompleted = Array.isArray(dbUser.modulesCompleted)
-          ? dbUser.modulesCompleted.length
-          : 0;
+          ? dbUser.modulesCompleted
+          : [];
 
         const totalAnswers =
           (dbUser.correctAnswers || 0) + (dbUser.wrongAnswers || 0);
@@ -70,13 +71,24 @@ export default function ProgressScreen() {
         setUserProgress({
           accuracy,
           correct: dbUser.correctAnswers || 0,
+          wrong: dbUser.wrongAnswers || 0,
           durationSec: dbUser.timeSpent || 0,
-          finishedModules: modulesCompleted,
+          finishedModules: modulesCompleted.length,
           totalModules: 3,
+          modulesCompletedList: modulesCompleted,
         });
       }
     } catch (error) {
       console.error("Erro ao buscar progresso:", error);
+      setUserProgress({
+        accuracy: 0,
+        correct: 0,
+        wrong: 0,
+        durationSec: 0,
+        finishedModules: 0,
+        totalModules: 3,
+        modulesCompletedList: [],
+      });
     } finally {
       setLoading(false);
     }
@@ -88,51 +100,54 @@ export default function ProgressScreen() {
     }, [fetchProgress])
   );
 
-  const formatDuration = (s: number) =>
-    new Date(s * 1000).toISOString().substr(14, 5);
-
-  const handleGoHome = () => {
-    navigation.navigate("Home" as never);
+  const formatDuration = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const panGesture = Gesture.Pan().onEnd((event) => {
-    const SWIPE_THRESHOLD = 50;
+  const handleGoBack = () => {
+    navigation.goBack();
+  };
 
-    if (
-      event.translationX > SWIPE_THRESHOLD &&
-      event.translationX > Math.abs(event.translationY)
-    ) {
-      // ✅ ALTERADO: Chamando a função de navegação diretamente.
-      handleGoHome();
-    }
-  });
+  const flingRight = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(handleGoBack);
 
   const renderModuleBlocks = () => {
     const blocks = [];
     for (let i = 1; i <= userProgress.totalModules; i++) {
-      const isCompleted = i <= userProgress.finishedModules;
+      const isCompleted = userProgress.modulesCompletedList.includes(i);
       blocks.push(
-        <AccessibleButton
+        <TouchableOpacity
           key={i}
           style={[
             styles.moduloBlock,
             isCompleted && styles.moduloBlockCompleted,
           ]}
-          onPress={() => {}}
-          accessibilityText={`Módulo ${i}. ${
-            isCompleted ? "Concluído" : "Não concluído"
-          }`}
+          onPress={() => {
+            if (isCompleted) {
+              // Pode adicionar navegação para detalhes do módulo aqui
+              console.log(`Módulo ${i} concluído`);
+            }
+          }}
+          accessibilityLabel={`Módulo ${i}. ${isCompleted ? 'Concluído' : 'Não concluído'}`}
         >
           {isCompleted ? (
-            <Text style={styles.moduloBlockText}>{i}</Text>
+            <MaterialCommunityIcons
+              name="check-circle"
+              size={28}
+              color={theme.buttonText}
+            />
           ) : (
             <MaterialCommunityIcons
               name="lock"
-              size={22}
+              size={28}
               color={theme.buttonText}
             />
           )}
-        </AccessibleButton>
+          <Text style={styles.moduloBlockText}>{i}</Text>
+        </TouchableOpacity>
       );
     }
     return blocks;
@@ -140,31 +155,26 @@ export default function ProgressScreen() {
 
   if (loading) {
     return (
-      <GestureDetector gesture={panGesture}>
+      <GestureDetector gesture={flingRight}>
         <View style={styles.page}>
           <StatusBar
             barStyle={theme.statusBarStyle}
             backgroundColor={theme.background}
           />
           <View style={styles.header}>
-            <AccessibleButton
-              onPress={handleGoHome}
-              accessibilityText="Voltar para a tela inicial"
-            >
+            <TouchableOpacity onPress={handleGoBack} accessibilityLabel="Voltar">
               <MaterialCommunityIcons
                 name="arrow-left"
                 size={28}
-                color={styles.headerTitle.color}
+                color={theme.text}
               />
-            </AccessibleButton>
+            </TouchableOpacity>
             <AccessibleHeader level={1} style={styles.headerTitle}>
               Meu Progresso
             </AccessibleHeader>
             <View style={styles.headerIconPlaceholder} />
           </View>
-          <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-          >
+          <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.text} />
           </View>
         </View>
@@ -173,26 +183,20 @@ export default function ProgressScreen() {
   }
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <AccessibleView
-        style={styles.page}
-        accessibilityText="Tela de Meu Progresso. Deslize para a direita para voltar para a tela inicial."
-      >
+    <GestureDetector gesture={flingRight}>
+      <View style={styles.page}>
         <StatusBar
           barStyle={theme.statusBarStyle}
           backgroundColor={theme.background}
         />
         <View style={styles.header}>
-          <AccessibleButton
-            onPress={handleGoHome}
-            accessibilityText="Voltar para a tela inicial"
-          >
+          <TouchableOpacity onPress={handleGoBack} accessibilityLabel="Voltar">
             <MaterialCommunityIcons
               name="arrow-left"
               size={28}
-              color={styles.headerTitle.color}
+              color={theme.text}
             />
-          </AccessibleButton>
+          </TouchableOpacity>
           <AccessibleHeader level={1} style={styles.headerTitle}>
             Meu Progresso
           </AccessibleHeader>
@@ -205,55 +209,53 @@ export default function ProgressScreen() {
           >
             <Text style={styles.rocketEmoji}>🚀</Text>
           </AccessibleView>
-          <View style={styles.metricsRow}>
-            <AccessibleView
-              accessibilityText={`Precisão: ${(
-                userProgress.accuracy * 100
-              ).toFixed(0)} por cento.`}
-            >
-              <View style={styles.metricCard}>
-                <MaterialCommunityIcons
-                  name="bullseye-arrow"
-                  size={22}
-                  color={theme.cardText}
-                />
-                <Text style={styles.metricValue}>
-                  {(userProgress.accuracy * 100).toFixed(0)}%
-                </Text>
-                <Text style={styles.metricLabel}>Precisão</Text>
-              </View>
-            </AccessibleView>
-            <AccessibleView
-              accessibilityText={`Acertos: ${userProgress.correct}.`}
-            >
-              <View style={styles.metricCard}>
-                <MaterialCommunityIcons
-                  name="check-circle-outline"
-                  size={22}
-                  color={theme.cardText}
-                />
-                <Text style={styles.metricValue}>{userProgress.correct}</Text>
-                <Text style={styles.metricLabel}>Acertos</Text>
-              </View>
-            </AccessibleView>
-            <AccessibleView
-              accessibilityText={`Tempo total: ${formatDuration(
-                userProgress.durationSec
-              )}.`}
-            >
-              <View style={styles.metricCard}>
-                <MaterialCommunityIcons
-                  name="clock-time-three-outline"
-                  size={22}
-                  color={theme.cardText}
-                />
-                <Text style={styles.metricValue}>
-                  {formatDuration(userProgress.durationSec)}
-                </Text>
-                <Text style={styles.metricLabel}>Tempo</Text>
-              </View>
-            </AccessibleView>
+          
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricCard}>
+              <MaterialCommunityIcons
+                name="bullseye-arrow"
+                size={28}
+                color={theme.cardText}
+              />
+              <Text style={styles.metricValue}>
+                {(userProgress.accuracy * 100).toFixed(0)}%
+              </Text>
+              <Text style={styles.metricLabel}>Precisão</Text>
+            </View>
+
+            <View style={styles.metricCard}>
+              <MaterialCommunityIcons
+                name="check-circle-outline"
+                size={28}
+                color={theme.cardText}
+              />
+              <Text style={styles.metricValue}>{userProgress.correct}</Text>
+              <Text style={styles.metricLabel}>Acertos</Text>
+            </View>
+
+            <View style={styles.metricCard}>
+              <MaterialCommunityIcons
+                name="close-circle-outline"
+                size={28}
+                color={theme.cardText}
+              />
+              <Text style={styles.metricValue}>{userProgress.wrong}</Text>
+              <Text style={styles.metricLabel}>Erros</Text>
+            </View>
+
+            <View style={styles.metricCard}>
+              <MaterialCommunityIcons
+                name="clock-time-three-outline"
+                size={28}
+                color={theme.cardText}
+              />
+              <Text style={styles.metricValue}>
+                {formatDuration(userProgress.durationSec)}
+              </Text>
+              <Text style={styles.metricLabel}>Tempo</Text>
+            </View>
           </View>
+
           <AccessibleView accessibilityText="Meu progresso. Acompanhe seu desenvolvimento no ASAC.">
             <View style={styles.progressSummaryCard}>
               <View style={styles.progressTextContent}>
@@ -268,12 +270,13 @@ export default function ProgressScreen() {
               />
             </View>
           </AccessibleView>
+          
           <AccessibleHeader level={2} style={styles.modulosTitle}>
-            Módulos
+            Módulos Concluídos
           </AccessibleHeader>
           <View style={styles.modulosRow}>{renderModuleBlocks()}</View>
         </View>
-      </AccessibleView>
+      </View>
     </GestureDetector>
   );
 }
@@ -288,6 +291,11 @@ const createStyles = (
 ) =>
   StyleSheet.create({
     page: { flex: 1, backgroundColor: theme.background },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -309,50 +317,49 @@ const createStyles = (
     mainContent: {
       flex: 1,
       paddingHorizontal: 20,
-      justifyContent: "flex-start",
-      paddingTop: 40,
+      paddingTop: 20,
     },
     centered: { alignItems: "center" },
-    rocketEmoji: { fontSize: 60, marginTop: 10, marginBottom: 20 },
-    metricsRow: {
+    rocketEmoji: { fontSize: 60, marginBottom: 20 },
+    metricsGrid: {
       flexDirection: "row",
-      justifyContent: "center",
-      width: "100%",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
       marginBottom: 20,
     },
     metricCard: {
       backgroundColor: theme.card,
       borderRadius: 12,
       paddingVertical: 15,
-      paddingHorizontal: 30,
+      paddingHorizontal: 10,
       alignItems: "center",
       justifyContent: "center",
-      flex: 1,
-      marginHorizontal: 5,
+      width: "48%",
+      marginBottom: 10,
     },
     metricValue: {
       color: theme.cardText,
-      fontSize: 14 * fontMultiplier,
+      fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
-      marginTop: 6,
-      lineHeight: 14 * fontMultiplier * lineHeight,
+      marginTop: 8,
+      lineHeight: 18 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     metricLabel: {
       color: theme.cardText,
-      fontSize: 10 * fontMultiplier,
+      fontSize: 12 * fontMultiplier,
       marginTop: 4,
       textAlign: "center",
       fontWeight: isBold ? "bold" : "normal",
-      lineHeight: 10 * fontMultiplier * lineHeight,
+      lineHeight: 12 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     progressSummaryCard: {
       backgroundColor: theme.card,
       borderRadius: 12,
-      padding: 12,
+      padding: 15,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -364,7 +371,7 @@ const createStyles = (
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       color: theme.cardText,
-      marginBottom: 2,
+      marginBottom: 4,
       lineHeight: 18 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -384,13 +391,12 @@ const createStyles = (
       marginLeft: 10,
     },
     modulosTitle: {
-      fontSize: 15 * fontMultiplier,
+      fontSize: 16 * fontMultiplier,
       fontWeight: "bold",
       color: theme.text,
-      marginBottom: 10,
+      marginBottom: 15,
       textAlign: "center",
-      marginTop: 20,
-      lineHeight: 15 * fontMultiplier * lineHeight,
+      lineHeight: 16 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
@@ -398,26 +404,30 @@ const createStyles = (
       flexDirection: "row",
       justifyContent: "center",
       width: "100%",
-      marginTop: 10,
     },
     moduloBlock: {
-      width: 45,
-      height: 45,
-      borderRadius: 10,
+      width: 70,
+      height: 70,
+      borderRadius: 12,
       backgroundColor: theme.button,
       justifyContent: "center",
       alignItems: "center",
-      marginHorizontal: 5,
-      opacity: 0.5,
+      marginHorizontal: 8,
+      opacity: 0.4,
+      borderWidth: 2,
+      borderColor: theme.buttonText,
     },
     moduloBlockCompleted: {
       opacity: 1,
+      backgroundColor: "#4CD964",
+      borderColor: "#2E7D32",
     },
     moduloBlockText: {
       color: theme.buttonText,
-      fontSize: 22 * fontMultiplier,
+      fontSize: 16 * fontMultiplier,
       fontWeight: "bold",
-      lineHeight: 22 * fontMultiplier * lineHeight,
+      marginTop: 4,
+      lineHeight: 16 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },

@@ -197,20 +197,40 @@ function createLocalProgress(userId: string, moduleId: string | number, moduleNu
 
 /* --------------------- CREATE ACHIEVEMENT --------------------- */
 export async function createAchievement(userId: string, title: string) {
+  console.log(`🏅 Criando conquista: "${title}" para usuário ${userId}`);
+  
   const MUT = `mutation CreateAchievement($input: CreateAchievementInput!) {
-    createAchievement(input: $input) { id title createdAt }
+    createAchievement(input: $input) { id title createdAt userId moduleNumber }
   }`;
 
-  const input = { userId, title };
+  // Extrair número do módulo do título se possível
+  const moduleMatch = title.match(/módulo\s+(\d+)/i);
+  const moduleNumber = moduleMatch ? parseInt(moduleMatch[1]) : 1;
+
+  const input = { 
+    userId, 
+    title,
+    moduleNumber,
+    description: title
+  };
+
+  console.log(`📝 Input da conquista:`, input);
 
   const data = await graphqlRequest<any>(MUT, { input }, "CreateAchievement");
-  return (
-    data?.createAchievement ?? {
+  
+  if (data?.createAchievement) {
+    console.log(`✅ Conquista criada com sucesso:`, data.createAchievement);
+    return data.createAchievement;
+  } else {
+    console.warn(`⚠️ Falha ao criar conquista no DB, usando fallback local`);
+    return {
       id: `temp-${Date.now()}`,
       title,
+      userId,
+      moduleNumber,
       createdAt: new Date().toISOString(),
-    }
-  );
+    };
+  }
 }
 
 /* --------------------- PROGRESSO DE MÓDULOS --------------------- */
@@ -321,6 +341,8 @@ export async function finishModule(
   achievementTitle: string,
   coinsEarned: number = 150
 ) {
+  console.log(`🎯 Finalizando módulo ${moduleNumber} para usuário ${userId}`);
+  
   await updateModuleProgressRaw({
     id: progressId,
     completed: true,
@@ -328,7 +350,10 @@ export async function finishModule(
   });
 
   const user = await getUserById(userId);
-  if (!user) return null;
+  if (!user) {
+    console.warn("⚠️ Usuário não encontrado ao finalizar módulo");
+    return null;
+  }
 
   const newPoints = (user.points || 0) + 12250;
   const newCoins = (user.coins || 0) + coinsEarned;
@@ -340,19 +365,25 @@ export async function finishModule(
   // Adiciona o módulo se ainda não estiver na lista
   if (!modulesCompleted.includes(moduleNumber)) {
     modulesCompleted.push(moduleNumber);
+    console.log(`✅ Módulo ${moduleNumber} adicionado à lista de concluídos`);
   }
 
   // ✅ Atualizar tudo de uma vez
-  await updateUserRaw({ 
+  const updateResult = await updateUserRaw({ 
     id: userId, 
     points: newPoints,
     coins: newCoins,
     modulesCompleted: modulesCompleted
   });
 
-  const achievement = await createAchievement(userId, achievementTitle);
+  console.log(`💰 Pontos atualizados: ${newPoints}, Moedas: ${newCoins}`);
+  console.log(`📚 Módulos concluídos: ${modulesCompleted.join(", ")}`);
 
-  return { newPoints, newCoins, achievement, modulesCompleted };
+  // ✅ SEMPRE criar a conquista
+  const achievement = await createAchievement(userId, achievementTitle);
+  console.log(`🏆 Conquista criada: ${achievementTitle}`);
+
+  return { newPoints, newCoins, achievement, modulesCompleted, updateResult };
 }
 
 /* --------------------- BLOQUEIO DE MÓDULOS --------------------- */

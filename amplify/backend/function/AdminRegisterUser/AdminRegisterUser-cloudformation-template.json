@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "{\"createdOn\":\"Windows\",\"createdBy\":\"Amplify\",\"createdWith\":\"12.10.1\",\"stackType\":\"function-Lambda\",\"metadata\":{}}",
+  "Description": "{\"createdOn\":\"Windows\",\"createdBy\":\"Amplify\",\"createdWith\":\"14.2.0\",\"stackType\":\"function-Lambda\",\"metadata\":{\"whyContinueWithGen1\":\"\"}}",
   "Parameters": {
     "CloudWatchRule": {
       "Type": "String",
@@ -20,10 +20,6 @@
       "Type": "String",
       "Default": "authasac2f4153aaUserPoolId"
     },
-    "storages3112eaa39BucketName": {
-      "Type": "String",
-      "Default": "storages3112eaa39BucketName"
-    },
     "apiasacGraphQLAPIIdOutput": {
       "Type": "String",
       "Default": "apiasacGraphQLAPIIdOutput"
@@ -35,9 +31,6 @@
     "apiasacGraphQLAPIKeyOutput": {
       "Type": "String",
       "Default": "apiasacGraphQLAPIKeyOutput"
-    },
-    "userPoolId": {
-      "Type": "String"
     }
   },
   "Conditions": {
@@ -96,202 +89,14 @@
             "AUTH_ASAC2F4153AA_USERPOOLID": {
               "Ref": "authasac2f4153aaUserPoolId"
             },
-            "STORAGE_S3112EAA39_BUCKETNAME": {
-              "Ref": "storages3112eaa39BucketName"
-            },
-            "API_ASAC_USERTABLE_NAME": {
-              "Fn::ImportValue": {
-                "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:UserTable:Name"
-              }
-            },
-            "API_ASAC_USERTABLE_ARN": {
-              "Fn::Join": [
-                "",
-                [
-                  "arn:aws:dynamodb:",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  ":",
-                  {
-                    "Ref": "AWS::AccountId"
-                  },
-                  ":table/",
-                  {
-                    "Fn::ImportValue": {
-                      "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:UserTable:Name"
-                    }
-                  }
-                ]
-              ]
-            },
             "API_ASAC_GRAPHQLAPIIDOUTPUT": {
               "Ref": "apiasacGraphQLAPIIdOutput"
-            },
-            "API_ASAC_ACHIEVEMENTTABLE_NAME": {
-              "Fn::ImportValue": {
-                "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:AchievementTable:Name"
-              }
-            },
-            "API_ASAC_ACHIEVEMENTTABLE_ARN": {
-              "Fn::Join": [
-                "",
-                [
-                  "arn:aws:dynamodb:",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  ":",
-                  {
-                    "Ref": "AWS::AccountId"
-                  },
-                  ":table/",
-                  {
-                    "Fn::ImportValue": {
-                      "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:AchievementTable:Name"
-                    }
-                  }
-                ]
-              ]
-            },
-            "API_ASAC_PROGRESSTABLE_NAME": {
-              "Fn::ImportValue": {
-                "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ProgressTable:Name"
-              }
-            },
-            "API_ASAC_PROGRESSTABLE_ARN": {
-              "Fn::Join": [
-                "",
-                [
-                  "arn:aws:dynamodb:",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  ":",
-                  {
-                    "Ref": "AWS::AccountId"
-                  },
-                  ":table/",
-                  {
-                    "Fn::ImportValue": {
-                      "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ProgressTable:Name"
-                    }
-                  }
-                ]
-              ]
-            },
-            "API_ASAC_MODULETABLE_NAME": {
-              "Fn::ImportValue": {
-                "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ModuleTable:Name"
-              }
-            },
-            "API_ASAC_MODULETABLE_ARN": {
-              "Fn::Join": [
-                "",
-                [
-                  "arn:aws:dynamodb:",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  ":",
-                  {
-                    "Ref": "AWS::AccountId"
-                  },
-                  ":table/",
-                  {
-                    "Fn::ImportValue": {
-                      "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ModuleTable:Name"
-                    }
-                  }
-                ]
-              ]
-            },
-            "API_ASAC_LESSONTABLE_NAME": {
-              "Fn::ImportValue": {
-                "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:LessonTable:Name"
-              }
-            },
-            "API_ASAC_LESSONTABLE_ARN": {
-              "Fn::Join": [
-                "",
-                [
-                  "arn:aws:dynamodb:",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  ":",
-                  {
-                    "Ref": "AWS::AccountId"
-                  },
-                  ":table/",
-                  {
-                    "Fn::ImportValue": {
-                      "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:LessonTable:Name"
-                    }
-                  }
-                ]
-              ]
-            },
-            "API_ASAC_QUESTIONTABLE_NAME": {
-              "Fn::ImportValue": {
-                "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:QuestionTable:Name"
-              }
-            },
-            "API_ASAC_QUESTIONTABLE_ARN": {
-              "Fn::Join": [
-                "",
-                [
-                  "arn:aws:dynamodb:",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  ":",
-                  {
-                    "Ref": "AWS::AccountId"
-                  },
-                  ":table/",
-                  {
-                    "Fn::ImportValue": {
-                      "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:QuestionTable:Name"
-                    }
-                  }
-                ]
-              ]
-            },
-            "API_ASAC_BRAILLESYMBOLTABLE_NAME": {
-              "Fn::ImportValue": {
-                "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:BrailleSymbolTable:Name"
-              }
-            },
-            "API_ASAC_BRAILLESYMBOLTABLE_ARN": {
-              "Fn::Join": [
-                "",
-                [
-                  "arn:aws:dynamodb:",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  ":",
-                  {
-                    "Ref": "AWS::AccountId"
-                  },
-                  ":table/",
-                  {
-                    "Fn::ImportValue": {
-                      "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:BrailleSymbolTable:Name"
-                    }
-                  }
-                ]
-              ]
             },
             "API_ASAC_GRAPHQLAPIENDPOINTOUTPUT": {
               "Ref": "apiasacGraphQLAPIEndpointOutput"
             },
             "API_ASAC_GRAPHQLAPIKEYOUTPUT": {
               "Ref": "apiasacGraphQLAPIKeyOutput"
-            },
-            "USER_POOL_ID": {
-              "Ref": "userPoolId"
             }
           }
         },
@@ -301,7 +106,7 @@
             "Arn"
           ]
         },
-        "Runtime": "nodejs18.x",
+        "Runtime": "nodejs22.x",
         "Layers": [],
         "Timeout": 25
       }
@@ -312,12 +117,12 @@
         "RoleName": {
           "Fn::If": [
             "ShouldNotCreateEnvResources",
-            "asacLambdaRolee082bf67",
+            "asacLambdaRoleea44d856",
             {
               "Fn::Join": [
                 "",
                 [
-                  "asacLambdaRolee082bf67",
+                  "asacLambdaRoleea44d856",
                   "-",
                   {
                     "Ref": "env"
@@ -476,17 +281,7 @@
                 "cognito-idp:UpdateGroup",
                 "cognito-idp:AdminUpdateAuthEventFeedback",
                 "cognito-idp:UpdateDeviceStatus",
-                "cognito-idp:UpdateUserPool",
-                "cognito-idp:DeleteUserPoolDomain",
-                "cognito-idp:DeleteResourceServer",
-                "cognito-idp:DeleteGroup",
-                "cognito-idp:AdminDeleteUserAttributes",
-                "cognito-idp:DeleteUserPoolClient",
-                "cognito-idp:DeleteUserAttributes",
-                "cognito-idp:DeleteUserPool",
-                "cognito-idp:AdminDeleteUser",
-                "cognito-idp:DeleteIdentityProvider",
-                "cognito-idp:DeleteUser"
+                "cognito-idp:UpdateUserPool"
               ],
               "Resource": [
                 {
@@ -505,507 +300,6 @@
                       {
                         "Ref": "authasac2f4153aaUserPoolId"
                       }
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": "s3:ListBucket",
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:s3:::",
-                      {
-                        "Ref": "storages3112eaa39BucketName"
-                      }
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "s3:PutObject",
-                "s3:GetObject",
-                "s3:DeleteObject"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:s3:::",
-                      {
-                        "Ref": "storages3112eaa39BucketName"
-                      },
-                      "/*"
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:Put*",
-                "dynamodb:Create*",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PartiQLInsert",
-                "dynamodb:Get*",
-                "dynamodb:BatchGetItem",
-                "dynamodb:List*",
-                "dynamodb:Describe*",
-                "dynamodb:Scan",
-                "dynamodb:Query",
-                "dynamodb:PartiQLSelect",
-                "dynamodb:Update*",
-                "dynamodb:RestoreTable*",
-                "dynamodb:PartiQLUpdate",
-                "dynamodb:Delete*",
-                "dynamodb:PartiQLDelete"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:UserTable:Name"
-                        }
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:UserTable:Name"
-                        }
-                      },
-                      "/index/*"
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:Put*",
-                "dynamodb:Create*",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PartiQLInsert",
-                "dynamodb:Get*",
-                "dynamodb:BatchGetItem",
-                "dynamodb:List*",
-                "dynamodb:Describe*",
-                "dynamodb:Scan",
-                "dynamodb:Query",
-                "dynamodb:PartiQLSelect",
-                "dynamodb:Update*",
-                "dynamodb:RestoreTable*",
-                "dynamodb:PartiQLUpdate",
-                "dynamodb:Delete*",
-                "dynamodb:PartiQLDelete"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:AchievementTable:Name"
-                        }
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:AchievementTable:Name"
-                        }
-                      },
-                      "/index/*"
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:Put*",
-                "dynamodb:Create*",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PartiQLInsert",
-                "dynamodb:Get*",
-                "dynamodb:BatchGetItem",
-                "dynamodb:List*",
-                "dynamodb:Describe*",
-                "dynamodb:Scan",
-                "dynamodb:Query",
-                "dynamodb:PartiQLSelect",
-                "dynamodb:Update*",
-                "dynamodb:RestoreTable*",
-                "dynamodb:PartiQLUpdate",
-                "dynamodb:Delete*",
-                "dynamodb:PartiQLDelete"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ProgressTable:Name"
-                        }
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ProgressTable:Name"
-                        }
-                      },
-                      "/index/*"
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:Put*",
-                "dynamodb:Create*",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PartiQLInsert",
-                "dynamodb:Get*",
-                "dynamodb:BatchGetItem",
-                "dynamodb:List*",
-                "dynamodb:Describe*",
-                "dynamodb:Scan",
-                "dynamodb:Query",
-                "dynamodb:PartiQLSelect",
-                "dynamodb:Update*",
-                "dynamodb:RestoreTable*",
-                "dynamodb:PartiQLUpdate",
-                "dynamodb:Delete*",
-                "dynamodb:PartiQLDelete"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ModuleTable:Name"
-                        }
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:ModuleTable:Name"
-                        }
-                      },
-                      "/index/*"
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:Put*",
-                "dynamodb:Create*",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PartiQLInsert",
-                "dynamodb:Get*",
-                "dynamodb:BatchGetItem",
-                "dynamodb:List*",
-                "dynamodb:Describe*",
-                "dynamodb:Scan",
-                "dynamodb:Query",
-                "dynamodb:PartiQLSelect",
-                "dynamodb:Update*",
-                "dynamodb:RestoreTable*",
-                "dynamodb:PartiQLUpdate",
-                "dynamodb:Delete*",
-                "dynamodb:PartiQLDelete"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:LessonTable:Name"
-                        }
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:LessonTable:Name"
-                        }
-                      },
-                      "/index/*"
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:Put*",
-                "dynamodb:Create*",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PartiQLInsert",
-                "dynamodb:Get*",
-                "dynamodb:BatchGetItem",
-                "dynamodb:List*",
-                "dynamodb:Describe*",
-                "dynamodb:Scan",
-                "dynamodb:Query",
-                "dynamodb:PartiQLSelect",
-                "dynamodb:Update*",
-                "dynamodb:RestoreTable*",
-                "dynamodb:PartiQLUpdate",
-                "dynamodb:Delete*",
-                "dynamodb:PartiQLDelete"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:QuestionTable:Name"
-                        }
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:QuestionTable:Name"
-                        }
-                      },
-                      "/index/*"
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:Put*",
-                "dynamodb:Create*",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PartiQLInsert",
-                "dynamodb:Get*",
-                "dynamodb:BatchGetItem",
-                "dynamodb:List*",
-                "dynamodb:Describe*",
-                "dynamodb:Scan",
-                "dynamodb:Query",
-                "dynamodb:PartiQLSelect",
-                "dynamodb:Update*",
-                "dynamodb:RestoreTable*",
-                "dynamodb:PartiQLUpdate",
-                "dynamodb:Delete*",
-                "dynamodb:PartiQLDelete"
-              ],
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:BrailleSymbolTable:Name"
-                        }
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":table/",
-                      {
-                        "Fn::ImportValue": {
-                          "Fn::Sub": "${apiasacGraphQLAPIIdOutput}:GetAtt:BrailleSymbolTable:Name"
-                        }
-                      },
-                      "/index/*"
                     ]
                   ]
                 }
@@ -1056,28 +350,31 @@
                       "/types/Mutation/*"
                     ]
                   ]
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:appsync:",
-                      {
-                        "Ref": "AWS::Region"
-                      },
-                      ":",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":apis/",
-                      {
-                        "Ref": "apiasacGraphQLAPIIdOutput"
-                      },
-                      "/types/Subscription/*"
-                    ]
-                  ]
                 }
               ]
+            }
+          ]
+        }
+      }
+    },
+    "LambdaInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "LambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "appsync.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:aws:appsync:${AWS::Region}:${AWS::AccountId}:apis/${apiId}/*",
+            {
+              "apiId": {
+                "Ref": "apiasacGraphQLAPIIdOutput"
+              }
             }
           ]
         }

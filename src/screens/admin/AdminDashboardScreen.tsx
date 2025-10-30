@@ -24,7 +24,8 @@ type User = {
   name: string;
   coins?: number | null;
   points?: number | null;
-  modulesCompleted?: string | null;
+  modulesCompleted?: (number | null)[] | null;
+  currentModule?: number | null;
   avatar?: ImageSourcePropType;
 };
 type StatCardProps = { icon: IconName; value: string; label: string };
@@ -37,39 +38,44 @@ const StatCard = ({ icon, value, label }: StatCardProps) => (
     <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
-const UserListItem = ({ item, onPress }: UserListItemProps) => (
-  <TouchableOpacity style={styles.userItem} onPress={onPress}>
-    <Image
-      source={require("../../assets/images/avatar1.png")}
-      style={styles.userAvatar}
-    />
-    <View style={styles.userInfo}>
-      <Text style={styles.userName}>{item.name}</Text>
-      <View style={styles.userStats}>
-        <MaterialCommunityIcons name="hand-coin" color="#FFC700" size={14} />
-        <Text style={styles.userStatText}>{item.coins ?? 0}</Text>
-        <MaterialCommunityIcons
-          name="trophy-variant"
-          color="#FFC700"
-          size={14}
-          style={{ marginLeft: 8 }}
-        />
-        <Text style={styles.userStatText}>
-          {(item.points ?? 0).toLocaleString("pt-BR")}
-        </Text>
-        <MaterialCommunityIcons
-          name="book-open-variant"
-          color="#FFC700"
-          size={14}
-          style={{ marginLeft: 8 }}
-        />
-        <Text style={styles.userStatText}>
-          {item.modulesCompleted ?? "0/3"}
-        </Text>
+
+const UserListItem = ({ item, onPress }: UserListItemProps) => {
+  const modulesCount = Array.isArray(item.modulesCompleted) 
+    ? item.modulesCompleted.filter(m => m !== null).length 
+    : 0;
+  
+  return (
+    <TouchableOpacity style={styles.userItem} onPress={onPress}>
+      <Image
+        source={require("../../assets/images/avatar1.png")}
+        style={styles.userAvatar}
+      />
+      <View style={styles.userInfo}>
+        <Text style={styles.userName}>{item.name}</Text>
+        <View style={styles.userStats}>
+          <MaterialCommunityIcons name="hand-coin" color="#FFC700" size={14} />
+          <Text style={styles.userStatText}>{item.coins ?? 0}</Text>
+          <MaterialCommunityIcons
+            name="trophy-variant"
+            color="#FFC700"
+            size={14}
+            style={{ marginLeft: 8 }}
+          />
+          <Text style={styles.userStatText}>
+            {(item.points ?? 0).toLocaleString("pt-BR")}
+          </Text>
+          <MaterialCommunityIcons
+            name="book-open-variant"
+            color="#FFC700"
+            size={14}
+            style={{ marginLeft: 8 }}
+          />
+          <Text style={styles.userStatText}>{modulesCount}/3</Text>
+        </View>
       </View>
-    </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 
 export default function AdminDashboardScreen({
   navigation,
@@ -77,16 +83,49 @@ export default function AdminDashboardScreen({
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    averageProgress: 0,
+  });
+
+  const calculateStats = (userList: User[]) => {
+    const totalUsers = userList.length;
+    
+    // Usuários ativos = usuários com pelo menos 1 módulo iniciado
+    const activeUsers = userList.filter(
+      (user) => (user.currentModule ?? 0) > 0
+    ).length;
+    
+    // Progresso médio = média de módulos completados
+    const totalModulesCompleted = userList.reduce((sum, user) => {
+      const modules = Array.isArray(user.modulesCompleted)
+        ? user.modulesCompleted.filter(m => m !== null).length
+        : 0;
+      return sum + modules;
+    }, 0);
+    
+    const averageProgress = totalUsers > 0 
+      ? Math.round((totalModulesCompleted / (totalUsers * 3)) * 100)
+      : 0;
+
+    setStats({
+      totalUsers,
+      activeUsers,
+      averageProgress,
+    });
+  };
 
   const fetchUsers = async () => {
     if (!loading) setLoading(true);
     try {
-      const client = generateClient(); // Criado aqui dentro
+      const client = generateClient();
       const result = await client.graphql({ query: listUsers });
       const validUsers = result.data.listUsers.items.filter(
         (user) => user
       ) as User[];
       setUsers(validUsers);
+      calculateStats(validUsers);
     } catch (e) {
       console.log("Erro ao buscar usuários", e);
     } finally {
@@ -133,11 +172,19 @@ export default function AdminDashboardScreen({
       <View style={styles.statsContainer}>
         <StatCard
           icon="account-group"
-          value={users.length.toString()}
-          label="Usuários"
+          value={stats.totalUsers.toString()}
+          label="Assistidos"
         />
-        <StatCard icon="trophy-award" value="2" label="Mestres" />
-        <StatCard icon="chart-donut" value="72%" label="Progresso Médio" />
+        <StatCard 
+          icon="account-check" 
+          value={stats.activeUsers.toString()} 
+          label="Ativos" 
+        />
+        <StatCard 
+          icon="chart-donut" 
+          value={`${stats.averageProgress}%`} 
+          label="Progresso Médio" 
+        />
       </View>
       <View style={styles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={24} color="#888" />

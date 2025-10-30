@@ -33,11 +33,13 @@ type User
 # === Conquistas ===
 type Achievement
   @model
-  @auth(rules: [
-    { allow: private, operations: [read] }
-    { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
-    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
-  ]) {
+  @auth(
+    rules: [
+      { allow: private, operations: [read] }
+      { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   title: String!
   description: String
@@ -49,11 +51,13 @@ type Achievement
 # === Progresso do usuário ===
 type Progress
   @model
-  @auth(rules: [
-    { allow: private, operations: [read] }
-    { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
-    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
-  ]) {
+  @auth(
+    rules: [
+      { allow: private, operations: [read] }
+      { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
@@ -70,10 +74,12 @@ type Progress
 # === Módulo ===
 type Module
   @model
-  @auth(rules: [
-    { allow: private, operations: [read] }
-    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
-  ]) {
+  @auth(
+    rules: [
+      { allow: private, operations: [read] }
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   title: String!
   description: String!
@@ -86,10 +92,12 @@ type Module
 # === Lições ===
 type Lesson
   @model
-  @auth(rules: [
-    { allow: private, operations: [read] }
-    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
-  ]) {
+  @auth(
+    rules: [
+      { allow: private, operations: [read] }
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   title: String!
   content: String!
@@ -102,10 +110,12 @@ type Lesson
 # === Questões ===
 type Question
   @model
-  @auth(rules: [
-    { allow: private, operations: [read] }
-    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
-  ]) {
+  @auth(
+    rules: [
+      { allow: private, operations: [read] }
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   questionText: String!
   options: [String!]!
@@ -117,10 +127,12 @@ type Question
 # === Símbolos Braille ===
 type BrailleSymbol
   @model
-  @auth(rules: [
-    { allow: private, operations: [read] }
-    { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
-  ]) {
+  @auth(
+    rules: [
+      { allow: private, operations: [read] }
+      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+    ]
+  ) {
   id: ID!
   letter: String!
   description: String!
@@ -133,3 +145,5 @@ type Mutation {
     @function(name: "AdminRegisterUser-${env}")
     @auth(rules: [{ allow: groups, groups: ["Admins"] }])
 }
+
+ 
