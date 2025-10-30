@@ -1,5 +1,5 @@
 import { fetchAuthSession } from "aws-amplify/auth";
-import awsconfig from "../aws-exports";
+import awsconfig from "../../aws-exports";
 
 export type ErrorDetail = {
   questionId: string;

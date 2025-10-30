@@ -2,8 +2,15 @@
 
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
-import awsmobile from "./src/aws-exports";
-Amplify.configure(awsmobile);
+
+import awsmobile from "./aws-exports"; 
+import amplifyConfig from "./src/config/amplify-config"; 
+
+if (process.env.NODE_ENV === 'production') {
+  Amplify.configure(amplifyConfig);
+} else {
+  Amplify.configure(awsmobile);
+}
 
 import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
@@ -60,8 +67,6 @@ import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
 import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
 import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen";
-
-// ✅ 1. IMPORTE AS NOVAS TELAS COM O CAMINHO CORRETO
 import LearningPathScreen from "./src/screens/session/LearningPathScreen";
 import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
 
@@ -74,8 +79,7 @@ function isColorDark(hexColor: string): boolean {
   const r = parseInt(color.substring(0, 2), 16);
   const g = parseInt(color.substring(2, 4), 16);
   const b = parseInt(color.substring(4, 6), 16);
-  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-  return luminance < 149;
+  return 0.299 * r + 0.587 * g + 0.114 * b < 149;
 }
 
 function AppNavigation() {
@@ -84,12 +88,10 @@ function AppNavigation() {
     useAccessibility();
   const { theme } = useContrast();
   const viewShotRef = useRef<ViewShot>(null);
-
   const navigationRef = useNavigationContainerRef();
   const [currentRouteName, setCurrentRouteName] = useState<
     string | undefined
   >();
-
   const screensWithoutHub = [
     "ConfirmSignUp",
     "ForgotPassword",
@@ -102,12 +104,10 @@ function AppNavigation() {
     "Welcome",
     "Contrast",
   ];
-
   const showAccessibilityHub =
     !user?.isAdmin &&
     currentRouteName &&
     !screensWithoutHub.includes(currentRouteName);
-
   const navigationTheme = {
     ...DefaultTheme,
     colors: {
@@ -116,7 +116,6 @@ function AppNavigation() {
       card: theme.background,
     },
   };
-
   const isThemeDark = isColorDark(theme.background);
 
   useEffect(() => {
@@ -262,8 +261,6 @@ function AppNavigation() {
                     component={SelectedContrastScreen}
                   />
                   <Stack.Screen name="Braille" component={BrailleScreen} />
-
-                  {/* ✅ 2. REGISTRE AS NOVAS ROTAS AQUI */}
                   <Stack.Screen
                     name="LearningPath"
                     component={LearningPathScreen}
@@ -290,7 +287,6 @@ function AppContent() {
     "OpenDyslexic-Regular": require("./assets/fonts/OpenDyslexic-Regular.otf"),
   });
   const { theme } = useContrast();
-
   if (!fontsLoaded) {
     return (
       <View
@@ -300,7 +296,6 @@ function AppContent() {
       </View>
     );
   }
-
   return (
     <GestureHandlerRootView
       style={[styles.fullscreen, { backgroundColor: theme.background }]}

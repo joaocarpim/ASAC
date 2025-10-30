@@ -19,7 +19,11 @@
       "autoIncrement": true,
       "env": {
         "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
-        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}"
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+        "EXPO_PUBLIC_AWS_PROJECT_REGION": "${AWS_PROJECT_REGION}",
+        "EXPO_PUBLIC_COGNITO_USER_POOL_ID": "${COGNITO_USER_POOL_ID}",
+        "EXPO_PUBLIC_APPSYNC_GRAPHQL_ENDPOINT": "${APPSYNC_GRAPHQL_ENDPOINT}",
+        "EXPO_PUBLIC_USER_POOL_WEB_CLIENT_ID": "${USER_POOL_WEB_CLIENT_ID}"
       },
       "android": {
         "buildType": "apk"

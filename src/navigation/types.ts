@@ -23,7 +23,7 @@ export type RootStackParamList = {
   Progress: undefined;
   Braille: undefined;
 
-  // ✅ NOVAS TELAS DA JORNADA
+  // Sessões e Prática
   LearningPath: undefined;
   BraillePractice: {
     title: string;
