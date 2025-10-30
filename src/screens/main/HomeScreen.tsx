@@ -1,3 +1,5 @@
+// src/screens/main/HomeScreen.tsx
+
 import React, { useState, useCallback } from "react";
 import {
   StyleSheet,
@@ -30,8 +32,9 @@ import {
   AccessibleHeader,
   AccessibleButton,
 } from "../../components/AccessibleComponents";
-
 import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
+// ✅ 1. IMPORTE O DICIONÁRIO BRAILLE PARA USAR NO BOTÃO DE PRÁTICA LIVRE
+import { BRAILLE_ALPHABET } from "../../navigation/brailleLetters";
 
 type HomeScreenStyles = ReturnType<typeof createStyles>;
 
@@ -50,19 +53,14 @@ interface ActionButtonProps {
 }
 
 interface ModuleItemProps {
-  module: {
-    id: string;
-    moduleId: number;
-    title: string;
-    description: string;
-  };
+  module: { id: string; moduleId: number; title: string; description: string };
   completed: boolean;
   isLocked: boolean;
   onPress: () => void;
   styles: HomeScreenStyles;
 }
 
-// --- SUBCOMPONENTES ---
+// --- SUBCOMPONENTES (sem alterações) ---
 const StatCard: React.FC<StatCardProps> = ({
   iconName,
   value,
@@ -81,12 +79,11 @@ const StatCard: React.FC<StatCardProps> = ({
         size={iconStyle.fontSize}
         color={iconStyle.color}
       />
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statValue}>{value}</Text>{" "}
       <Text style={styles.statLabel}>{label}</Text>
     </AccessibleView>
   );
 };
-
 const ActionButton: React.FC<ActionButtonProps> = ({
   iconName,
   label,
@@ -106,11 +103,10 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         size={iconStyle.fontSize}
         color={iconStyle.color}
       />
-      <Text style={styles.actionLabel}>{label}</Text>
+      <Text style={styles.actionLabel}>{label}</Text>{" "}
     </AccessibleButton>
   );
 };
-
 const ModuleItem: React.FC<ModuleItemProps> = ({
   module,
   completed,
@@ -120,16 +116,13 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
 }) => {
   const status = completed ? "Concluído" : isLocked ? "Bloqueado" : "Pendente";
   const accessibilityText = `Módulo ${module.moduleId}: ${module.title}, ${module.description}. Status: ${status}. Toque para abrir.`;
-
   let iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"] =
     "book-outline";
   if (module.moduleId === 1) iconName = "alphabet-latin";
   else if (module.moduleId === 2) iconName = "hand-wave-outline";
   else if (module.moduleId === 3) iconName = "star-box-outline";
-
   const iconStyle = styles.moduleIcon as TextStyle;
   const lockIconStyle = styles.lockIcon as TextStyle;
-
   return (
     <AccessibleButton
       accessibilityText={accessibilityText}
@@ -142,12 +135,11 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
           size={iconStyle.fontSize}
           color={iconStyle.color}
         />
-      </View>
+      </View>{" "}
       <View style={styles.moduleTextContainer}>
         <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
         <Text style={styles.moduleSubtitle}>{module.title}</Text>
       </View>
-
       {isLocked ? (
         <MaterialCommunityIcons
           name="lock-outline"
@@ -193,24 +185,21 @@ const HomeScreen: React.FC<
     letterSpacing
   );
 
+  // ... (toda a lógica de fetchData, useFocusEffect, openModule, handleLogout, e verificações de loading permanece exatamente a mesma) ...
   const fetchData = useCallback(async () => {
     if (!user?.userId) {
       setLoadingUser(false);
       setLoadingModules(false);
       return;
     }
-
     setLoadingUser(true);
     setLoadingModules(true);
-
     try {
       let uResult = await getUserById(user.userId);
-
       if (!uResult && user.email && user.name) {
         console.log("⚠️ Usuário não encontrado no DB, criando...");
         uResult = await ensureUserInDB(user.userId, user.name, user.email);
       }
-
       setDbUser(uResult);
     } catch (error) {
       console.error("Erro ao buscar usuário:", error);
@@ -221,7 +210,6 @@ const HomeScreen: React.FC<
       setLoadingModules(false);
     }
   }, [user?.userId, user?.email, user?.name]);
-
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -238,7 +226,6 @@ const HomeScreen: React.FC<
       };
     }, [fetchData])
   );
-
   const openModule = async (moduleId: number) => {
     if (!user?.userId || moduleId === 0) return;
     const allowed = await canStartModule(user.userId, moduleId);
@@ -248,14 +235,12 @@ const HomeScreen: React.FC<
     }
     navigation.navigate("ModuleContent", { moduleId: String(moduleId) });
   };
-
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair do aplicativo?", [
       { text: "Cancelar", style: "cancel" },
       { text: "Sair", onPress: () => signOut() },
     ]);
   };
-
   if (loadingUser || !user) {
     return (
       <View
@@ -265,22 +250,20 @@ const HomeScreen: React.FC<
       </View>
     );
   }
-
   if (!dbUser && !loadingUser) {
     return (
       <View
         style={[styles.loadingContainer, { backgroundColor: theme.background }]}
       >
         <Text style={{ color: theme.text }}>
-          Erro ao carregar dados do perfil.
+          {" "}
+          Erro ao carregar dados do perfil.{" "}
         </Text>
       </View>
     );
   }
-
   const modulesData = dbUser?.modulesCompleted ?? [];
   let completedModuleNumbers: number[] = [];
-
   if (modulesData) {
     if (typeof modulesData === "string") {
       completedModuleNumbers = modulesData
@@ -299,7 +282,6 @@ const HomeScreen: React.FC<
         .filter((num) => !isNaN(num));
     }
   }
-
   const completedCount = completedModuleNumbers.length;
   const modulesProgressString = `${completedCount}/${DEFAULT_MODULES.length}`;
 
@@ -375,7 +357,6 @@ const HomeScreen: React.FC<
                   color={theme.text}
                 />
               </AccessibleButton>
-
               <AccessibleButton
                 onPress={() => navigation.navigate("Settings")}
                 accessibilityText="Botão: Abrir configurações do aplicativo"
@@ -399,7 +380,6 @@ const HomeScreen: React.FC<
               const isCompleted = completedModuleNumbers.includes(
                 module.moduleId
               );
-
               return (
                 <ModuleItem
                   module={module}
@@ -414,11 +394,18 @@ const HomeScreen: React.FC<
           />
         </View>
 
+        {/* ✅ 2. CONTAINER DE AÇÕES ATUALIZADO COM OS NOVOS BOTÕES */}
         <View style={styles.actionsContainer}>
           <ActionButton
             iconName="podium-gold"
             label="Ranking"
             onPress={() => navigation.navigate("Ranking")}
+            styles={styles}
+          />
+          <ActionButton
+            iconName="road-variant"
+            label="Jornada"
+            onPress={() => navigation.navigate("LearningPath")}
             styles={styles}
           />
           <ActionButton
@@ -439,7 +426,7 @@ const HomeScreen: React.FC<
   );
 };
 
-// --- ESTILOS ---
+// --- ESTILOS (sem alterações, mas o ActionButton para "Conquistas" foi removido como no seu código original) ---
 const BOX_SIZE = 90;
 const createStyles = (
   theme: Theme,
@@ -512,7 +499,6 @@ const createStyles = (
       fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginTop: 2,
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     statLabel: {
@@ -520,7 +506,6 @@ const createStyles = (
       fontSize: 11 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     sectionHeader: {
@@ -535,7 +520,6 @@ const createStyles = (
       fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       color: theme.text,
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     sectionHeaderIcons: { flexDirection: "row", gap: 12 },
@@ -564,14 +548,12 @@ const createStyles = (
       fontSize: 14 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginBottom: 2,
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     moduleSubtitle: {
       color: theme.cardText,
       fontSize: 12 * fontMultiplier,
       opacity: 0.9,
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     moduleStatusIndicator: {
@@ -613,7 +595,6 @@ const createStyles = (
       fontSize: 11 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
   });

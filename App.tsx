@@ -1,3 +1,5 @@
+// App.tsx
+
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
 import awsmobile from "./src/aws-exports";
@@ -51,14 +53,17 @@ import SelectedContrastScreen from "./src/screens/settings/SelectedContrast";
 import ModuleContentScreen from "./src/screens/module/ModuleContentScreen";
 import ModulePreQuizScreen from "./src/screens/module/ModulePreQuizScreen";
 import ModuleQuizScreen from "./src/screens/module/ModuleQuizScreen";
-// import AlphabetScreen from "./src/screens/module/AlphabetScreen"; // <- Importação não mais necessária
 import ModuleResultScreen from "./src/screens/module/ModuleResultScreen";
 import BrailleScreen from "./src/screens/module/BrailleScreen";
 import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
 import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
 import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
-import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen"; // <- A tela correta já está importada
+import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen";
+
+// ✅ 1. IMPORTE AS NOVAS TELAS COM O CAMINHO CORRETO
+import LearningPathScreen from "./src/screens/session/LearningPathScreen";
+import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -244,14 +249,10 @@ function AppNavigation() {
                     name="ModuleQuiz"
                     component={ModuleQuizScreen}
                   />
-
-                  {/* <Stack.Screen name="Alphabet" component={AlphabetScreen} /> // <- LINHA REMOVIDA */}
-                  {/* ✅ LINHA CORRIGIDA: Aponta para o componente correto */}
                   <Stack.Screen
                     name="Alphabet"
                     component={BrailleAlphabetScreen}
                   />
-
                   <Stack.Screen
                     name="ModuleResult"
                     component={ModuleResultScreen}
@@ -261,6 +262,16 @@ function AppNavigation() {
                     component={SelectedContrastScreen}
                   />
                   <Stack.Screen name="Braille" component={BrailleScreen} />
+
+                  {/* ✅ 2. REGISTRE AS NOVAS ROTAS AQUI */}
+                  <Stack.Screen
+                    name="LearningPath"
+                    component={LearningPathScreen}
+                  />
+                  <Stack.Screen
+                    name="BraillePractice"
+                    component={BraillePracticeScreen}
+                  />
                 </Stack.Group>
               )}
             </Stack.Navigator>
