@@ -3,7 +3,8 @@
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
 
-import awsmobile from "./aws-exports"; 
+import awsmobile from "./src/aws-exports";
+
 import amplifyConfig from "./src/config/amplify-config"; 
 
 if (process.env.NODE_ENV === 'production') {

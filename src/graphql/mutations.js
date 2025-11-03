@@ -256,6 +256,7 @@ export const createProgress = /* GraphQL */ `
       wrongAnswers
       timeSpent
       completed
+      errorDetails
       createdAt
       updatedAt
       __typename
@@ -304,6 +305,7 @@ export const updateProgress = /* GraphQL */ `
       wrongAnswers
       timeSpent
       completed
+      errorDetails
       createdAt
       updatedAt
       __typename
@@ -352,6 +354,7 @@ export const deleteProgress = /* GraphQL */ `
       wrongAnswers
       timeSpent
       completed
+      errorDetails
       createdAt
       updatedAt
       __typename

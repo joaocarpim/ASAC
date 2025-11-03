@@ -162,6 +162,7 @@ export const getProgress = /* GraphQL */ `
       wrongAnswers
       timeSpent
       completed
+      errorDetails
       createdAt
       updatedAt
       __typename
@@ -185,6 +186,7 @@ export const listProgresses = /* GraphQL */ `
         wrongAnswers
         timeSpent
         completed
+        errorDetails
         createdAt
         updatedAt
         __typename
@@ -459,6 +461,7 @@ export const progressesByUserId = /* GraphQL */ `
         wrongAnswers
         timeSpent
         completed
+        errorDetails
         createdAt
         updatedAt
         __typename
@@ -493,6 +496,7 @@ export const progressesByModuleId = /* GraphQL */ `
         wrongAnswers
         timeSpent
         completed
+        errorDetails
         createdAt
         updatedAt
         __typename

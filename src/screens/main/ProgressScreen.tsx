@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StatusBar,
   TouchableOpacity,
+  ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -16,9 +17,14 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-import { Gesture, GestureDetector, Directions } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 import { useAuthStore } from "../../store/authStore";
 import { getUserById } from "../../services/progressService";
+import { generateClient } from "aws-amplify/api";
 
 export default function ProgressScreen() {
   const navigation = useNavigation();
@@ -32,15 +38,9 @@ export default function ProgressScreen() {
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  const [userProgress, setUserProgress] = useState({
-    accuracy: 0,
-    correct: 0,
-    wrong: 0,
-    durationSec: 0,
-    finishedModules: 0,
-    totalModules: 3,
-    modulesCompletedList: [] as number[],
-  });
+  const [userData, setUserData] = useState<any>(null);
+  const [modulesCompleted, setModulesCompleted] = useState<number[]>([]);
+  const [progressList, setProgressList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const styles = createStyles(
@@ -52,43 +52,71 @@ export default function ProgressScreen() {
     isDyslexiaFontEnabled
   );
 
-  const fetchProgress = useCallback(async () => {
+  const fetchUserProgress = useCallback(async () => {
     if (!user?.userId) return;
 
     setLoading(true);
     try {
-      const dbUser = await getUserById(user.userId);
-      if (dbUser) {
-        const modulesCompleted = Array.isArray(dbUser.modulesCompleted)
-          ? dbUser.modulesCompleted
-          : [];
+      const uData = await getUserById(user.userId);
+      if (uData) {
+        setUserData(uData);
+        setModulesCompleted(
+          Array.isArray(uData.modulesCompleted) 
+            ? uData.modulesCompleted.map((m: any) => Number(m)) 
+            : []
+        );
+      }
 
-        const totalAnswers =
-          (dbUser.correctAnswers || 0) + (dbUser.wrongAnswers || 0);
-        const accuracy =
-          totalAnswers > 0 ? (dbUser.correctAnswers || 0) / totalAnswers : 0;
+      // BUSCAR DADOS DA TABELA PROGRESS - Query corrigida
+      const client: any = generateClient();
+      const progressQuery = `
+        query ListProgresses($filter: ModelProgressFilterInput) {
+          listProgresses(filter: $filter) {
+            items {
+              id
+              userId
+              moduleNumber
+              correctAnswers
+              wrongAnswers
+              totalQuestions
+              completedAt
+              errorDetails
+            }
+          }
+        }
+      `;
 
-        setUserProgress({
-          accuracy,
-          correct: dbUser.correctAnswers || 0,
-          wrong: dbUser.wrongAnswers || 0,
-          durationSec: dbUser.timeSpent || 0,
-          finishedModules: modulesCompleted.length,
-          totalModules: 3,
-          modulesCompletedList: modulesCompleted,
-        });
+      const result: any = await client.graphql({
+        query: progressQuery,
+        variables: {
+          filter: {
+            userId: { eq: user.userId }
+          }
+        }
+      });
+
+      const progressData = result?.data?.listProgresses;
+
+      console.log("📊 Raw progress data:", progressData);
+
+      if (progressData?.items) {
+        const normalized = progressData.items.map((p: any) => ({
+          ...p,
+          moduleNumber: typeof p.moduleNumber === "string" ? parseInt(p.moduleNumber, 10) : (p.moduleNumber || 0),
+          correctAnswers: Number(p.correctAnswers ?? 0),
+          wrongAnswers: Number(p.wrongAnswers ?? 0),
+          totalQuestions: Number(p.totalQuestions ?? 60),
+        }));
+        
+        console.log("📊 Normalized progress:", normalized);
+        setProgressList(normalized);
+      } else {
+        console.warn("⚠️ Nenhum dado de progresso encontrado");
+        setProgressList([]);
       }
     } catch (error) {
-      console.error("Erro ao buscar progresso:", error);
-      setUserProgress({
-        accuracy: 0,
-        correct: 0,
-        wrong: 0,
-        durationSec: 0,
-        finishedModules: 0,
-        totalModules: 3,
-        modulesCompletedList: [],
-      });
+      console.error("❌ Erro ao buscar progresso:", error);
+      setProgressList([]);
     } finally {
       setLoading(false);
     }
@@ -96,61 +124,100 @@ export default function ProgressScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchProgress();
-    }, [fetchProgress])
+      fetchUserProgress();
+    }, [fetchUserProgress])
   );
 
-  const formatDuration = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+  const handleGoBack = () => navigation.goBack();
 
   const flingRight = Gesture.Fling()
     .direction(Directions.RIGHT)
     .onEnd(handleGoBack);
 
-  const renderModuleBlocks = () => {
-    const blocks = [];
-    for (let i = 1; i <= userProgress.totalModules; i++) {
-      const isCompleted = userProgress.modulesCompletedList.includes(i);
-      blocks.push(
+  const renderModuleCard = (moduleNum: number) => {
+    const progress = progressList.find((p) => p.moduleNumber === moduleNum);
+    
+    console.log(`📊 Renderizando Módulo ${moduleNum}:`, progress);
+    
+    const totalQuestions = progress?.totalQuestions || 60;
+    const correctAnswers = progress?.correctAnswers || 0;
+    const wrongAnswers = progress?.wrongAnswers || 0;
+    const totalAnswered = correctAnswers + wrongAnswers;
+    const accuracy = totalAnswered > 0 ? (correctAnswers / totalAnswered) * 100 : 0;
+
+    console.log(`📊 Módulo ${moduleNum} stats: ${correctAnswers} acertos, ${wrongAnswers} erros, ${accuracy.toFixed(1)}% precisão`);
+
+    return (
+      <View key={moduleNum} style={styles.moduleCard}>
+        <View style={styles.moduleHeader}>
+          <View style={styles.moduleTitleContainer}>
+            <MaterialCommunityIcons
+              name="book-open-variant"
+              size={24}
+              color="#4CAF50"
+            />
+            <Text style={styles.moduleTitle}>Módulo {moduleNum}</Text>
+          </View>
+          <MaterialCommunityIcons
+            name="check-circle"
+            size={24}
+            color="#4CAF50"
+          />
+        </View>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons
+              name="check-circle-outline"
+              size={20}
+              color="#4CAF50"
+            />
+            <Text style={styles.statLabel}>Acertos</Text>
+            <Text style={styles.statValue}>{correctAnswers}</Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons
+              name="close-circle-outline"
+              size={20}
+              color="#F44336"
+            />
+            <Text style={styles.statLabel}>Erros</Text>
+            <Text style={styles.statValue}>{wrongAnswers}</Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons name="percent" size={20} color="#2196F3" />
+            <Text style={styles.statLabel}>Aproveitamento</Text>
+            <Text style={styles.statValue}>{accuracy.toFixed(1)}%</Text>
+          </View>
+        </View>
+
+        {progress?.completedAt && (
+          <Text style={styles.completedDate}>
+            Concluído em: {new Date(progress.completedAt).toLocaleDateString('pt-BR')}
+          </Text>
+        )}
+
         <TouchableOpacity
-          key={i}
-          style={[
-            styles.moduloBlock,
-            isCompleted && styles.moduloBlockCompleted,
-          ]}
-          onPress={() => {
-            if (isCompleted) {
-              // Pode adicionar navegação para detalhes do módulo aqui
-              console.log(`Módulo ${i} concluído`);
-            }
-          }}
-          accessibilityLabel={`Módulo ${i}. ${isCompleted ? 'Concluído' : 'Não concluído'}`}
+          style={styles.detailsButton}
+          onPress={() =>
+            (navigation as any).navigate("IncorrectAnswers", { moduleNumber: moduleNum })
+          }
         >
-          {isCompleted ? (
-            <MaterialCommunityIcons
-              name="check-circle"
-              size={28}
-              color={theme.buttonText}
-            />
-          ) : (
-            <MaterialCommunityIcons
-              name="lock"
-              size={28}
-              color={theme.buttonText}
-            />
-          )}
-          <Text style={styles.moduloBlockText}>{i}</Text>
+          <Text style={styles.detailsButtonText}>Ver Respostas Erradas</Text>
+          <MaterialCommunityIcons
+            name="arrow-right"
+            size={20}
+            color="#2196F3"
+          />
         </TouchableOpacity>
-      );
-    }
-    return blocks;
+      </View>
+    );
   };
 
   if (loading) {
@@ -202,80 +269,42 @@ export default function ProgressScreen() {
           </AccessibleHeader>
           <View style={styles.headerIconPlaceholder} />
         </View>
-        <View style={styles.mainContent}>
-          <AccessibleView
-            style={styles.centered}
-            accessibilityText="Foguete, representando seu progresso"
-          >
-            <Text style={styles.rocketEmoji}>🚀</Text>
+
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <AccessibleView accessibilityText="Troféu de progresso">
+            <Text style={styles.trophyEmoji}>🏆</Text>
           </AccessibleView>
-          
-          <View style={styles.metricsGrid}>
-            <View style={styles.metricCard}>
-              <MaterialCommunityIcons
-                name="bullseye-arrow"
-                size={28}
-                color={theme.cardText}
-              />
-              <Text style={styles.metricValue}>
-                {(userProgress.accuracy * 100).toFixed(0)}%
-              </Text>
-              <Text style={styles.metricLabel}>Precisão</Text>
-            </View>
 
-            <View style={styles.metricCard}>
-              <MaterialCommunityIcons
-                name="check-circle-outline"
-                size={28}
-                color={theme.cardText}
-              />
-              <Text style={styles.metricValue}>{userProgress.correct}</Text>
-              <Text style={styles.metricLabel}>Acertos</Text>
-            </View>
-
-            <View style={styles.metricCard}>
-              <MaterialCommunityIcons
-                name="close-circle-outline"
-                size={28}
-                color={theme.cardText}
-              />
-              <Text style={styles.metricValue}>{userProgress.wrong}</Text>
-              <Text style={styles.metricLabel}>Erros</Text>
-            </View>
-
-            <View style={styles.metricCard}>
-              <MaterialCommunityIcons
-                name="clock-time-three-outline"
-                size={28}
-                color={theme.cardText}
-              />
-              <Text style={styles.metricValue}>
-                {formatDuration(userProgress.durationSec)}
-              </Text>
-              <Text style={styles.metricLabel}>Tempo</Text>
-            </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Resumo Geral</Text>
+            <Text style={styles.summaryText}>
+              Módulos Concluídos: {modulesCompleted.length}
+            </Text>
           </View>
 
-          <AccessibleView accessibilityText="Meu progresso. Acompanhe seu desenvolvimento no ASAC.">
-            <View style={styles.progressSummaryCard}>
-              <View style={styles.progressTextContent}>
-                <Text style={styles.progressSummaryTitle}>Meu progresso</Text>
-                <Text style={styles.progressSummarySubtitle}>
-                  Acompanhe seu desenvolvimento no ASAC
+          <View style={styles.modulesContainer}>
+            <Text style={styles.sectionTitle}>Módulos Concluídos</Text>
+            {modulesCompleted.length > 0 ? (
+              modulesCompleted.map((moduleNum) => renderModuleCard(Number(moduleNum)))
+            ) : (
+              <View style={styles.emptyCard}>
+                <MaterialCommunityIcons
+                  name="emoticon-sad-outline"
+                  size={50}
+                  color={theme.cardText}
+                  style={{ opacity: 0.5 }}
+                />
+                <Text style={styles.emptyTitle}>Nenhum Módulo Concluído</Text>
+                <Text style={styles.emptySubtitle}>
+                  Complete um módulo para ver seu progresso aqui!
                 </Text>
               </View>
-              <MaterialCommunityIcons
-                name="face-recognition"
-                style={styles.mascoteIcon}
-              />
-            </View>
-          </AccessibleView>
-          
-          <AccessibleHeader level={2} style={styles.modulosTitle}>
-            Módulos Concluídos
-          </AccessibleHeader>
-          <View style={styles.modulosRow}>{renderModuleBlocks()}</View>
-        </View>
+            )}
+          </View>
+        </ScrollView>
       </View>
     </GestureDetector>
   );
@@ -302,7 +331,6 @@ const createStyles = (
       alignItems: "center",
       paddingVertical: 15,
       paddingHorizontal: 20,
-      width: "100%",
     },
     headerTitle: {
       color: theme.text,
@@ -310,125 +338,162 @@ const createStyles = (
       fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing: letterSpacing,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     headerIconPlaceholder: { width: 28 },
-    mainContent: {
-      flex: 1,
+    container: { flex: 1 },
+    scrollContent: {
       paddingHorizontal: 20,
-      paddingTop: 20,
+      paddingTop: 10,
+      paddingBottom: 30,
     },
-    centered: { alignItems: "center" },
-    rocketEmoji: { fontSize: 60, marginBottom: 20 },
-    metricsGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "space-between",
+    trophyEmoji: {
+      fontSize: 80,
       marginBottom: 20,
-    },
-    metricCard: {
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      paddingVertical: 15,
-      paddingHorizontal: 10,
-      alignItems: "center",
-      justifyContent: "center",
-      width: "48%",
-      marginBottom: 10,
-    },
-    metricValue: {
-      color: theme.cardText,
-      fontSize: 18 * fontMultiplier,
-      fontWeight: "bold",
-      marginTop: 8,
-      lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing: letterSpacing,
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-    },
-    metricLabel: {
-      color: theme.cardText,
-      fontSize: 12 * fontMultiplier,
-      marginTop: 4,
       textAlign: "center",
-      fontWeight: isBold ? "bold" : "normal",
-      lineHeight: 12 * fontMultiplier * lineHeight,
-      letterSpacing: letterSpacing,
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-    progressSummaryCard: {
+    summaryCard: {
       backgroundColor: theme.card,
-      borderRadius: 12,
-      padding: 15,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      width: "100%",
+      borderRadius: 16,
+      padding: 20,
       marginBottom: 20,
+      alignItems: "center",
     },
-    progressTextContent: { flex: 1 },
-    progressSummaryTitle: {
+    summaryTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       color: theme.cardText,
-      marginBottom: 4,
+      marginBottom: 10,
       lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing: letterSpacing,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-    progressSummarySubtitle: {
-      fontSize: 13 * fontMultiplier,
-      color: theme.cardText,
-      lineHeight: 16 * lineHeight,
-      fontWeight: isBold ? "bold" : "normal",
-      letterSpacing: letterSpacing,
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-    },
-    mascoteIcon: {
-      fontSize: 50,
-      color: theme.cardText,
-      opacity: 0.5,
-      marginLeft: 10,
-    },
-    modulosTitle: {
+    summaryText: {
       fontSize: 16 * fontMultiplier,
+      color: theme.cardText,
+      lineHeight: 16 * fontMultiplier * lineHeight,
+      letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    modulesContainer: { marginTop: 10 },
+    sectionTitle: {
+      fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       color: theme.text,
       marginBottom: 15,
-      textAlign: "center",
-      lineHeight: 16 * fontMultiplier * lineHeight,
-      letterSpacing: letterSpacing,
+      lineHeight: 18 * fontMultiplier * lineHeight,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-    modulosRow: {
+    moduleCard: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 15,
+    },
+    moduleHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    moduleTitleContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    moduleTitle: {
+      fontSize: 18 * fontMultiplier,
+      fontWeight: "bold",
+      color: theme.cardText,
+      marginLeft: 10,
+      lineHeight: 18 * fontMultiplier * lineHeight,
+      letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    statsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginBottom: 15,
+    },
+    statItem: {
+      alignItems: "center",
+    },
+    statDivider: {
+      width: 1,
+      backgroundColor: theme.cardText,
+      opacity: 0.2,
+    },
+    statLabel: {
+      fontSize: 12 * fontMultiplier,
+      color: theme.cardText,
+      marginTop: 5,
+      opacity: 0.7,
+      lineHeight: 12 * fontMultiplier * lineHeight,
+      letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    statValue: {
+      fontSize: 20 * fontMultiplier,
+      fontWeight: "bold",
+      color: theme.cardText,
+      marginTop: 5,
+      lineHeight: 20 * fontMultiplier * lineHeight,
+      letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    completedDate: {
+      fontSize: 12 * fontMultiplier,
+      color: theme.cardText,
+      opacity: 0.6,
+      textAlign: "center",
+      marginBottom: 10,
+      lineHeight: 12 * fontMultiplier * lineHeight,
+      letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    detailsButton: {
       flexDirection: "row",
       justifyContent: "center",
-      width: "100%",
-    },
-    moduloBlock: {
-      width: 70,
-      height: 70,
-      borderRadius: 12,
-      backgroundColor: theme.button,
-      justifyContent: "center",
       alignItems: "center",
-      marginHorizontal: 8,
-      opacity: 0.4,
-      borderWidth: 2,
-      borderColor: theme.buttonText,
+      backgroundColor: theme.background,
+      padding: 12,
+      borderRadius: 8,
     },
-    moduloBlockCompleted: {
-      opacity: 1,
-      backgroundColor: "#4CD964",
-      borderColor: "#2E7D32",
+    detailsButtonText: {
+      fontSize: 14 * fontMultiplier,
+      color: "#2196F3",
+      marginRight: 5,
+      fontWeight: isBold ? "bold" : "600",
+      lineHeight: 14 * fontMultiplier * lineHeight,
+      letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-    moduloBlockText: {
-      color: theme.buttonText,
-      fontSize: 16 * fontMultiplier,
+    emptyCard: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 30,
+      alignItems: "center",
+      marginTop: 20,
+    },
+    emptyTitle: {
+      fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
-      marginTop: 4,
-      lineHeight: 16 * fontMultiplier * lineHeight,
-      letterSpacing: letterSpacing,
+      color: theme.cardText,
+      marginTop: 15,
+      marginBottom: 8,
+      lineHeight: 18 * fontMultiplier * lineHeight,
+      letterSpacing,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    emptySubtitle: {
+      fontSize: 14 * fontMultiplier,
+      color: theme.cardText,
+      textAlign: "center",
+      opacity: 0.8,
+      lineHeight: 20 * lineHeight,
+      fontWeight: isBold ? "bold" : "normal",
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
   });

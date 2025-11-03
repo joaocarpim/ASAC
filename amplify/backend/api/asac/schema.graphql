@@ -69,6 +69,7 @@ type Progress
   wrongAnswers: Int
   timeSpent: Float
   completed: Boolean
+  errorDetails: String  
 }
 
 # === Módulo ===

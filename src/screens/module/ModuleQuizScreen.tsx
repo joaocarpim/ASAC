@@ -59,6 +59,7 @@ export default function ModuleQuizScreen({
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [wrongCount, setWrongCount] = useState(0); // ✅ ADICIONADO
   const [errorDetails, setErrorDetails] = useState<ErrorDetail[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -186,8 +187,10 @@ export default function ModuleQuizScreen({
       }
     } else {
       wrongSound?.replayAsync();
+      setWrongCount((prev) => prev + 1); // ✅ ADICIONADO
       Vibration.vibrate([0, 100, 50, 100]);
       const err: ErrorDetail = {
+        questionNumber: currentQuestionIndex + 1, // ✅ ADICIONADO
         questionId: q.id,
         questionText: q.question,
         userAnswer: q.options?.[selectedAnswer] ?? null,
@@ -232,6 +235,14 @@ export default function ModuleQuizScreen({
         : 0;
       const pointsEarned = 12250;
 
+      // ✅ LOGS PARA DEBUG
+      console.log("🎯 Finalizando módulo:");
+      console.log("  Acertos:", correctCount);
+      console.log("  Erros:", wrongCount);
+      console.log("  Total questões:", questions.length);
+      console.log("  Tempo:", duration);
+      console.log("  Erros detalhados:", errorDetails);
+
       if (user?.userId && activeProgressId) {
         try {
           await finishModule(
@@ -240,10 +251,13 @@ export default function ModuleQuizScreen({
             parseInt(String(moduleId), 10),
             duration,
             `Concluiu o módulo ${moduleId}`,
-            coinsEarned
+            coinsEarned,
+            correctCount, // ✅ ADICIONADO
+            wrongCount // ✅ ADICIONADO
           );
+          console.log("✅ Módulo finalizado com sucesso!");
         } catch (e) {
-          console.warn("Erro finishModule:", e);
+          console.warn("❌ Erro finishModule:", e);
         }
       }
 
@@ -261,6 +275,8 @@ export default function ModuleQuizScreen({
   }, [
     currentQuestionIndex,
     correctCount,
+    wrongCount, // ✅ ADICIONADO
+    errorDetails, // ✅ ADICIONADO
     questions,
     user,
     activeProgressId,
@@ -385,7 +401,6 @@ const getStyles = (
       alignItems: "center",
     },
     loadingText: {
-      // ✅ NOVO ESTILO
       color: theme.text,
       marginTop: 8,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
@@ -396,12 +411,12 @@ const getStyles = (
       color: theme.text,
       fontSize: 18 * fontMultiplier,
       fontWeight: "700",
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     questionCounter: {
       color: theme.text,
       marginTop: 5,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     questionText: {
       fontSize: 17 * fontMultiplier,
@@ -410,7 +425,7 @@ const getStyles = (
       textAlign: "center",
       marginHorizontal: 10,
       marginBottom: 20,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     option: {
       padding: 12,
@@ -426,7 +441,7 @@ const getStyles = (
     optionText: {
       color: theme.text,
       fontSize: 15 * fontMultiplier,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     explanationBox: {
       marginTop: 10,
@@ -436,7 +451,7 @@ const getStyles = (
     },
     explanationText: {
       color: theme.cardText,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     footer: { padding: 15, paddingBottom: 90 },
     button: {
@@ -449,7 +464,7 @@ const getStyles = (
       color: theme.buttonText,
       fontWeight: "bold",
       fontSize: 16,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined, // ✅ ADICIONADO
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     confettiContainer: {
       position: "absolute",

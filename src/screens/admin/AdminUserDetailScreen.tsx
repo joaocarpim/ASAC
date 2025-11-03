@@ -13,6 +13,7 @@ import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useFocusEffect } from "@react-navigation/native";
 import { getUserById } from "../../services/progressService";
+import { generateClient } from "aws-amplify/api";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 type StatGridItemProps = {
@@ -35,6 +36,8 @@ export default function AdminUserDetailScreen({
 }: RootStackScreenProps<"AdminUserDetail">) {
   const { userId, userName } = route.params;
   const [userData, setUserData] = useState<any>(null);
+  const [moduleProgress, setModuleProgress] = useState<any[]>([]);
+  const [selectedModule, setSelectedModule] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = useCallback(async () => {
@@ -42,8 +45,60 @@ export default function AdminUserDetailScreen({
     try {
       const user = await getUserById(userId);
       setUserData(user);
+
+      // Buscar progresso por módulo - Query corrigida
+      const client = generateClient();
+      const progressQuery = `
+        query ListProgresses($filter: ModelProgressFilterInput) {
+          listProgresses(filter: $filter) {
+            items {
+              id
+              moduleNumber
+              accuracy
+              correctAnswers
+              wrongAnswers
+              timeSpent
+              completed
+            }
+          }
+        }
+      `;
+
+      const result: any = await client.graphql({
+        query: progressQuery,
+        variables: { 
+          filter: { 
+            userId: { eq: userId } 
+          } 
+        },
+      });
+
+      const progressList = result?.data?.listProgresses?.items || [];
+      
+      console.log("📊 Admin Detail - Progresso encontrado:", progressList);
+      
+      // Normalizar os dados com conversão adequada
+      const normalized = progressList.map((p: any) => ({
+        ...p,
+        moduleNumber: typeof p.moduleNumber === "string" ? parseInt(p.moduleNumber, 10) : (p.moduleNumber || 0),
+        correctAnswers: Number(p.correctAnswers ?? 0),
+        wrongAnswers: Number(p.wrongAnswers ?? 0),
+        timeSpent: Number(p.timeSpent ?? 0),
+        accuracy: Number(p.accuracy ?? 0),
+      }));
+      
+      console.log("📊 Admin Detail - Progresso normalizado:", normalized);
+      setModuleProgress(normalized);
+
+      // Selecionar o primeiro módulo com dados ou módulo 1
+      if (normalized.length > 0) {
+        setSelectedModule(normalized[0].moduleNumber);
+      } else {
+        setSelectedModule(1);
+      }
     } catch (error) {
-      console.error("Erro ao buscar dados do usuário:", error);
+      console.error("❌ Erro ao buscar dados do usuário:", error);
+      setModuleProgress([]);
     } finally {
       setLoading(false);
     }
@@ -57,7 +112,7 @@ export default function AdminUserDetailScreen({
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.round(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -88,15 +143,36 @@ export default function AdminUserDetailScreen({
   }
 
   const modulesCompleted = Array.isArray(userData.modulesCompleted)
-    ? userData.modulesCompleted.length
-    : 0;
+    ? userData.modulesCompleted
+    : [];
 
-  const totalAnswers =
-    (userData.correctAnswers || 0) + (userData.wrongAnswers || 0);
-  const precision =
-    totalAnswers > 0
-      ? Math.round(((userData.correctAnswers || 0) / totalAnswers) * 100)
+  // Dados do módulo selecionado
+  const selectedModuleData = moduleProgress.find(
+    (m) => m.moduleNumber === selectedModule
+  );
+
+  console.log(`📊 Dados do módulo ${selectedModule}:`, selectedModuleData);
+
+  const moduleCorrect = selectedModuleData?.correctAnswers || 0;
+  const moduleWrong = selectedModuleData?.wrongAnswers || 0;
+  const moduleTime = selectedModuleData?.timeSpent || 0;
+  const moduleTotalAnswers = moduleCorrect + moduleWrong;
+  const modulePrecision =
+    moduleTotalAnswers > 0
+      ? Math.round((moduleCorrect / moduleTotalAnswers) * 100)
       : 0;
+
+  console.log(`📊 Estatísticas Módulo ${selectedModule}: ${moduleCorrect} acertos, ${moduleWrong} erros, ${modulePrecision}% precisão`);
+
+  // Dados gerais do usuário (ACUMULADOS de todos os módulos)
+  const totalCorrect = moduleProgress.reduce((sum, m) => sum + (m.correctAnswers || 0), 0);
+  const totalWrong = moduleProgress.reduce((sum, m) => sum + (m.wrongAnswers || 0), 0);
+  const totalTime = moduleProgress.reduce((sum, m) => sum + (m.timeSpent || 0), 0);
+  const totalAnswers = totalCorrect + totalWrong;
+  const totalPrecision =
+    totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0;
+
+  console.log(`📊 Estatísticas Totais: ${totalCorrect} acertos, ${totalWrong} erros, ${totalPrecision}% precisão`);
 
   return (
     <View style={styles.container}>
@@ -117,58 +193,34 @@ export default function AdminUserDetailScreen({
           </View>
         </View>
 
-        <View style={styles.statsGrid}>
-          <StatGridItem
-            icon="hand-coin"
-            value={(userData.coins || 0).toString()}
-            label="Moedas"
-          />
-          <StatGridItem
-            icon="trophy-variant"
-            value={(userData.points || 0).toLocaleString("pt-BR")}
-            label="Pontos"
-          />
-          <StatGridItem
-            icon="book-open-variant"
-            value={`${modulesCompleted}/3`}
-            label="Módulos"
-          />
-          <StatGridItem
-            icon="target"
-            value={`${precision}%`}
-            label="Precisão"
-          />
-          <StatGridItem
-            icon="check-all"
-            value={(userData.correctAnswers || 0).toString()}
-            label="Acertos"
-          />
-          <StatGridItem
-            icon="clock-time-eight-outline"
-            value={formatTime(userData.timeSpent || 0)}
-            label="Tempo"
-          />
-        </View>
-
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Módulos</Text>
+          <Text style={styles.sectionTitle}>Selecionar Módulo</Text>
           <View style={styles.modulesButtons}>
             {[1, 2, 3].map((moduleNum) => {
-              const isCompleted = Array.isArray(userData.modulesCompleted)
-                ? userData.modulesCompleted.includes(moduleNum)
-                : false;
+              const isCompleted = modulesCompleted.includes(moduleNum);
+              const isSelected = selectedModule === moduleNum;
               return (
                 <TouchableOpacity
                   key={moduleNum}
                   style={[
                     styles.moduleButton,
-                    isCompleted && styles.moduleButtonCompleted,
+                    isSelected && styles.moduleButtonSelected,
                   ]}
+                  onPress={() => setSelectedModule(moduleNum)}
                 >
+                  {isCompleted && (
+                    <View style={styles.completedBadge}>
+                      <MaterialCommunityIcons
+                        name="check-circle"
+                        size={20}
+                        color="#4CD964"
+                      />
+                    </View>
+                  )}
                   <Text
                     style={[
                       styles.moduleButtonText,
-                      isCompleted && styles.moduleButtonTextCompleted,
+                      isSelected && styles.moduleButtonTextSelected,
                     ]}
                   >
                     {moduleNum}
@@ -178,8 +230,74 @@ export default function AdminUserDetailScreen({
             })}
           </View>
         </View>
+
+        <View style={styles.statsGrid}>
+          <StatGridItem
+            icon="target"
+            value={`${modulePrecision}%`}
+            label="Precisão"
+          />
+          <StatGridItem
+            icon="check-all"
+            value={moduleCorrect.toString()}
+            label="Acertos"
+          />
+          <StatGridItem
+            icon="close-circle"
+            value={moduleWrong.toString()}
+            label="Erros"
+          />
+          <StatGridItem
+            icon="clock-time-eight-outline"
+            value={formatTime(moduleTime)}
+            label="Tempo"
+          />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardSectionTitle}>Estatísticas Gerais (Todos os Módulos)</Text>
+          <View style={styles.cardRow}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Total Acertos</Text>
+              <Text style={styles.cardValue}>{totalCorrect}</Text>
+            </View>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Total Erros</Text>
+              <Text style={styles.cardValue}>{totalWrong}</Text>
+            </View>
+          </View>
+          <View style={styles.cardRow}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Tempo Total</Text>
+              <Text style={styles.cardValue}>{formatTime(totalTime)}</Text>
+            </View>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Precisão Total</Text>
+              <Text style={styles.cardValue}>{totalPrecision}%</Text>
+            </View>
+          </View>
+          <View style={styles.cardRow}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Moedas</Text>
+              <Text style={styles.cardValue}>{userData.coins || 0}</Text>
+            </View>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Pontos</Text>
+              <Text style={styles.cardValue}>
+                {(userData.points || 0).toLocaleString("pt-BR")}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.cardRow}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Módulos Concluídos</Text>
+              <Text style={styles.cardValue}>{modulesCompleted.length}/3</Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Detalhes</Text>
+          <Text style={styles.sectionTitle}>Ações</Text>
           <TouchableOpacity
             style={styles.errorButton}
             onPress={() =>
@@ -187,14 +305,12 @@ export default function AdminUserDetailScreen({
             }
           >
             <MaterialCommunityIcons
-              name="close-circle"
+              name="alert-circle"
               size={28}
               color="#FFFFFF"
             />
-            <Text style={styles.statValue}>
-              {userData.wrongAnswers || 0}
-            </Text>
-            <Text style={styles.statLabel}>Erros</Text>
+            <Text style={styles.statValue}>Ver Erros</Text>
+            <Text style={styles.statLabel}>Detalhes</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -211,24 +327,34 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
   },
-  cardRow: { flexDirection: "row", justifyContent: "space-between" },
+  cardRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 15,
+  },
   cardColumn: { flex: 1 },
-  cardLabel: { color: "#CCCCCC", fontSize: 14 },
+  cardLabel: { color: "#CCCCCC", fontSize: 14, marginBottom: 4 },
   cardValue: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
-    marginTop: 4,
+  },
+  cardSectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
   },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
+    marginBottom: 20,
   },
   statItem: {
     backgroundColor: "#191970",
     borderRadius: 12,
-    width: "31%",
+    width: "48%",
     padding: 15,
     alignItems: "center",
     marginBottom: 12,
@@ -247,7 +373,10 @@ const styles = StyleSheet.create({
     color: "#191970",
     marginBottom: 10,
   },
-  modulesButtons: { flexDirection: "row", justifyContent: "space-between" },
+  modulesButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
   moduleButton: {
     backgroundColor: "#CCCCCC",
     width: "31%",
@@ -255,16 +384,33 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    position: "relative",
   },
-  moduleButtonCompleted: {
+  moduleButtonSelected: {
     backgroundColor: "#191970",
+    borderWidth: 3,
+    borderColor: "#FFC700",
   },
-  moduleButtonText: { color: "#666666", fontSize: 24, fontWeight: "bold" },
-  moduleButtonTextCompleted: { color: "#FFFFFF" },
+  moduleButtonText: {
+    color: "#666666",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  moduleButtonTextSelected: {
+    color: "#FFFFFF",
+  },
+  completedBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 15,
+    padding: 2,
+  },
   errorButton: {
     backgroundColor: "#D32F2F",
     borderRadius: 12,
-    width: "31%",
+    width: "100%",
     padding: 15,
     alignItems: "center",
   },

@@ -1,5 +1,5 @@
 // src/screens/module/ModuleResultScreen.tsx
-import React, { useState, useEffect } from "react"; // Adicionado useState e useEffect
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StatusBar,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
@@ -19,7 +20,9 @@ import {
   AccessibleButton,
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
-import { Audio } from "expo-av"; // << [1] IMPORTAÇÃO DO ÁUDIO
+import { Audio } from "expo-av";
+import { useAuthStore } from "../../store/authStore";
+import { finishModule } from "../../services/progressService";
 
 const { width } = Dimensions.get("window");
 
@@ -37,11 +40,14 @@ export default function ModuleResultScreen({
     pointsEarned,
     passed,
   } = route.params;
+  
   const errors = totalQuestions - correctAnswers;
+  const { user } = useAuthStore();
 
-  // >> [2] STATES PARA OS SONS DE RESULTADO
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
   const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const { theme } = useContrast();
   const {
@@ -61,17 +67,17 @@ export default function ModuleResultScreen({
     isDyslexiaFontEnabled
   );
 
-  // >> [3] USEEFFECT PARA CARREGAR E DESCARREGAR OS SONS
+  // Carregar sons
   useEffect(() => {
     async function loadSounds() {
       try {
         const { sound: success } = await Audio.Sound.createAsync(
-          require("../../../assets/som/correct.mp3") // Som para vitória
+          require("../../../assets/som/correct.mp3")
         );
         setSuccessSound(success);
 
         const { sound: fail } = await Audio.Sound.createAsync(
-          require("../../../assets/som/incorrect.mp3") // Som para falha
+          require("../../../assets/som/incorrect.mp3")
         );
         setFailureSound(fail);
       } catch (error) {
@@ -81,16 +87,14 @@ export default function ModuleResultScreen({
 
     loadSounds();
 
-    // Função de limpeza para liberar memória ao sair da tela
     return () => {
       successSound?.unloadAsync();
       failureSound?.unloadAsync();
     };
   }, []);
 
-  // >> [4] USEEFFECT PARA TOCAR O SOM CORRETO QUANDO A TELA CARREGAR
+  // Tocar som
   useEffect(() => {
-    // Toca o som assim que os objetos de som estiverem prontos
     if (successSound && failureSound) {
       if (passed) {
         successSound.replayAsync();
@@ -98,7 +102,63 @@ export default function ModuleResultScreen({
         failureSound.replayAsync();
       }
     }
-  }, [passed, successSound, failureSound]); // Depende do status 'passed' e dos sons carregados
+  }, [passed, successSound, failureSound]);
+
+  // 🎯 SALVAR PROGRESSO AUTOMATICAMENTE
+  useEffect(() => {
+    if (user?.userId && passed && !saved && !saving) {
+      handleSaveProgress();
+    }
+  }, [user?.userId, passed, saved, saving]);
+
+  const handleSaveProgress = async () => {
+    if (!user?.userId || !passed) return;
+
+    setSaving(true);
+    try {
+      console.log("💾 Salvando progresso do módulo...");
+
+      // Extrair número do módulo (ex: "1" de "module-1")
+      const moduleNumber = typeof moduleId === "number" 
+        ? moduleId 
+        : parseInt(String(moduleId).replace(/\D/g, "")) || 1;
+
+      // Títulos das conquistas
+      const achievementTitles = [
+        "🎓 Completou o Módulo 1",
+        "🏆 Completou o Módulo 2",
+        "⭐ Completou o Módulo 3",
+      ];
+
+      const achievementTitle = achievementTitles[moduleNumber - 1] || `Módulo ${moduleNumber} Concluído`;
+
+      // Buscar o progressId - você precisa ter isso nos params ou buscar
+      // Por enquanto, vamos usar um ID temporário baseado no usuário e módulo
+      const progressId = `progress-${user.userId}-${moduleNumber}`;
+
+      // Chamar a função do progressService
+      const result = await finishModule(
+        user.userId,
+        progressId,
+        moduleNumber,
+        timeSpent,
+        achievementTitle,
+        coinsEarned
+      );
+
+      if (result) {
+        console.log("✅ Progresso salvo com sucesso!");
+        console.log("📊 Resultado:", result);
+        setSaved(true);
+      }
+    } catch (error) {
+      console.error("❌ Erro ao salvar progresso:", error);
+      // Continua mesmo com erro para não travar o usuário
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -131,7 +191,9 @@ export default function ModuleResultScreen({
       />
       <AccessibleView
         style={styles.header}
-        accessibilityText={`Resultado do Módulo ${moduleId}. ${passed ? "Parabéns, você passou!" : "Quase lá, continue praticando!"}`}
+        accessibilityText={`Resultado do Módulo ${moduleId}. ${
+          passed ? "Parabéns, você passou!" : "Quase lá, continue praticando!"
+        }`}
       >
         <MaterialCommunityIcons
           name={passed ? "trophy" : "school"}
@@ -144,6 +206,20 @@ export default function ModuleResultScreen({
         <Text style={styles.headerSubtitle}>
           Módulo {moduleId} {passed ? "Concluído" : "Não Concluído"}
         </Text>
+        
+        {/* Indicador de salvamento */}
+        {saving && (
+          <View style={styles.savingIndicator}>
+            <ActivityIndicator size="small" color={theme.text} />
+            <Text style={styles.savingText}>Salvando progresso...</Text>
+          </View>
+        )}
+        {saved && !saving && (
+          <View style={styles.savedIndicator}>
+            <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" />
+            <Text style={styles.savedText}>Progresso salvo!</Text>
+          </View>
+        )}
       </AccessibleView>
 
       <ScrollView
@@ -166,7 +242,6 @@ export default function ModuleResultScreen({
         </AccessibleView>
 
         <View style={styles.statsGrid}>
-          {/* Cards de estatísticas: Tempo, Moedas, Pontos, etc. */}
           <View style={styles.statCard}>
             <MaterialCommunityIcons
               name="timer-sand"
@@ -222,9 +297,10 @@ export default function ModuleResultScreen({
           </AccessibleButton>
         )}
         <AccessibleButton
-          style={styles.primaryButton}
+          style={[styles.primaryButton, saving && styles.buttonDisabled]}
           onPress={() => navigation.navigate("Home")}
           accessibilityText={passed ? "Continuar" : "Voltar ao Início"}
+          disabled={saving}
         >
           <Text style={styles.primaryButtonText}>
             {passed ? "Continuar" : "Voltar ao Início"}
@@ -274,6 +350,28 @@ const createStyles = (
       lineHeight: 16 * fontMultiplier * lineHeight,
       letterSpacing: letterSpacing,
     },
+    savingIndicator: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 10,
+    },
+    savingText: {
+      fontSize: 14 * fontMultiplier,
+      color: theme.text,
+      marginLeft: 8,
+      opacity: 0.7,
+    },
+    savedIndicator: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 10,
+    },
+    savedText: {
+      fontSize: 14 * fontMultiplier,
+      color: "#4CAF50",
+      marginLeft: 8,
+      fontWeight: "600",
+    },
     contentArea: { flex: 1, paddingHorizontal: 20 },
     mainResultCard: {
       backgroundColor: theme.card,
@@ -322,14 +420,6 @@ const createStyles = (
       marginBottom: 15,
       alignItems: "center",
     },
-    fullWidthStatCard: {
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      padding: 20,
-      width: "100%",
-      marginBottom: 15,
-      alignItems: "center",
-    },
     statNumber: {
       color: theme.cardText,
       fontSize: 24 * fontMultiplier,
@@ -360,6 +450,9 @@ const createStyles = (
       alignItems: "center",
       flex: 1,
       justifyContent: "center",
+    },
+    buttonDisabled: {
+      opacity: 0.6,
     },
     secondaryButton: {
       backgroundColor: "transparent",

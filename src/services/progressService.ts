@@ -1,7 +1,8 @@
 import { fetchAuthSession } from "aws-amplify/auth";
-import awsconfig from "../../aws-exports";
+import awsmobile from "../aws-exports";
 
 export type ErrorDetail = {
+  questionNumber?: number;
   questionId: string;
   questionText?: string | null;
   userAnswer?: string | null;
@@ -46,11 +47,11 @@ async function graphqlRequest<T = any>(
 ): Promise<T | null> {
   try {
     const authType: string | undefined =
-      (awsconfig && (awsconfig.aws_appsync_authenticationType as string)) ||
+      (awsmobile && (awsmobile.aws_appsync_authenticationType as string)) ||
       process.env.APPSYNC_AUTH_TYPE;
     const url: string | undefined =
-      (awsconfig && (awsconfig.aws_appsync_graphqlEndpoint as string)) || process.env.APPSYNC_URL;
-    const apiKey: string | undefined = awsconfig?.aws_appsync_apiKey || process.env.APPSYNC_API_KEY;
+      (awsmobile&& (awsmobile.aws_appsync_graphqlEndpoint as string)) || process.env.APPSYNC_URL;
+    const apiKey: string | undefined = awsmobile?.aws_appsync_apiKey || process.env.APPSYNC_API_KEY;
 
     if (!url) {
       console.warn(`[graphqlRequest] AppSync endpoint não encontrado (${context})`);
@@ -107,7 +108,8 @@ export async function getUserById(userId: string) {
   const QUERY = `query GetUser($id: ID!) {
     getUser(id: $id) {
       id name email role coins points modulesCompleted currentModule
-      achievements { items { id title createdAt } }
+      correctAnswers wrongAnswers timeSpent precision
+      achievements { items { id title createdAt moduleNumber } }
     }
   }`;
   const data = await graphqlRequest<any>(QUERY, { id: userId }, "GetUserById");
@@ -153,7 +155,6 @@ export async function ensureUserInDB(userId: string, name: string, email: string
   return user;
 }
 
-/* --------------------- GARANTIR USUÁRIO NO DB --------------------- */
 export async function ensureUserExistsInDB(userId: string) {
   const user = await getUserById(userId);
   if (!user) {
@@ -163,7 +164,7 @@ export async function ensureUserExistsInDB(userId: string) {
   return user;
 }
 
-/* --------------------- OUTRAS FUNÇÕES --------------------- */
+/* --------------------- STORES LOCAIS --------------------- */
 const localProgressStore = new Map<string, any>();
 const localUserStore = new Map<string, any>();
 
@@ -188,7 +189,6 @@ function createLocalProgress(userId: string, moduleId: string | number, moduleNu
     accuracy: 0,
     timeSpent: 0,
     completed: false,
-    startedAt: new Date().toISOString(),
     errorDetails: [] as ErrorDetail[],
   };
   localProgressStore.set(`${userId}:${mid}`, progress);
@@ -203,7 +203,6 @@ export async function createAchievement(userId: string, title: string) {
     createAchievement(input: $input) { id title createdAt userId moduleNumber }
   }`;
 
-  // Extrair número do módulo do título se possível
   const moduleMatch = title.match(/módulo\s+(\d+)/i);
   const moduleNumber = moduleMatch ? parseInt(moduleMatch[1]) : 1;
 
@@ -213,8 +212,6 @@ export async function createAchievement(userId: string, title: string) {
     moduleNumber,
     description: title
   };
-
-  console.log(`📝 Input da conquista:`, input);
 
   const data = await graphqlRequest<any>(MUT, { input }, "CreateAchievement");
   
@@ -238,7 +235,7 @@ export async function getModuleProgressByUser(userId: string, moduleId: string |
   const mid = String(moduleId);
   const QUERY = `query ListProgresses($filter: ModelProgressFilterInput) {
     listProgresses(filter: $filter) {
-      items { id userId moduleId moduleNumber accuracy correctAnswers wrongAnswers timeSpent completed }
+      items { id userId moduleId moduleNumber accuracy correctAnswers wrongAnswers timeSpent completed errorDetails }
     }
   }`;
   const filter = { userId: { eq: userId }, moduleId: { eq: mid } };
@@ -315,7 +312,7 @@ async function updateModuleProgressRaw(input: any) {
 async function updateUserRaw(input: any) {
   const MUT = `mutation UpdateUser($input: UpdateUserInput!) {
     updateUser(input: $input) {
-      id name email role coins points modulesCompleted currentModule
+      id name email role coins points modulesCompleted currentModule correctAnswers wrongAnswers timeSpent precision
     }
   }`;
 
@@ -339,51 +336,114 @@ export async function finishModule(
   moduleNumber: number,
   timeSpent: number,
   achievementTitle: string,
-  coinsEarned: number = 150
+  coinsEarned: number = 150,
+  correctCount: number = 0,
+  wrongCount: number = 0
 ) {
   console.log(`🎯 Finalizando módulo ${moduleNumber} para usuário ${userId}`);
+  console.log(`📊 Dados: ${correctCount} acertos, ${wrongCount} erros, ${timeSpent}s tempo`);
   
-  await updateModuleProgressRaw({
-    id: progressId,
-    completed: true,
-    timeSpent,
-  });
+  try {
+    let progress = findLocalProgressById(progressId);
+    
+    if (!progress) {
+      console.log(`📝 Progress ${progressId} não encontrado localmente, buscando no DB...`);
+      progress = { value: await getModuleProgressByUser(userId, moduleNumber) };
+    }
 
-  const user = await getUserById(userId);
-  if (!user) {
-    console.warn("⚠️ Usuário não encontrado ao finalizar módulo");
-    return null;
+    if (!progress?.value) {
+      console.log(`📝 Criando novo registro de progresso para módulo ${moduleNumber}`);
+      progress = { value: await createModuleProgress(userId, String(moduleNumber), moduleNumber) };
+    }
+
+    const errorDetails = progress?.value?.errorDetails || [];
+    const errorDetailsJSON = JSON.stringify(errorDetails);
+
+    console.log(`📝 ErrorDetails a serem salvos (${errorDetails.length} erros):`, errorDetails);
+
+    const totalAnswered = correctCount + wrongCount;
+    const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+
+    console.log(`🎯 Precisão calculada: ${accuracy}% (${correctCount}/${totalAnswered})`);
+
+    if (progress?.value?.id) {
+      const updateData = {
+        id: progress.value.id,
+        completed: true,
+        timeSpent: timeSpent,
+        correctAnswers: correctCount,
+        wrongAnswers: wrongCount,
+        accuracy: accuracy,
+        errorDetails: errorDetailsJSON,
+      };
+
+      console.log(`💾 Salvando no DynamoDB:`, updateData);
+
+      await updateModuleProgressRaw(updateData);
+      console.log(`✅ Progress ${progress.value.id} atualizado com sucesso!`);
+    }
+
+    const user = await getUserById(userId);
+    if (!user) {
+      console.warn("⚠️ Usuário não encontrado ao finalizar módulo");
+      return null;
+    }
+
+    const newPoints = (user.points || 0) + 12250;
+    const newCoins = (user.coins || 0) + coinsEarned;
+    
+    const currentCompleted = user.modulesCompleted || [];
+    const modulesCompleted = Array.isArray(currentCompleted) ? [...currentCompleted] : [];
+    
+    if (!modulesCompleted.includes(moduleNumber)) {
+      modulesCompleted.push(moduleNumber);
+      console.log(`✅ Módulo ${moduleNumber} adicionado à lista de concluídos`);
+    }
+
+    const totalCorrect = (user.correctAnswers || 0) + correctCount;
+    const totalWrong = (user.wrongAnswers || 0) + wrongCount;
+    const totalTime = (user.timeSpent || 0) + timeSpent;
+    const totalAnswered = totalCorrect + totalWrong;
+    const totalPrecision = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+
+    console.log(`📊 Estatísticas totais do usuário:`);
+    console.log(`   Total acertos: ${totalCorrect}`);
+    console.log(`   Total erros: ${totalWrong}`);
+    console.log(`   Precisão total: ${totalPrecision}%`);
+
+    const updateResult = await updateUserRaw({ 
+      id: userId, 
+      points: newPoints,
+      coins: newCoins,
+      modulesCompleted: modulesCompleted,
+      currentModule: Math.min(moduleNumber + 1, 3),
+      correctAnswers: totalCorrect,
+      wrongAnswers: totalWrong,
+      timeSpent: totalTime,
+      precision: totalPrecision,
+    });
+
+    console.log(`💰 Pontos atualizados: ${newPoints}, Moedas: ${newCoins}`);
+    console.log(`📚 Módulos concluídos: ${modulesCompleted.join(", ")}`);
+
+    const achievement = await createAchievement(userId, achievementTitle);
+    console.log(`🏆 Conquista criada: ${achievementTitle}`);
+
+    return { 
+      newPoints, 
+      newCoins, 
+      achievement, 
+      modulesCompleted, 
+      updateResult,
+      progressId: progress?.value?.id,
+      accuracy,
+      correctAnswers: correctCount,
+      wrongAnswers: wrongCount,
+    };
+  } catch (error) {
+    console.error("❌ Erro ao finalizar módulo:", error);
+    throw error;
   }
-
-  const newPoints = (user.points || 0) + 12250;
-  const newCoins = (user.coins || 0) + coinsEarned;
-  
-  // ✅ Adicionar módulo à lista de módulos concluídos
-  const currentCompleted = user.modulesCompleted || [];
-  const modulesCompleted = Array.isArray(currentCompleted) ? currentCompleted : [];
-  
-  // Adiciona o módulo se ainda não estiver na lista
-  if (!modulesCompleted.includes(moduleNumber)) {
-    modulesCompleted.push(moduleNumber);
-    console.log(`✅ Módulo ${moduleNumber} adicionado à lista de concluídos`);
-  }
-
-  // ✅ Atualizar tudo de uma vez
-  const updateResult = await updateUserRaw({ 
-    id: userId, 
-    points: newPoints,
-    coins: newCoins,
-    modulesCompleted: modulesCompleted
-  });
-
-  console.log(`💰 Pontos atualizados: ${newPoints}, Moedas: ${newCoins}`);
-  console.log(`📚 Módulos concluídos: ${modulesCompleted.join(", ")}`);
-
-  // ✅ SEMPRE criar a conquista
-  const achievement = await createAchievement(userId, achievementTitle);
-  console.log(`🏆 Conquista criada: ${achievementTitle}`);
-
-  return { newPoints, newCoins, achievement, modulesCompleted, updateResult };
 }
 
 /* --------------------- BLOQUEIO DE MÓDULOS --------------------- */
@@ -422,7 +482,6 @@ export async function registerCorrect(userId: string, progressId: string) {
     };
     localProgressStore.set(progress.key, updated);
   }
-  // Pode adicionar mutation para atualizar no DB se necessário
   return true;
 }
 
@@ -437,6 +496,7 @@ export async function registerWrong(progressId: string, errorDetail: ErrorDetail
       errorDetails: errors,
     };
     localProgressStore.set(progress.key, updated);
+    console.log("✅ Erro registrado localmente:", errorDetail);
   }
   return true;
 }
