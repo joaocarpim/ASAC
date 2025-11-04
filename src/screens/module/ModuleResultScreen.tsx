@@ -1,4 +1,3 @@
-// src/screens/module/ModuleResultScreen.tsx
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -33,15 +32,17 @@ export default function ModuleResultScreen({
   const {
     moduleId,
     correctAnswers,
+    wrongAnswers,
     totalQuestions,
     accuracy,
     timeSpent,
     coinsEarned,
     pointsEarned,
     passed,
+    progressId, // ✅ Receber progressId do quiz
+    errorDetails, // ✅ Receber errorDetails do quiz
   } = route.params;
   
-  const errors = totalQuestions - correctAnswers;
   const { user } = useAuthStore();
 
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
@@ -104,24 +105,39 @@ export default function ModuleResultScreen({
     }
   }, [passed, successSound, failureSound]);
 
-  // 🎯 SALVAR PROGRESSO AUTOMATICAMENTE
+  // 🎯 SALVAR PROGRESSO AUTOMATICAMENTE (UMA VEZ!)
   useEffect(() => {
-    if (user?.userId && passed && !saved && !saving) {
+    if (user?.userId && passed && !saved && !saving && progressId) {
       handleSaveProgress();
     }
-  }, [user?.userId, passed, saved, saving]);
+  }, [user?.userId, passed, saved, saving, progressId]);
 
   const handleSaveProgress = async () => {
-    if (!user?.userId || !passed) return;
+    if (!user?.userId || !passed || !progressId) {
+      console.warn("⚠️ Dados insuficientes para salvar:", { userId: user?.userId, passed, progressId });
+      return;
+    }
 
     setSaving(true);
     try {
       console.log("💾 Salvando progresso do módulo...");
+      console.log("📊 Dados:", {
+        userId: user.userId,
+        progressId,
+        moduleId,
+        correctAnswers,
+        wrongAnswers,
+        timeSpent,
+        coinsEarned,
+        errorDetails: errorDetails ? JSON.parse(errorDetails).length : 0
+      });
 
-      // Extrair número do módulo (ex: "1" de "module-1")
+      // Extrair número do módulo
       const moduleNumber = typeof moduleId === "number" 
         ? moduleId 
         : parseInt(String(moduleId).replace(/\D/g, "")) || 1;
+
+      console.log(`📊 Módulo identificado: ${moduleNumber}`);
 
       // Títulos das conquistas
       const achievementTitles = [
@@ -132,29 +148,30 @@ export default function ModuleResultScreen({
 
       const achievementTitle = achievementTitles[moduleNumber - 1] || `Módulo ${moduleNumber} Concluído`;
 
-      // Buscar o progressId - você precisa ter isso nos params ou buscar
-      // Por enquanto, vamos usar um ID temporário baseado no usuário e módulo
-      const progressId = `progress-${user.userId}-${moduleNumber}`;
+      console.log(`🎯 Chamando finishModule...`);
 
-      // Chamar a função do progressService
+      // ✅ CHAMADA ÚNICA: finishModule com progressId do quiz
       const result = await finishModule(
         user.userId,
-        progressId,
+        progressId, // ✅ Usar progressId recebido do quiz
         moduleNumber,
         timeSpent,
         achievementTitle,
-        coinsEarned
+        coinsEarned,
+        correctAnswers,
+        wrongAnswers || 0
       );
 
       if (result) {
         console.log("✅ Progresso salvo com sucesso!");
-        console.log("📊 Resultado:", result);
+        setSaved(true);
+      } else {
+        console.warn("⚠️ finishModule retornou null");
         setSaved(true);
       }
     } catch (error) {
       console.error("❌ Erro ao salvar progresso:", error);
-      // Continua mesmo com erro para não travar o usuário
-      setSaved(true);
+      setSaved(true); // Marcar como salvo para não travar
     } finally {
       setSaving(false);
     }
@@ -182,6 +199,8 @@ export default function ModuleResultScreen({
     if (accuracy >= 70) return "#FFC107";
     return "#F44336";
   };
+
+  const errors = wrongAnswers || (totalQuestions - correctAnswers);
 
   return (
     <View style={styles.container}>
@@ -217,7 +236,7 @@ export default function ModuleResultScreen({
         {saved && !saving && (
           <View style={styles.savedIndicator}>
             <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" />
-            <Text style={styles.savedText}>Progresso salvo!</Text>
+            <Text style={styles.savedText}>✅ Progresso salvo!</Text>
           </View>
         )}
       </AccessibleView>
@@ -365,6 +384,10 @@ const createStyles = (
       flexDirection: "row",
       alignItems: "center",
       marginTop: 10,
+      backgroundColor: "rgba(76, 175, 80, 0.1)",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
     },
     savedText: {
       fontSize: 14 * fontMultiplier,

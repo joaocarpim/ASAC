@@ -42,11 +42,14 @@ export type RootStackParamList = {
   ModuleResult: {
     moduleId: string;
     correctAnswers: number;
+     wrongAnswers?: number; // ✅ ADICIONADO
     totalQuestions: number;
     accuracy: number;
     timeSpent: number;
     coinsEarned: number;
     passed: boolean;
+    progressId?: string;        // ✅ LINHA NOVA
+     errorDetails?: string;      // ✅ LINHA NOVA
     pointsEarned: number;
   };
 

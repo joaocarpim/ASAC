@@ -121,28 +121,40 @@ export default function RankingScreen() {
   const fetchRanking = useCallback(async () => {
     setLoading(true);
     try {
+      console.log("📊 Buscando ranking de usuários...");
       const users = await getAllUsers();
+      console.log("👥 Usuários encontrados:", users);
+      
+      if (!users || users.length === 0) {
+        console.warn("⚠️ Nenhum usuário encontrado no ranking");
+        setRankingData([]);
+        return;
+      }
       
       const ranked = users
         .map((user: any) => {
           const modulesCompleted = Array.isArray(user.modulesCompleted) 
-            ? user.modulesCompleted.length 
+            ? user.modulesCompleted.filter(Boolean).length 
             : 0;
+          
+          console.log(`👤 ${user.name}: ${user.points} pontos, ${user.coins} moedas, ${modulesCompleted} módulos`);
           
           return {
             id: user.id,
             name: user.name || "Usuário",
-            coins: user.coins || 0,
-            points: user.points || 0,
+            coins: Number(user.coins) || 0,
+            points: Number(user.points) || 0,
             modules: `${modulesCompleted}/3`,
             avatar: require("../../assets/images/avatar1.png"),
           };
         })
         .sort((a: RankingItemData, b: RankingItemData) => b.points - a.points);
       
+      console.log("🏆 Ranking ordenado:", ranked);
       setRankingData(ranked);
     } catch (error) {
-      console.error("Erro ao buscar ranking:", error);
+      console.error("❌ Erro ao buscar ranking:", error);
+      setRankingData([]);
     } finally {
       setLoading(false);
     }
@@ -187,6 +199,7 @@ export default function RankingScreen() {
         </View>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color={theme.text} />
+          <Text style={{ color: theme.text, marginTop: 10 }}>Carregando ranking...</Text>
         </View>
       </SafeAreaView>
     );
@@ -221,17 +234,25 @@ export default function RankingScreen() {
               🏆
             </Text>
           </AccessibleView>
-          <ScrollView
-            style={styles.carouselContainer}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.carouselContent}
-          >
-            {rankingData.map((item, index) => (
-              <View key={item.id} style={styles.carouselItem}>
-                <RankingListItem data={item} rank={index + 1} styles={styles} />
-              </View>
-            ))}
-          </ScrollView>
+          
+          {rankingData.length > 0 ? (
+            <ScrollView
+              style={styles.carouselContainer}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.carouselContent}
+            >
+              {rankingData.map((item, index) => (
+                <View key={item.id} style={styles.carouselItem}>
+                  <RankingListItem data={item} rank={index + 1} styles={styles} />
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons name="account-group" size={60} color={theme.text} style={{ opacity: 0.3 }} />
+              <Text style={styles.emptyText}>Nenhum usuário no ranking ainda</Text>
+            </View>
+          )}
         </View>
       </SafeAreaView>
     </GestureDetector>
@@ -318,5 +339,18 @@ const createStyles = (
       marginLeft: 10,
       borderWidth: 2,
       borderColor: theme.background,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 40,
+    },
+    emptyText: {
+      color: theme.text,
+      fontSize: 16 * fontMultiplier,
+      marginTop: 15,
+      opacity: 0.6,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
   });

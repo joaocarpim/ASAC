@@ -59,7 +59,7 @@ export default function ModuleQuizScreen({
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
-  const [wrongCount, setWrongCount] = useState(0); // ✅ ADICIONADO
+  const [wrongCount, setWrongCount] = useState(0);
   const [errorDetails, setErrorDetails] = useState<ErrorDetail[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,8 +68,7 @@ export default function ModuleQuizScreen({
   const [wrongSound, setWrongSound] = useState<Audio.Sound | null>(null);
 
   const { user } = useAuthStore();
-  const { activeProgressId, setActive, startTimer, stopTimer } =
-    useProgressStore();
+  const { activeProgressId, setActive, startTimer, stopTimer } = useProgressStore();
   const { theme } = useContrast();
   const { speakText } = useAccessibility();
   const {
@@ -160,8 +159,7 @@ export default function ModuleQuizScreen({
   useEffect(() => {
     if (!isLoading && questions.length > 0 && speakText) {
       const q = questions[currentQuestionIndex];
-      speakText &&
-        speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`);
+      speakText && speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`);
     }
   }, [currentQuestionIndex, questions, isLoading, speakText]);
 
@@ -187,10 +185,10 @@ export default function ModuleQuizScreen({
       }
     } else {
       wrongSound?.replayAsync();
-      setWrongCount((prev) => prev + 1); // ✅ ADICIONADO
+      setWrongCount((prev) => prev + 1);
       Vibration.vibrate([0, 100, 50, 100]);
       const err: ErrorDetail = {
-        questionNumber: currentQuestionIndex + 1, // ✅ ADICIONADO
+        questionNumber: currentQuestionIndex + 1,
         questionId: q.id,
         questionText: q.question,
         userAnswer: q.options?.[selectedAnswer] ?? null,
@@ -203,15 +201,7 @@ export default function ModuleQuizScreen({
         console.warn("Erro registerWrong:", e);
       }
     }
-  }, [
-    selectedAnswer,
-    user,
-    activeProgressId,
-    currentQuestionIndex,
-    questions,
-    correctSound,
-    wrongSound,
-  ]);
+  }, [selectedAnswer, user, activeProgressId, currentQuestionIndex, questions, correctSound, wrongSound]);
 
   const handleNext = useCallback(async () => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -220,22 +210,13 @@ export default function ModuleQuizScreen({
       setIsAnswerChecked(false);
     } else {
       const duration = stopTimer ? stopTimer() : 0;
-      const accuracy =
-        questions.length > 0
-          ? Math.round((correctCount / questions.length) * 100)
-          : 0;
+      const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
 
       const moduleData = getQuizByModuleId(parseInt(String(moduleId), 10));
-      const passed = moduleData
-        ? correctCount >= moduleData.passingScore
-        : false;
-
-      const coinsEarned = moduleData
-        ? correctCount * moduleData.coinsPerCorrect
-        : 0;
+      const passed = moduleData ? correctCount >= moduleData.passingScore : false;
+      const coinsEarned = moduleData ? correctCount * moduleData.coinsPerCorrect : 0;
       const pointsEarned = 12250;
 
-      // ✅ LOGS PARA DEBUG
       console.log("🎯 Finalizando módulo:");
       console.log("  Acertos:", correctCount);
       console.log("  Erros:", wrongCount);
@@ -252,8 +233,8 @@ export default function ModuleQuizScreen({
             duration,
             `Concluiu o módulo ${moduleId}`,
             coinsEarned,
-            correctCount, // ✅ ADICIONADO
-            wrongCount // ✅ ADICIONADO
+            correctCount,
+            wrongCount
           );
           console.log("✅ Módulo finalizado com sucesso!");
         } catch (e) {
@@ -272,23 +253,10 @@ export default function ModuleQuizScreen({
         passed,
       });
     }
-  }, [
-    currentQuestionIndex,
-    correctCount,
-    wrongCount, // ✅ ADICIONADO
-    errorDetails, // ✅ ADICIONADO
-    questions,
-    user,
-    activeProgressId,
-    moduleId,
-    stopTimer,
-    navigation,
-  ]);
+  }, [currentQuestionIndex, correctCount, wrongCount, errorDetails, questions, user, activeProgressId, moduleId, stopTimer, navigation]);
 
   const current = questions[currentQuestionIndex];
-  const statusBarStyle = isColorDark(theme.background)
-    ? "light-content"
-    : "dark-content";
+  const statusBarStyle = isColorDark(theme.background) ? "light-content" : "dark-content";
 
   if (isLoading)
     return (
@@ -330,38 +298,23 @@ export default function ModuleQuizScreen({
               style={[
                 styles.option,
                 selectedAnswer === idx && styles.optionSelected,
-                isAnswerChecked &&
-                  idx === current.correctAnswer &&
-                  styles.optionCorrect,
-                isAnswerChecked &&
-                  selectedAnswer === idx &&
-                  idx !== current.correctAnswer &&
-                  styles.optionWrong,
+                isAnswerChecked && idx === current.correctAnswer && styles.optionCorrect,
+                isAnswerChecked && selectedAnswer === idx && idx !== current.correctAnswer && styles.optionWrong,
               ]}
               accessibilityLabel={`Opção ${idx + 1}: ${opt}`}
             >
               <Text style={styles.optionText}>{opt}</Text>
             </AccessibleButton>
           ))}
-        {isAnswerChecked &&
-          selectedAnswer !== current.correctAnswer &&
-          current.explanation && (
-            <AccessibleView
-              accessibilityText={`Explicação: ${current.explanation}`}
-              style={styles.explanationBox}
-            >
-              <Text style={styles.explanationText}>
-                💡 {current.explanation}
-              </Text>
-            </AccessibleView>
-          )}
+        {isAnswerChecked && selectedAnswer !== current.correctAnswer && current.explanation && (
+          <AccessibleView accessibilityText={`Explicação: ${current.explanation}`} style={styles.explanationBox}>
+            <Text style={styles.explanationText}>💡 {current.explanation}</Text>
+          </AccessibleView>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <AccessibleButton
-          style={styles.button}
-          onPress={isAnswerChecked ? handleNext : handleConfirm}
-        >
+        <AccessibleButton style={styles.button} onPress={isAnswerChecked ? handleNext : handleConfirm}>
           <Text style={styles.buttonText}>
             {isAnswerChecked
               ? currentQuestionIndex === questions.length - 1
@@ -374,11 +327,7 @@ export default function ModuleQuizScreen({
 
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
-          <ConfettiCannon
-            count={120}
-            origin={{ x: width / 2, y: -20 }}
-            fadeOut
-          />
+          <ConfettiCannon count={120} origin={{ x: width / 2, y: -20 }} fadeOut />
         </View>
       )}
     </View>
@@ -395,11 +344,7 @@ const getStyles = (
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-    },
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
     loadingText: {
       color: theme.text,
       marginTop: 8,

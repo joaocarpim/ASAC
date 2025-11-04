@@ -1,4 +1,11 @@
 /* Amplify Params - DO NOT EDIT
+	API_ASAC_GRAPHQLAPIENDPOINTOUTPUT
+	API_ASAC_GRAPHQLAPIIDOUTPUT
+	API_ASAC_GRAPHQLAPIKEYOUTPUT
+	AUTH_ASAC2F4153AA_USERPOOLID
+	ENV
+	REGION
+Amplify Params - DO NOT EDIT *//* Amplify Params - DO NOT EDIT
    AUTH_ASAC2F4153AA_USERPOOLID
    REGION
    API_ASAC_GRAPHQLAPIENDPOINTOUTPUT
@@ -29,6 +36,7 @@ exports.handler = async (event) => {
 
     const username = email.toLowerCase();
 
+    // 1. Criar usuário no Cognito
     try {
       await cognito.send(new AdminCreateUserCommand({
         UserPoolId: USER_POOL_ID,
@@ -47,6 +55,7 @@ exports.handler = async (event) => {
       console.log("⚠️ Usuário já existe, definindo senha permanente.");
     }
 
+    // 2. Definir senha permanente
     await cognito.send(new AdminSetUserPasswordCommand({
       UserPoolId: USER_POOL_ID,
       Username: username,
@@ -55,6 +64,7 @@ exports.handler = async (event) => {
     }));
     console.log("🔑 Senha permanente definida:", username);
 
+    // 3. Obter o sub (ID) do usuário no Cognito
     const getUserResp = await cognito.send(
       new AdminGetUserCommand({ UserPoolId: USER_POOL_ID, Username: username })
     );
@@ -63,7 +73,9 @@ exports.handler = async (event) => {
     const userSub = subAttr ? subAttr.Value : null;
     console.log("🆔 Sub Cognito do novo usuário:", userSub);
 
+    // 4. Criar registro no DynamoDB via GraphQL
     if (GRAPHQL_URL && userSub) {
+      // ✅ USAR O TOKEN DO ADMIN (quem chamou a função)
       const authHeader = event.request?.headers?.authorization || 
                         event.request?.headers?.Authorization;
 
@@ -75,23 +87,29 @@ exports.handler = async (event) => {
               name
               email
               role
+              coins
+              points
+              modulesCompleted
+              currentModule
             }
           }
         `;
 
         try {
+          console.log("📡 Chamando GraphQL para criar usuário no DynamoDB...");
+          
           const response = await fetch(GRAPHQL_URL, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": authHeader,
+              "Authorization": authHeader, // Token do admin
             },
             body: JSON.stringify({
               query: mutation,
               variables: {
                 input: {
                   id: userSub,
-                  owner: userSub,
+                  // ❌ REMOVER owner - não é necessário com as novas regras
                   name,
                   email: username,
                   role: "user",
@@ -112,14 +130,29 @@ exports.handler = async (event) => {
           
           if (gqlJson.errors) {
             console.error("⚠️ Erro GraphQL:", JSON.stringify(gqlJson.errors, null, 2));
-            throw new Error(`Falha ao inserir no DynamoDB: ${gqlJson.errors[0].message}`);
+            
+            // ✅ Não falhar se o erro for de duplicação (usuário já existe no DB)
+            const isDuplicate = gqlJson.errors.some(err => 
+              err.message?.includes("ConditionalCheckFailedException") ||
+              err.message?.includes("duplicate") ||
+              err.message?.includes("already exists")
+            );
+            
+            if (isDuplicate) {
+              console.log("⚠️ Usuário já existe no DynamoDB, continuando...");
+            } else {
+              throw new Error(`Falha ao inserir no DynamoDB: ${gqlJson.errors[0].message}`);
+            }
+          } else {
+            console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data?.createUser);
           }
-          
-          console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data.createUser);
         } catch (fetchError) {
           console.error("❌ Erro ao chamar GraphQL:", fetchError);
-          throw new Error(`Falha ao criar registro no banco: ${fetchError.message}`);
+          // ✅ Log do erro mas não falha a criação do usuário no Cognito
+          console.warn("⚠️ Usuário criado no Cognito mas falhou no DynamoDB");
         }
+      } else {
+        console.warn("⚠️ Sem token de autorização, usuário não será criado no DynamoDB");
       }
     }
 
@@ -136,4 +169,4 @@ exports.handler = async (event) => {
     console.error("❌ Erro ao criar usuário:", error);
     throw new Error(error?.message || "Erro interno ao criar usuário");
   }
-};
+}

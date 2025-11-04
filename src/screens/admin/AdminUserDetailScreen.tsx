@@ -46,7 +46,7 @@ export default function AdminUserDetailScreen({
       const user = await getUserById(userId);
       setUserData(user);
 
-      // Buscar progresso por módulo - Query corrigida
+      // Buscar progresso por módulo - QUERY CORRIGIDA
       const client = generateClient();
       const progressQuery = `
         query ListProgresses($filter: ModelProgressFilterInput) {
@@ -77,10 +77,10 @@ export default function AdminUserDetailScreen({
       
       console.log("📊 Admin Detail - Progresso encontrado:", progressList);
       
-      // Normalizar os dados com conversão adequada
+      // Normalizar os dados
       const normalized = progressList.map((p: any) => ({
         ...p,
-        moduleNumber: typeof p.moduleNumber === "string" ? parseInt(p.moduleNumber, 10) : (p.moduleNumber || 0),
+        moduleNumber: typeof p.moduleNumber === "string" ? parseInt(p.moduleNumber, 10) : p.moduleNumber,
         correctAnswers: Number(p.correctAnswers ?? 0),
         wrongAnswers: Number(p.wrongAnswers ?? 0),
         timeSpent: Number(p.timeSpent ?? 0),

@@ -1,15 +1,11 @@
-# Configuração global de auth (TESTE SOMENTE, remova em produção)
-input AMPLIFY {
-  globalAuthRule: AuthRule = { allow: public }
-}
-
 # === Usuário ===
 type User
   @model
   @auth(
     rules: [
-      { allow: private, operations: [read] }
-      { allow: owner, ownerField: "id", operations: [read, update] }
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: private, operations: [create, read, update] }
+      { allow: owner, ownerField: "id", operations: [create, read, update, delete] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
@@ -35,7 +31,8 @@ type Achievement
   @model
   @auth(
     rules: [
-      { allow: private, operations: [read] }
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: private, operations: [create, read, update] }
       { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
@@ -53,7 +50,7 @@ type Progress
   @model
   @auth(
     rules: [
-      { allow: private, operations: [read] }
+      { allow: private, operations: [create, read, update] }
       { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
@@ -69,7 +66,8 @@ type Progress
   wrongAnswers: Int
   timeSpent: Float
   completed: Boolean
-  errorDetails: String  
+  completedAt: AWSDateTime
+  errorDetails: String
 }
 
 # === Módulo ===
@@ -77,6 +75,7 @@ type Module
   @model
   @auth(
     rules: [
+      { allow: public, provider: apiKey, operations: [read] }
       { allow: private, operations: [read] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
@@ -95,6 +94,7 @@ type Lesson
   @model
   @auth(
     rules: [
+      { allow: public, provider: apiKey, operations: [read] }
       { allow: private, operations: [read] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
@@ -113,6 +113,7 @@ type Question
   @model
   @auth(
     rules: [
+      { allow: public, provider: apiKey, operations: [read] }
       { allow: private, operations: [read] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
@@ -130,6 +131,7 @@ type BrailleSymbol
   @model
   @auth(
     rules: [
+      { allow: public, provider: apiKey, operations: [read] }
       { allow: private, operations: [read] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
@@ -146,5 +148,3 @@ type Mutation {
     @function(name: "AdminRegisterUser-${env}")
     @auth(rules: [{ allow: groups, groups: ["Admins"] }])
 }
-
- 

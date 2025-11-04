@@ -79,14 +79,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      // Ensuring the user exists in the DB
-      let dbUser = await ensureUserExistsInDB(sub);
+      // ✅ CORREÇÃO: Tentar buscar/criar usuário, mas NÃO BLOQUEAR se falhar
+      let dbUser = null;
+      try {
+        dbUser = await ensureUserExistsInDB(sub);
+        console.log("✅ Usuário no banco:", dbUser);
+      } catch (dbError) {
+        console.warn("⚠️ Erro ao buscar/criar usuário no banco (continuando):", dbError);
+        // ✅ CONTINUAR mesmo com erro - usar apenas dados do Cognito
+      }
 
+      // ✅ Se não conseguiu buscar do banco, usar só os dados do Cognito
       if (!dbUser) {
-        set({ user: null, isLoading: false });
+        console.log("⚠️ Usuário não encontrado no banco, usando dados do Cognito");
+        set({ user: baseUser, isLoading: false });
+        
+        // ✅ Tentar criar em background (não bloqueia)
+        ensureUserExistsInDB(sub).catch((e) => 
+          console.warn("⚠️ Erro ao criar usuário em background:", e)
+        );
         return;
       }
 
+      // ✅ Sucesso: combinar dados do Cognito + DynamoDB
       set({
         user: {
           ...baseUser,

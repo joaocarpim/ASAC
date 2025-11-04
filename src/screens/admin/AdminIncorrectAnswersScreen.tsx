@@ -56,7 +56,7 @@ export default function AdminIncorrectAnswersScreen({
     try {
       const client = generateClient();
 
-      // Query corrigida para buscar progresso
+      // Query CORRIGIDA - usar listProgresses (plural)
       const progressQuery = `
         query ListProgresses($filter: ModelProgressFilterInput) {
           listProgresses(filter: $filter) {
@@ -79,13 +79,14 @@ export default function AdminIncorrectAnswersScreen({
         },
       });
 
-      const progressList = result?.data?.listProgresses?.items || [];
+      const progressList =
+        result?.data?.listProgresses?.items || [];
 
       console.log("📊 Admin Errors: Raw progress list:", progressList);
 
       const aggregatedErrors: IncorrectAnswer[] = [];
 
-      // Processar TODOS os erros de TODOS os módulos
+      // CORRIGIDO: Processar TODOS os erros de TODOS os módulos
       progressList.forEach((progress: any) => {
         const moduleNumber =
           typeof progress.moduleNumber === "string" 
@@ -123,7 +124,7 @@ export default function AdminIncorrectAnswersScreen({
 
         console.log(`  ✅ Módulo ${moduleNumber}: ${errors.length} erros encontrados`);
 
-        // ADICIONAR TODOS OS ERROS
+        // ADICIONAR TODOS OS ERROS (não apenas o primeiro)
         errors.forEach((err: any, idx: number) => {
           aggregatedErrors.push({
             id: `${progress.id}-${idx}`,
