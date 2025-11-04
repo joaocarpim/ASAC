@@ -52,18 +52,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 150,
-    height: 150,
+    width: 350,
+    height: 350,
+    marginTop:10,
     resizeMode: "contain",
   },
   logoText: {
-    fontSize: 52,
+    fontSize: 58,
     fontWeight: "bold",
     color: "#000080",
-    marginTop: 10,
   },
   description: {
-    fontSize: 18,
+    fontSize: 22,
     color: "#000080",
     textAlign: "center",
     fontWeight: "bold",
@@ -72,12 +72,12 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: "#191970",
-    paddingVertical: 15,
+    paddingVertical: 25,
     paddingHorizontal: 60,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    width: "90%",
+    width: "80%",
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "bold",
   },
 });

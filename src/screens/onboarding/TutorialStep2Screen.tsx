@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react"; // ✅ 1. Importar o useState
 import {
   StyleSheet,
   Text,
@@ -14,6 +14,16 @@ const logo = require("../../assets/images/logo.png");
 export default function TutorialStep2Screen({
   navigation,
 }: RootStackScreenProps<"TutorialStep2">) {
+  // ✅ 2. Adicionar um estado para desabilitar o botão
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ 3. Criar uma função para lidar com a navegação
+  const handleNavigate = () => {
+    if (isLoading) return; // Se já estiver carregando, não faz nada
+    setIsLoading(true); // Desabilita o botão
+    navigation.navigate("TutorialStep3");
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#191970" />
@@ -29,9 +39,11 @@ export default function TutorialStep2Screen({
         </View>
       </View>
       <View style={styles.bottomSection}>
+        {/* ✅ 4. Atualizar o botão para usar a nova função e o estado 'disabled' */}
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("TutorialStep3")}
+          style={[styles.button, isLoading && styles.buttonDisabled]}
+          onPress={handleNavigate}
+          disabled={isLoading}
         >
           <Text style={styles.buttonText}>Avançar</Text>
         </TouchableOpacity>
@@ -40,7 +52,6 @@ export default function TutorialStep2Screen({
   );
 }
 
-// OS ESTILOS SÃO IDÊNTICOS AO TUTORIAL 1
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#191970" },
   contentWrapper: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
@@ -50,35 +61,47 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   topText: {
-    fontSize: 34,
+    fontSize: 64,
     fontWeight: "bold",
     color: "#FFA500",
     maxWidth: "60%",
   },
-  logo: { width: 140, height: 140, resizeMode: "contain", marginTop: -20 },
+  logo: {
+    width: 540,
+    height: 540,
+    marginRight: -80,
+    resizeMode: "contain",
+    marginTop: -20,
+  },
   middleSection: { flex: 1, justifyContent: "center", alignItems: "center" },
   middleText: {
     fontSize: 24,
     color: "#FFFFFF",
     textAlign: "center",
+    marginTop: "-20%",
     lineHeight: 34,
   },
   bottomSection: {
     backgroundColor: "#FFC700",
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+    paddingVertical: 60,
+    paddingHorizontal: 10,
+    borderTopLeftRadius: 60,
+    borderTopRightRadius: 60,
     alignItems: "center",
   },
   button: {
     backgroundColor: "#191970",
-    paddingVertical: 15,
-    borderRadius: 12,
+    paddingVertical: 25,
+    width: "80%",
+    alignSelf: "center",
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    width: "100%",
     elevation: 5,
   },
-  buttonText: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
+  // ✅ 5. Adicionar o estilo de botão desabilitado
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: { color: "#FFFFFF", fontSize: 24, fontWeight: "bold" },
 });
