@@ -1,16 +1,24 @@
+# =========================================
 # === Usuário ===
+# =========================================
 type User
   @model
   @auth(
     rules: [
+      # 🔓 Público pode apenas ler (ranking, perfis públicos)
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, operations: [create, read, update] }
+
+      # 👤 Dono (owner) pode criar, ler e atualizar seus próprios dados
       { allow: owner, ownerField: "id", operations: [create, read, update, delete] }
+
+      # 🔐 Usuário autenticado (sem grupo) também pode gerenciar dados
+      { allow: private, provider: userPools, operations: [create, read, update, delete] }
+
+      # 🛠️ Grupo Admins pode tudo
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
   id: ID! @primaryKey
-  owner: String
   name: String!
   email: String! @index(name: "byEmail")
   role: String!
@@ -22,18 +30,29 @@ type User
   correctAnswers: Int
   wrongAnswers: Int
   timeSpent: Float
-  achievements: [Achievement] @hasMany(fields: ["id"])
-  progress: [Progress] @hasMany(fields: ["id"])
+
+  # Relacionamentos
+  achievements: [Achievement] @hasMany(indexName: "byUser", fields: ["id"])
+  progress: [Progress] @hasMany(indexName: "byUser", fields: ["id"])
 }
 
-# === Conquistas ===
+# =========================================
+# === Conquistas (Achievements) ===
+# =========================================
 type Achievement
   @model
   @auth(
     rules: [
+      # Público pode ler (para exibir conquistas desbloqueadas)
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, operations: [create, read, update] }
+
+      # Dono da conquista pode criar, ler, atualizar e deletar
       { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
+
+      # Usuários autenticados também podem interagir
+      { allow: private, provider: userPools, operations: [create, read, update, delete] }
+
+      # Admins têm permissão total
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
@@ -41,25 +60,37 @@ type Achievement
   title: String!
   description: String
   moduleNumber: Int
-  user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
+  user: User @belongsTo(fields: ["userId"])
 }
 
-# === Progresso do usuário ===
+# =========================================
+# === Progresso do Usuário ===
+# =========================================
 type Progress
   @model
   @auth(
     rules: [
-      { allow: private, operations: [create, read, update] }
+      # Leitura pública (ranking e estatísticas globais)
+      { allow: public, provider: apiKey, operations: [read] }
+
+      # Dono pode criar e atualizar seu progresso
       { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
+
+      # Usuários autenticados têm permissão total em seu progresso
+      { allow: private, provider: userPools, operations: [create, read, update, delete] }
+
+      # Admins podem acessar e gerenciar todos
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
   id: ID!
-  user: User @belongsTo(fields: ["userId"])
   userId: ID! @index(name: "byUser")
-  module: Module @belongsTo(fields: ["moduleId"])
+  user: User @belongsTo(fields: ["userId"])
+
   moduleId: ID! @index(name: "byModule")
+  module: Module @belongsTo(fields: ["moduleId"])
+
   moduleNumber: Int
   accuracy: Float
   correctAnswers: Int
@@ -70,13 +101,17 @@ type Progress
   errorDetails: String
 }
 
+# =========================================
 # === Módulo ===
+# =========================================
 type Module
   @model
   @auth(
     rules: [
+      # Qualquer um pode ler os módulos
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, operations: [read] }
+      { allow: private, provider: userPools, operations: [read] }
+      # Somente Admins podem criar ou editar módulos
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
@@ -84,18 +119,21 @@ type Module
   title: String!
   description: String!
   moduleNumber: Int!
-  lessons: [Lesson] @hasMany(fields: ["id"])
-  questions: [Question] @hasMany(fields: ["id"])
-  progress: [Progress] @hasMany(fields: ["id"])
+
+  lessons: [Lesson] @hasMany(indexName: "byModule", fields: ["id"])
+  questions: [Question] @hasMany(indexName: "byModule", fields: ["id"])
+  progress: [Progress] @hasMany(indexName: "byModule", fields: ["id"])
 }
 
-# === Lições ===
+# =========================================
+# === Lições (Lessons) ===
+# =========================================
 type Lesson
   @model
   @auth(
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, operations: [read] }
+      { allow: private, provider: userPools, operations: [read] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
@@ -104,17 +142,19 @@ type Lesson
   content: String!
   image: String
   lessonNumber: Int!
-  module: Module @belongsTo(fields: ["moduleId"])
   moduleId: ID! @index(name: "byModule", sortKeyFields: ["lessonNumber"])
+  module: Module @belongsTo(fields: ["moduleId"])
 }
 
-# === Questões ===
+# =========================================
+# === Questões (Questions) ===
+# =========================================
 type Question
   @model
   @auth(
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, operations: [read] }
+      { allow: private, provider: userPools, operations: [read] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
@@ -122,17 +162,19 @@ type Question
   questionText: String!
   options: [String!]!
   correctAnswerIndex: Int!
-  module: Module @belongsTo(fields: ["moduleId"])
   moduleId: ID! @index(name: "byModule")
+  module: Module @belongsTo(fields: ["moduleId"])
 }
 
+# =========================================
 # === Símbolos Braille ===
+# =========================================
 type BrailleSymbol
   @model
   @auth(
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, operations: [read] }
+      { allow: private, provider: userPools, operations: [read] }
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
@@ -142,7 +184,9 @@ type BrailleSymbol
   imageKey: String!
 }
 
+# =========================================
 # === Mutations personalizadas ===
+# =========================================
 type Mutation {
   adminRegisterUser(name: String!, email: String!, password: String!): String
     @function(name: "AdminRegisterUser-${env}")

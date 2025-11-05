@@ -39,8 +39,7 @@ export default function ModuleResultScreen({
     coinsEarned,
     pointsEarned,
     passed,
-    progressId, // ✅ Receber progressId do quiz
-    errorDetails, // ✅ Receber errorDetails do quiz
+    progressId, // Recebido do quiz
   } = route.params;
   
   const { user } = useAuthStore();
@@ -107,32 +106,32 @@ export default function ModuleResultScreen({
 
   // 🎯 SALVAR PROGRESSO AUTOMATICAMENTE (UMA VEZ!)
   useEffect(() => {
-    if (user?.userId && passed && !saved && !saving && progressId) {
+    if (user?.userId && passed && !saved && !saving) {
       handleSaveProgress();
     }
-  }, [user?.userId, passed, saved, saving, progressId]);
+  }, [user?.userId, passed, saved, saving]);
 
   const handleSaveProgress = async () => {
-    if (!user?.userId || !passed || !progressId) {
-      console.warn("⚠️ Dados insuficientes para salvar:", { userId: user?.userId, passed, progressId });
+    if (!user?.userId || !passed) {
+      console.warn("⚠️ Dados insuficientes para salvar:", { userId: user?.userId, passed });
       return;
     }
 
     setSaving(true);
     try {
       console.log("💾 Salvando progresso do módulo...");
-      console.log("📊 Dados:", {
-        userId: user.userId,
-        progressId,
+      console.log("📊 Dados recebidos:", {
         moduleId,
         correctAnswers,
         wrongAnswers,
+        totalQuestions,
+        accuracy,
         timeSpent,
         coinsEarned,
-        errorDetails: errorDetails ? JSON.parse(errorDetails).length : 0
+        progressId
       });
 
-      // Extrair número do módulo
+      // Extrair número do módulo (ex: "1" de "module-1" ou 1)
       const moduleNumber = typeof moduleId === "number" 
         ? moduleId 
         : parseInt(String(moduleId).replace(/\D/g, "")) || 1;
@@ -148,26 +147,35 @@ export default function ModuleResultScreen({
 
       const achievementTitle = achievementTitles[moduleNumber - 1] || `Módulo ${moduleNumber} Concluído`;
 
-      console.log(`🎯 Chamando finishModule...`);
+      // Usar progressId se foi passado, senão criar um baseado no padrão
+      const finalProgressId = progressId || `progress-${user.userId}-${moduleNumber}`;
 
-      // ✅ CHAMADA ÚNICA: finishModule com progressId do quiz
+      console.log(`🎯 Chamando finishModule com progressId: ${finalProgressId}`);
+
+      // Calcular wrongAnswers se não foi passado
+      const errors = wrongAnswers ?? (totalQuestions - correctAnswers);
+
+      console.log(`📊 Acertos: ${correctAnswers}, Erros: ${errors}, Total: ${totalQuestions}`);
+
+      // ✅ Chamar finishModule
       const result = await finishModule(
         user.userId,
-        progressId, // ✅ Usar progressId recebido do quiz
+        finalProgressId,
         moduleNumber,
         timeSpent,
         achievementTitle,
-        coinsEarned,
+        coinsEarned || 150,
         correctAnswers,
-        wrongAnswers || 0
+        errors
       );
 
       if (result) {
         console.log("✅ Progresso salvo com sucesso!");
+        console.log("📊 Resultado:", result);
         setSaved(true);
       } else {
         console.warn("⚠️ finishModule retornou null");
-        setSaved(true);
+        setSaved(true); // Marcar como salvo mesmo assim
       }
     } catch (error) {
       console.error("❌ Erro ao salvar progresso:", error);
@@ -200,7 +208,7 @@ export default function ModuleResultScreen({
     return "#F44336";
   };
 
-  const errors = wrongAnswers || (totalQuestions - correctAnswers);
+  const errors = wrongAnswers ?? (totalQuestions - correctAnswers);
 
   return (
     <View style={styles.container}>
@@ -294,7 +302,7 @@ export default function ModuleResultScreen({
               size={28}
               color="#FFC107"
             />
-            <Text style={styles.statNumber}>+{coinsEarned}</Text>
+            <Text style={styles.statNumber}>+{coinsEarned || 150}</Text>
             <Text style={styles.statLabel}>Moedas</Text>
           </View>
         </View>

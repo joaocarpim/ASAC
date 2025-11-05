@@ -15,17 +15,17 @@
       "auth": {
         "asac2f4153aa": {}
       },
+      "function": {
+        "AdminRegisterUser": {
+          "deploymentBucketName": "amplify-asac-dev-11020-deployment",
+          "s3Key": "amplify-builds/AdminRegisterUser-7435695938644c434f69-build.zip"
+        }
+      },
       "storage": {
         "s3112eaa39": {}
       },
       "api": {
         "asac": {}
-      },
-      "function": {
-        "AdminRegisterUser": {
-          "deploymentBucketName": "amplify-asac-dev-11020-deployment",
-          "s3Key": "amplify-builds/AdminRegisterUser-386a44506a6952546662-build.zip"
-        }
       }
     }
   }

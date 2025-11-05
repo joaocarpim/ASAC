@@ -1,14 +1,10 @@
 /* Amplify Params - DO NOT EDIT
-	API_ASAC_GRAPHQLAPIENDPOINTOUTPUT
-	API_ASAC_GRAPHQLAPIIDOUTPUT
-	API_ASAC_GRAPHQLAPIKEYOUTPUT
-	AUTH_ASAC2F4153AA_USERPOOLID
-	ENV
-	REGION
-Amplify Params - DO NOT EDIT *//* Amplify Params - DO NOT EDIT
-   AUTH_ASAC2F4153AA_USERPOOLID
-   REGION
    API_ASAC_GRAPHQLAPIENDPOINTOUTPUT
+   API_ASAC_GRAPHQLAPIIDOUTPUT
+   API_ASAC_GRAPHQLAPIKEYOUTPUT
+   AUTH_ASAC2F4153AA_USERPOOLID
+   ENV
+   REGION
 Amplify Params - DO NOT EDIT */
 
 const {
@@ -36,124 +32,133 @@ exports.handler = async (event) => {
 
     const username = email.toLowerCase();
 
-    // 1. Criar usuário no Cognito
+    // 1️⃣ Criar usuário no Cognito
     try {
-      await cognito.send(new AdminCreateUserCommand({
-        UserPoolId: USER_POOL_ID,
-        Username: username,
-        TemporaryPassword: password,
-        UserAttributes: [
-          { Name: "email", Value: username },
-          { Name: "name", Value: name },
-          { Name: "email_verified", Value: "true" },
-        ],
-        MessageAction: "SUPPRESS",
-      }));
+      await cognito.send(
+        new AdminCreateUserCommand({
+          UserPoolId: USER_POOL_ID,
+          Username: username,
+          TemporaryPassword: password,
+          UserAttributes: [
+            { Name: "email", Value: username },
+            { Name: "name", Value: name },
+            { Name: "email_verified", Value: "true" },
+          ],
+          MessageAction: "SUPPRESS",
+        })
+      );
       console.log("✅ Cognito: usuário criado:", username);
     } catch (err) {
       if ((err?.name || err?.Code) !== "UsernameExistsException") throw err;
       console.log("⚠️ Usuário já existe, definindo senha permanente.");
     }
 
-    // 2. Definir senha permanente
-    await cognito.send(new AdminSetUserPasswordCommand({
-      UserPoolId: USER_POOL_ID,
-      Username: username,
-      Password: password,
-      Permanent: true,
-    }));
+    // 2️⃣ Definir senha permanente
+    await cognito.send(
+      new AdminSetUserPasswordCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: username,
+        Password: password,
+        Permanent: true,
+      })
+    );
     console.log("🔑 Senha permanente definida:", username);
 
-    // 3. Obter o sub (ID) do usuário no Cognito
+    // 3️⃣ Obter o sub (ID) do usuário Cognito
     const getUserResp = await cognito.send(
       new AdminGetUserCommand({ UserPoolId: USER_POOL_ID, Username: username })
     );
 
-    const subAttr = getUserResp.UserAttributes.find(attr => attr.Name === "sub");
+    const subAttr = getUserResp.UserAttributes.find((attr) => attr.Name === "sub");
     const userSub = subAttr ? subAttr.Value : null;
     console.log("🆔 Sub Cognito do novo usuário:", userSub);
 
-    // 4. Criar registro no DynamoDB via GraphQL
+    // 4️⃣ Criar o registro no DynamoDB via AppSync GraphQL
     if (GRAPHQL_URL && userSub) {
-      // ✅ USAR O TOKEN DO ADMIN (quem chamou a função)
-      const authHeader = event.request?.headers?.authorization || 
-                        event.request?.headers?.Authorization;
+      const authHeader =
+        event.request?.headers?.authorization ||
+        event.request?.headers?.Authorization ||
+        process.env.API_ASAC_GRAPHQLAPIKEYOUTPUT; // fallback API key
 
-      if (authHeader) {
-        const mutation = `
-          mutation CreateUser($input: CreateUserInput!) {
-            createUser(input: $input) {
-              id
-              name
-              email
-              role
-              coins
-              points
-              modulesCompleted
-              currentModule
-            }
+      const mutation = `
+        mutation CreateUser($input: CreateUserInput!) {
+          createUser(input: $input) {
+            id
+            name
+            email
+            role
+            coins
+            points
+            modulesCompleted
+            currentModule
+            precision
+            correctAnswers
+            wrongAnswers
+            timeSpent
           }
-        `;
+        }
+      `;
 
-        try {
-          console.log("📡 Chamando GraphQL para criar usuário no DynamoDB...");
-          
-          const response = await fetch(GRAPHQL_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": authHeader, // Token do admin
-            },
-            body: JSON.stringify({
-              query: mutation,
-              variables: {
-                input: {
-                  id: userSub,
-                  // ❌ REMOVER owner - não é necessário com as novas regras
-                  name,
-                  email: username,
-                  role: "user",
-                  coins: 0,
-                  points: 0,
-                  modulesCompleted: [],
-                  currentModule: 1,
-                  precision: 0.0,
-                  correctAnswers: 0,
-                  wrongAnswers: 0,
-                  timeSpent: 0.0,
-                },
+      try {
+        console.log("📡 Enviando requisição GraphQL...");
+
+        const headers = { "Content-Type": "application/json" };
+        if (authHeader.startsWith("Bearer ") || authHeader.length > 40) {
+          headers["Authorization"] = authHeader;
+        } else {
+          headers["x-api-key"] = authHeader;
+        }
+
+        const response = await fetch(GRAPHQL_URL, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            query: mutation,
+            variables: {
+              input: {
+                id: userSub,
+                name,
+                email: username,
+                role: "user",
+                coins: 0,
+                points: 0,
+                modulesCompleted: [],
+                currentModule: 1,
+                precision: 0.0,
+                correctAnswers: 0,
+                wrongAnswers: 0,
+                timeSpent: 0.0,
               },
-            }),
-          });
+            },
+          }),
+        });
 
-          const gqlJson = await response.json();
-          
-          if (gqlJson.errors) {
-            console.error("⚠️ Erro GraphQL:", JSON.stringify(gqlJson.errors, null, 2));
-            
-            // ✅ Não falhar se o erro for de duplicação (usuário já existe no DB)
-            const isDuplicate = gqlJson.errors.some(err => 
+        const gqlJson = await response.json();
+
+        if (gqlJson.errors) {
+          console.error("⚠️ Erro GraphQL:", JSON.stringify(gqlJson.errors, null, 2));
+
+          const isDuplicate = gqlJson.errors.some(
+            (err) =>
               err.message?.includes("ConditionalCheckFailedException") ||
               err.message?.includes("duplicate") ||
               err.message?.includes("already exists")
-            );
-            
-            if (isDuplicate) {
-              console.log("⚠️ Usuário já existe no DynamoDB, continuando...");
-            } else {
-              throw new Error(`Falha ao inserir no DynamoDB: ${gqlJson.errors[0].message}`);
-            }
+          );
+
+          if (isDuplicate) {
+            console.log("⚠️ Usuário já existe no DynamoDB, continuando...");
           } else {
-            console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data?.createUser);
+            throw new Error(`Falha ao inserir no DynamoDB: ${gqlJson.errors[0].message}`);
           }
-        } catch (fetchError) {
-          console.error("❌ Erro ao chamar GraphQL:", fetchError);
-          // ✅ Log do erro mas não falha a criação do usuário no Cognito
-          console.warn("⚠️ Usuário criado no Cognito mas falhou no DynamoDB");
+        } else {
+          console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data?.createUser);
         }
-      } else {
-        console.warn("⚠️ Sem token de autorização, usuário não será criado no DynamoDB");
+      } catch (fetchError) {
+        console.error("❌ Erro ao chamar GraphQL:", fetchError);
+        console.warn("⚠️ Usuário criado no Cognito mas falhou no DynamoDB");
       }
+    } else {
+      console.warn("⚠️ Sem token de autorização ou GraphQL URL inválido.");
     }
 
     const result = {
@@ -164,9 +169,8 @@ exports.handler = async (event) => {
 
     console.log("✅ Retornando resultado:", result);
     return JSON.stringify(result);
-
   } catch (error) {
     console.error("❌ Erro ao criar usuário:", error);
     throw new Error(error?.message || "Erro interno ao criar usuário");
   }
-}
+};

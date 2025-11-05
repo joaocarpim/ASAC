@@ -1,13 +1,52 @@
 /* eslint-disable */
 // this is an auto generated file. This will be overwritten
 
-export const getProgress = /* GraphQL */ `
-  query GetProgress($id: ID!) {
-    getProgress(id: $id) {
+export const getUser = /* GraphQL */ `
+  query GetUser($id: ID!) {
+    getUser(id: $id) {
       id
-      user {
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      achievements {
+        nextToken
+        __typename
+      }
+      progress {
+        nextToken
+        __typename
+      }
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listUsers = /* GraphQL */ `
+  query ListUsers(
+    $id: ID
+    $filter: ModelUserFilterInput
+    $limit: Int
+    $nextToken: String
+    $sortDirection: ModelSortDirection
+  ) {
+    listUsers(
+      id: $id
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+      sortDirection: $sortDirection
+    ) {
+      items {
         id
-        owner
         name
         email
         role
@@ -23,7 +62,154 @@ export const getProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const usersByEmail = /* GraphQL */ `
+  query UsersByEmail(
+    $email: String!
+    $sortDirection: ModelSortDirection
+    $filter: ModelUserFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    usersByEmail(
+      email: $email
+      sortDirection: $sortDirection
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        id
+        name
+        email
+        role
+        coins
+        points
+        modulesCompleted
+        currentModule
+        precision
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const getAchievement = /* GraphQL */ `
+  query GetAchievement($id: ID!) {
+    getAchievement(id: $id) {
+      id
+      title
+      description
+      moduleNumber
       userId
+      user {
+        id
+        name
+        email
+        role
+        coins
+        points
+        modulesCompleted
+        currentModule
+        precision
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        createdAt
+        updatedAt
+        __typename
+      }
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listAchievements = /* GraphQL */ `
+  query ListAchievements(
+    $filter: ModelAchievementFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listAchievements(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        title
+        description
+        moduleNumber
+        userId
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const achievementsByUserId = /* GraphQL */ `
+  query AchievementsByUserId(
+    $userId: ID!
+    $sortDirection: ModelSortDirection
+    $filter: ModelAchievementFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    achievementsByUserId(
+      userId: $userId
+      sortDirection: $sortDirection
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        id
+        title
+        description
+        moduleNumber
+        userId
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const getProgress = /* GraphQL */ `
+  query GetProgress($id: ID!) {
+    getProgress(id: $id) {
+      id
+      userId
+      user {
+        id
+        name
+        email
+        role
+        coins
+        points
+        modulesCompleted
+        currentModule
+        precision
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleId
       module {
         id
         title
@@ -33,7 +219,6 @@ export const getProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       moduleNumber
       accuracy
       correctAnswers
@@ -148,196 +333,6 @@ export const progressesByModuleId = /* GraphQL */ `
     }
   }
 `;
-export const getUser = /* GraphQL */ `
-  query GetUser($id: ID!) {
-    getUser(id: $id) {
-      id
-      owner
-      name
-      email
-      role
-      coins
-      points
-      modulesCompleted
-      currentModule
-      precision
-      correctAnswers
-      wrongAnswers
-      timeSpent
-      achievements {
-        nextToken
-        __typename
-      }
-      progress {
-        nextToken
-        __typename
-      }
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const listUsers = /* GraphQL */ `
-  query ListUsers(
-    $id: ID
-    $filter: ModelUserFilterInput
-    $limit: Int
-    $nextToken: String
-    $sortDirection: ModelSortDirection
-  ) {
-    listUsers(
-      id: $id
-      filter: $filter
-      limit: $limit
-      nextToken: $nextToken
-      sortDirection: $sortDirection
-    ) {
-      items {
-        id
-        owner
-        name
-        email
-        role
-        coins
-        points
-        modulesCompleted
-        currentModule
-        precision
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
-export const usersByEmail = /* GraphQL */ `
-  query UsersByEmail(
-    $email: String!
-    $sortDirection: ModelSortDirection
-    $filter: ModelUserFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    usersByEmail(
-      email: $email
-      sortDirection: $sortDirection
-      filter: $filter
-      limit: $limit
-      nextToken: $nextToken
-    ) {
-      items {
-        id
-        owner
-        name
-        email
-        role
-        coins
-        points
-        modulesCompleted
-        currentModule
-        precision
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
-export const getAchievement = /* GraphQL */ `
-  query GetAchievement($id: ID!) {
-    getAchievement(id: $id) {
-      id
-      title
-      description
-      moduleNumber
-      user {
-        id
-        owner
-        name
-        email
-        role
-        coins
-        points
-        modulesCompleted
-        currentModule
-        precision
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        createdAt
-        updatedAt
-        __typename
-      }
-      userId
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const listAchievements = /* GraphQL */ `
-  query ListAchievements(
-    $filter: ModelAchievementFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    listAchievements(filter: $filter, limit: $limit, nextToken: $nextToken) {
-      items {
-        id
-        title
-        description
-        moduleNumber
-        userId
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
-export const achievementsByUserId = /* GraphQL */ `
-  query AchievementsByUserId(
-    $userId: ID!
-    $sortDirection: ModelSortDirection
-    $filter: ModelAchievementFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    achievementsByUserId(
-      userId: $userId
-      sortDirection: $sortDirection
-      filter: $filter
-      limit: $limit
-      nextToken: $nextToken
-    ) {
-      items {
-        id
-        title
-        description
-        moduleNumber
-        userId
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
 export const getModule = /* GraphQL */ `
   query GetModule($id: ID!) {
     getModule(id: $id) {
@@ -392,6 +387,7 @@ export const getLesson = /* GraphQL */ `
       content
       image
       lessonNumber
+      moduleId
       module {
         id
         title
@@ -401,7 +397,6 @@ export const getLesson = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename
@@ -471,6 +466,7 @@ export const getQuestion = /* GraphQL */ `
       questionText
       options
       correctAnswerIndex
+      moduleId
       module {
         id
         title
@@ -480,7 +476,6 @@ export const getQuestion = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename

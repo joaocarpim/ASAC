@@ -17,7 +17,6 @@ export const createUser = /* GraphQL */ `
   ) {
     createUser(input: $input, condition: $condition) {
       id
-      owner
       name
       email
       role
@@ -50,7 +49,6 @@ export const updateUser = /* GraphQL */ `
   ) {
     updateUser(input: $input, condition: $condition) {
       id
-      owner
       name
       email
       role
@@ -83,7 +81,6 @@ export const deleteUser = /* GraphQL */ `
   ) {
     deleteUser(input: $input, condition: $condition) {
       id
-      owner
       name
       email
       role
@@ -119,9 +116,9 @@ export const createAchievement = /* GraphQL */ `
       title
       description
       moduleNumber
+      userId
       user {
         id
-        owner
         name
         email
         role
@@ -137,7 +134,6 @@ export const createAchievement = /* GraphQL */ `
         updatedAt
         __typename
       }
-      userId
       createdAt
       updatedAt
       __typename
@@ -154,9 +150,9 @@ export const updateAchievement = /* GraphQL */ `
       title
       description
       moduleNumber
+      userId
       user {
         id
-        owner
         name
         email
         role
@@ -172,7 +168,6 @@ export const updateAchievement = /* GraphQL */ `
         updatedAt
         __typename
       }
-      userId
       createdAt
       updatedAt
       __typename
@@ -189,9 +184,9 @@ export const deleteAchievement = /* GraphQL */ `
       title
       description
       moduleNumber
+      userId
       user {
         id
-        owner
         name
         email
         role
@@ -207,7 +202,6 @@ export const deleteAchievement = /* GraphQL */ `
         updatedAt
         __typename
       }
-      userId
       createdAt
       updatedAt
       __typename
@@ -221,9 +215,9 @@ export const createProgress = /* GraphQL */ `
   ) {
     createProgress(input: $input, condition: $condition) {
       id
+      userId
       user {
         id
-        owner
         name
         email
         role
@@ -239,7 +233,7 @@ export const createProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
-      userId
+      moduleId
       module {
         id
         title
@@ -249,7 +243,6 @@ export const createProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       moduleNumber
       accuracy
       correctAnswers
@@ -271,9 +264,9 @@ export const updateProgress = /* GraphQL */ `
   ) {
     updateProgress(input: $input, condition: $condition) {
       id
+      userId
       user {
         id
-        owner
         name
         email
         role
@@ -289,7 +282,7 @@ export const updateProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
-      userId
+      moduleId
       module {
         id
         title
@@ -299,7 +292,6 @@ export const updateProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       moduleNumber
       accuracy
       correctAnswers
@@ -321,9 +313,9 @@ export const deleteProgress = /* GraphQL */ `
   ) {
     deleteProgress(input: $input, condition: $condition) {
       id
+      userId
       user {
         id
-        owner
         name
         email
         role
@@ -339,7 +331,7 @@ export const deleteProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
-      userId
+      moduleId
       module {
         id
         title
@@ -349,7 +341,6 @@ export const deleteProgress = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       moduleNumber
       accuracy
       correctAnswers
@@ -459,6 +450,7 @@ export const createLesson = /* GraphQL */ `
       content
       image
       lessonNumber
+      moduleId
       module {
         id
         title
@@ -468,7 +460,6 @@ export const createLesson = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename
@@ -486,6 +477,7 @@ export const updateLesson = /* GraphQL */ `
       content
       image
       lessonNumber
+      moduleId
       module {
         id
         title
@@ -495,7 +487,6 @@ export const updateLesson = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename
@@ -513,6 +504,7 @@ export const deleteLesson = /* GraphQL */ `
       content
       image
       lessonNumber
+      moduleId
       module {
         id
         title
@@ -522,7 +514,6 @@ export const deleteLesson = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename
@@ -539,6 +530,7 @@ export const createQuestion = /* GraphQL */ `
       questionText
       options
       correctAnswerIndex
+      moduleId
       module {
         id
         title
@@ -548,7 +540,6 @@ export const createQuestion = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename
@@ -565,6 +556,7 @@ export const updateQuestion = /* GraphQL */ `
       questionText
       options
       correctAnswerIndex
+      moduleId
       module {
         id
         title
@@ -574,7 +566,6 @@ export const updateQuestion = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename
@@ -591,6 +582,7 @@ export const deleteQuestion = /* GraphQL */ `
       questionText
       options
       correctAnswerIndex
+      moduleId
       module {
         id
         title
@@ -600,7 +592,6 @@ export const deleteQuestion = /* GraphQL */ `
         updatedAt
         __typename
       }
-      moduleId
       createdAt
       updatedAt
       __typename
