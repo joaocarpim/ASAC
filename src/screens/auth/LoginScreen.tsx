@@ -47,14 +47,14 @@ const CustomModal = ({
         {type === "error" && (
           <MaterialCommunityIcons
             name="alert-circle-outline"
-            size={48}
+            size={56}
             color="#D32F2F"
           />
         )}
         {type === "success" && (
           <MaterialCommunityIcons
             name="check-circle-outline"
-            size={48}
+            size={56}
             color="#2E7D32"
           />
         )}
@@ -110,7 +110,6 @@ export default function LoginScreen({
     });
   };
 
-
   const handleLogin = async () => {
     if (loading) return;
     if (!email.trim() || !password) {
@@ -127,7 +126,6 @@ export default function LoginScreen({
         JSON.stringify(result, null, 2)
       );
 
-      // Caso Cognito exija redefinição de senha
       if (result.nextStep?.signInStep === "RESET_PASSWORD") {
         navigation.replace("NewPassword", { username: email.trim() });
         return;
@@ -146,13 +144,9 @@ export default function LoginScreen({
         return;
       }
 
-      // Atualiza store global
       await checkUser();
-
-      // Dispara evento de login
       Hub.dispatch("auth", { event: "signedIn" });
 
-      // Ir para a tela de contraste de forma segura (redefinindo a stack)
       showModal("success", "Bem-vindo", "Login realizado com sucesso!", () => {
         goToContrastSafely();
       });
@@ -234,6 +228,7 @@ export default function LoginScreen({
           <Image source={logo} style={styles.logo} />
           <Text style={styles.logoText}>ASAC</Text>
         </View>
+
         <View style={styles.formContainer}>
           <Text style={styles.promptText}>
             Acesse o App informando seus dados
@@ -268,27 +263,6 @@ export default function LoginScreen({
               onChangeText={setNewPassword}
             />
           )}
-
-          <View style={styles.linksContainer}>
-            {!requireNewPassword && (
-              <>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("ForgotPassword")}
-                >
-                  <Text style={styles.linkText}>Recuperar Senha</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate("ConfirmSignUp", {
-                      email: email.trim(),
-                    })
-                  }
-                >
-                  <Text style={styles.linkText}>Confirmar Conta</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
         </View>
 
         {!requireNewPassword ? (
@@ -325,47 +299,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-  logoContainer: { alignItems: "center", marginBottom: 20 },
-  logo: { width: 150, height: 150, resizeMode: "contain" },
+  logoContainer: { alignItems: "center", marginBottom: 30 },
+  logo: { width: 200, height: 200, resizeMode: "contain" }, // 🔹 Aumentei o tamanho da logo
   logoText: {
-    fontSize: 52,
+    fontSize: 64, // 🔹 Aumentei o tamanho do texto "ASAC"
     fontWeight: "bold",
     color: "#191970",
     marginTop: 10,
   },
   formContainer: { width: "100%", alignItems: "center" },
   promptText: {
-    fontSize: 16,
+    fontSize: 20, // 🔹 Texto mais visível
     color: "#191970",
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 25,
     textAlign: "center",
   },
   input: {
     width: "100%",
     backgroundColor: "#191970",
     color: "#FFFFFF",
-    padding: 15,
-    borderRadius: 8,
-    fontSize: 16,
-    marginBottom: 15,
+    padding: 18,
+    borderRadius: 10,
+    fontSize: 18, // 🔹 Fonte maior
+    marginBottom: 20,
   },
-  linksContainer: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 5,
-  },
-  linkText: { color: "#191970", fontWeight: "bold", fontSize: 14 },
   button: {
     width: "100%",
     backgroundColor: "#191970",
-    padding: 15,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 10,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 25,
   },
-  buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
+  buttonText: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" }, // 🔹 Fonte maior no botão
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -380,23 +347,23 @@ const styles = StyleSheet.create({
     width: "80%",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     marginBottom: 10,
     color: "#191970",
   },
   modalMessage: {
-    fontSize: 16,
+    fontSize: 18,
     textAlign: "center",
     marginBottom: 20,
     color: "#333",
   },
   modalButton: {
     backgroundColor: "#191970",
-    padding: 10,
-    borderRadius: 5,
+    padding: 12,
+    borderRadius: 6,
     alignItems: "center",
     width: "100%",
   },
-  modalButtonText: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
+  modalButtonText: { color: "#FFF", fontWeight: "bold", fontSize: 18 },
 });

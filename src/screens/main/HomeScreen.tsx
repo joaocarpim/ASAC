@@ -60,7 +60,7 @@ interface ModuleItemProps {
   styles: HomeScreenStyles;
 }
 
-// --- SUBCOMPONENTES (sem alterações) ---
+// --- SUBCOMPONENTES (Corrigidos) ---
 const StatCard: React.FC<StatCardProps> = ({
   iconName,
   value,
@@ -79,7 +79,8 @@ const StatCard: React.FC<StatCardProps> = ({
         size={iconStyle.fontSize}
         color={iconStyle.color}
       />
-      <Text style={styles.statValue}>{value}</Text>{" "}
+      <Text style={styles.statValue}>{value}</Text>
+      {/* ✅ CORREÇÃO: Removido o {" "} que estava solto */}
       <Text style={styles.statLabel}>{label}</Text>
     </AccessibleView>
   );
@@ -103,7 +104,8 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         size={iconStyle.fontSize}
         color={iconStyle.color}
       />
-      <Text style={styles.actionLabel}>{label}</Text>{" "}
+      <Text style={styles.actionLabel}>{label}</Text>
+      {/* ✅ CORREÇÃO: Removido o {" "} que estava solto */}
     </AccessibleButton>
   );
 };
@@ -135,7 +137,8 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
           size={iconStyle.fontSize}
           color={iconStyle.color}
         />
-      </View>{" "}
+      </View>
+      {/* ✅ CORREÇÃO: Removido o {" "} que estava solto */}
       <View style={styles.moduleTextContainer}>
         <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
         <Text style={styles.moduleSubtitle}>{module.title}</Text>

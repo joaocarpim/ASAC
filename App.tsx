@@ -1,17 +1,7 @@
-// App.tsx
-
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
-
 import awsmobile from "./src/aws-exports";
-
-import amplifyConfig from "./src/config/amplify-config"; 
-
-if (process.env.NODE_ENV === 'production') {
-  Amplify.configure(amplifyConfig);
-} else {
-  Amplify.configure(awsmobile);
-}
+Amplify.configure(awsmobile);
 
 import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
@@ -73,6 +63,10 @@ import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Cores do tema Padrão (blue_yellow) para fallback
+const DEFAULT_BG_COLOR = "#FFC700";
+const DEFAULT_TEXT_COLOR = "#191970";
+
 function isColorDark(hexColor: string): boolean {
   if (!hexColor || typeof hexColor !== "string") return false;
   const color = hexColor.startsWith("#") ? hexColor.slice(1) : hexColor;
@@ -80,7 +74,8 @@ function isColorDark(hexColor: string): boolean {
   const r = parseInt(color.substring(0, 2), 16);
   const g = parseInt(color.substring(2, 4), 16);
   const b = parseInt(color.substring(4, 6), 16);
-  return 0.299 * r + 0.587 * g + 0.114 * b < 149;
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance < 149;
 }
 
 function AppNavigation() {
@@ -89,10 +84,12 @@ function AppNavigation() {
     useAccessibility();
   const { theme } = useContrast();
   const viewShotRef = useRef<ViewShot>(null);
+
   const navigationRef = useNavigationContainerRef();
   const [currentRouteName, setCurrentRouteName] = useState<
     string | undefined
   >();
+
   const screensWithoutHub = [
     "ConfirmSignUp",
     "ForgotPassword",
@@ -105,19 +102,24 @@ function AppNavigation() {
     "Welcome",
     "Contrast",
   ];
+
   const showAccessibilityHub =
     !user?.isAdmin &&
     currentRouteName &&
     !screensWithoutHub.includes(currentRouteName);
+
+  // ✅ CORREÇÃO: Adicionado fallback para evitar 'undefined' durante o carregamento
   const navigationTheme = {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
-      background: theme.background,
-      card: theme.background,
+      background: theme.background || DEFAULT_BG_COLOR,
+      card: theme.background || DEFAULT_BG_COLOR,
     },
   };
-  const isThemeDark = isColorDark(theme.background);
+
+  // ✅ CORREÇÃO: Adicionado fallback para evitar 'undefined' durante o carregamento
+  const isThemeDark = isColorDark(theme.background || DEFAULT_BG_COLOR);
 
   useEffect(() => {
     checkUser();
@@ -133,18 +135,32 @@ function AppNavigation() {
   if (isLoading) {
     return (
       <View
-        style={[styles.loadingContainer, { backgroundColor: theme.background }]}
+        // ✅ CORREÇÃO: Adicionado fallback
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.background || DEFAULT_BG_COLOR },
+        ]}
       >
-        <ActivityIndicator size="large" color={theme.text} />
+        <ActivityIndicator
+          size="large"
+          color={theme.text || DEFAULT_TEXT_COLOR} // ✅ CORREÇÃO: Adicionado fallback
+        />
       </View>
     );
   }
 
   return (
-    <View style={[styles.fullscreen, { backgroundColor: theme.background }]}>
+    <View
+      // ✅ CORREÇÃO: Adicionado fallback
+      style={[
+        styles.fullscreen,
+        { backgroundColor: theme.background || DEFAULT_BG_COLOR },
+      ]}
+    >
       <StatusBar
         barStyle={isThemeDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.background}
+        // ✅ CORREÇÃO: Adicionado fallback
+        backgroundColor={theme.background || DEFAULT_BG_COLOR}
       />
       <ViewShot
         ref={viewShotRef}
@@ -159,7 +175,7 @@ function AppNavigation() {
         >
           <NavigationContainer
             ref={navigationRef}
-            theme={navigationTheme}
+            theme={navigationTheme} // Já contém o fallback
             onReady={() => {
               setCurrentRouteName(navigationRef.getCurrentRoute()?.name);
             }}
@@ -172,7 +188,10 @@ function AppNavigation() {
             <Stack.Navigator
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: theme.background },
+                // ✅ CORREÇÃO: Adicionado fallback
+                contentStyle: {
+                  backgroundColor: theme.background || DEFAULT_BG_COLOR,
+                },
               }}
             >
               {!user ? (
@@ -288,18 +307,31 @@ function AppContent() {
     "OpenDyslexic-Regular": require("./assets/fonts/OpenDyslexic-Regular.otf"),
   });
   const { theme } = useContrast();
+
   if (!fontsLoaded) {
     return (
       <View
-        style={[styles.loadingContainer, { backgroundColor: theme.background }]}
+        // ✅ CORREÇÃO: Adicionado fallback
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.background || DEFAULT_BG_COLOR },
+        ]}
       >
-        <ActivityIndicator size="large" color={theme.text} />
+        <ActivityIndicator
+          size="large"
+          color={theme.text || DEFAULT_TEXT_COLOR} // ✅ CORREÇÃO: Adicionado fallback
+        />
       </View>
     );
   }
+
   return (
     <GestureHandlerRootView
-      style={[styles.fullscreen, { backgroundColor: theme.background }]}
+      // ✅ CORREÇÃO: Adicionado fallback
+      style={[
+        styles.fullscreen,
+        { backgroundColor: theme.background || DEFAULT_BG_COLOR },
+      ]}
     >
       <AppNavigation />
     </GestureHandlerRootView>
@@ -323,7 +355,7 @@ export default function App() {
 const styles = StyleSheet.create({
   fullscreen: { flex: 1 },
   loadingContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: "#fff", // O fallback no componente substitui este
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
