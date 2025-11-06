@@ -13,6 +13,7 @@
     "@aws-amplify/api": "^6.3.19",
     "@aws-amplify/auth": "^6.16.0",
     "@aws-amplify/react-native": "^1.2.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.925.0",
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "11.3.1",

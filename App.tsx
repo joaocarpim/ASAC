@@ -1,48 +1,35 @@
 // App.tsx
-
-import { Amplify } from "aws-amplify";
-import { Hub } from "aws-amplify/utils";
-
-import awsmobile from "./src/aws-exports";
-
-import amplifyConfig from "./src/config/amplify-config"; 
-
-if (process.env.NODE_ENV === 'production') {
-  Amplify.configure(amplifyConfig);
-} else {
-  Amplify.configure(awsmobile);
-}
+import { Buffer } from "buffer";
+global.Buffer = global.Buffer || Buffer;
 
 import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
-import {
-  NavigationContainer,
-  DefaultTheme,
-  useNavigationContainerRef,
-} from "@react-navigation/native";
+import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useFonts } from "expo-font";
 import ViewShot from "react-native-view-shot";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useFonts } from "expo-font";
+import { Hub } from "aws-amplify/utils";
+import { Amplify } from "aws-amplify";
 
-// Providers
-import {
-  AccessibilityProvider,
-  useAccessibility,
-} from "./src/context/AccessibilityProvider";
+import amplifyConfig from "./src/config/amplify-config";
+Amplify.configure(amplifyConfig);
+
+// Store & Contextos
+import { useAuthStore } from "./src/store/authStore";
 import { ContrastProvider } from "./src/context/ContrastProvider";
-import { useContrast } from "./src/hooks/useContrast";
+import { AccessibilityProvider, useAccessibility } from "./src/context/AccessibilityProvider";
 import { SettingsProvider as AccessibilitySettingsProvider } from "./src/context/SettingsProvider";
 
-// Tipagem e Store
-import { RootStackParamList } from "./src/navigation/types";
-import { useAuthStore } from "./src/store/authStore";
-
-// Componentes
-import AccessibilityHub from "./src/components/AccessibilityHub";
+// Componentes Acessibilidade
 import MagnifierLens from "./src/components/MagnifierLens";
+import AccessibilityHub from "./src/components/AccessibilityHub";
 
-// Telas (importações)
+// Rotas
+import { RootStackParamList } from "./src/navigation/types";
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Telas Onboarding/Auth
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStep1Screen";
 import TutorialStep2Screen from "./src/screens/onboarding/TutorialStep2Screen";
@@ -52,6 +39,8 @@ import ForgotPasswordScreen from "./src/screens/auth/ForgotPasswordScreen";
 import ResetPasswordScreen from "./src/screens/auth/ResetPasswordScreen";
 import ConfirmSignUpScreen from "./src/screens/auth/ConfirmSignUpScreen";
 import NewPasswordScreen from "./src/screens/auth/NewPasswordScreen";
+
+// Telas Usuário
 import HomeScreen from "./src/screens/main/HomeScreen";
 import RankingScreen from "./src/screens/main/RankingScreen";
 import AchievementsScreen from "./src/screens/main/AchievementsScreen";
@@ -63,257 +52,128 @@ import ModulePreQuizScreen from "./src/screens/module/ModulePreQuizScreen";
 import ModuleQuizScreen from "./src/screens/module/ModuleQuizScreen";
 import ModuleResultScreen from "./src/screens/module/ModuleResultScreen";
 import BrailleScreen from "./src/screens/module/BrailleScreen";
-import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
-import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
-import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
-import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
 import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen";
 import LearningPathScreen from "./src/screens/session/LearningPathScreen";
 import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+// Telas Admin
+import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
+import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
+import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
+import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
 
-function isColorDark(hexColor: string): boolean {
-  if (!hexColor || typeof hexColor !== "string") return false;
-  const color = hexColor.startsWith("#") ? hexColor.slice(1) : hexColor;
-  if (color.length !== 6) return false;
-  const r = parseInt(color.substring(0, 2), 16);
-  const g = parseInt(color.substring(2, 4), 16);
-  const b = parseInt(color.substring(4, 6), 16);
-  return 0.299 * r + 0.587 * g + 0.114 * b < 149;
-}
 
 function AppNavigation() {
   const { user, isLoading, checkUser, signOut } = useAuthStore();
-  const { panResponder, clearAllElements, magnifier, magnifierPanResponder } =
-    useAccessibility();
-  const { theme } = useContrast();
+  const { panResponder, magnifier, magnifierPanResponder, clearAllElements } = useAccessibility();
   const viewShotRef = useRef<ViewShot>(null);
-  const navigationRef = useNavigationContainerRef();
-  const [currentRouteName, setCurrentRouteName] = useState<
-    string | undefined
-  >();
-  const screensWithoutHub = [
-    "ConfirmSignUp",
-    "ForgotPassword",
-    "Login",
-    "NewPassword",
-    "ResetPassword",
-    "TutorialStep1",
-    "TutorialStep2",
-    "TutorialStep3",
-    "Welcome",
-    "Contrast",
-  ];
-  const showAccessibilityHub =
-    !user?.isAdmin &&
-    currentRouteName &&
-    !screensWithoutHub.includes(currentRouteName);
-  const navigationTheme = {
-    ...DefaultTheme,
-    colors: {
-      ...DefaultTheme.colors,
-      background: theme.background,
-      card: theme.background,
-    },
-  };
-  const isThemeDark = isColorDark(theme.background);
+  const [currentScreen, setCurrentScreen] = useState<string | undefined>();
 
   useEffect(() => {
     checkUser();
-    const hubListener = (capsule: any) => {
-      const event = capsule?.payload?.event;
-      if (event === "signedIn" || event === "tokenRefresh") checkUser();
-      else if (event === "signedOut") signOut();
-    };
-    const unsubscribe = Hub.listen("auth", hubListener);
-    return () => unsubscribe();
+
+    const sub = Hub.listen("auth", ({ payload }) => {
+      if (payload.event === "signedIn" || payload.event === "tokenRefresh") checkUser();
+      if (payload.event === "signedOut") signOut();
+    });
+
+    return () => sub();
   }, [checkUser, signOut]);
 
-  if (isLoading) {
-    return (
-      <View
-        style={[styles.loadingContainer, { backgroundColor: theme.background }]}
-      >
-        <ActivityIndicator size="large" color={theme.text} />
-      </View>
-    );
-  }
+  if (isLoading) return <Loading />;
+
+  const showHub =
+    !!user &&
+    !user.isAdmin &&
+    currentScreen &&
+    !["Login", "Welcome", "TutorialStep1", "TutorialStep2", "TutorialStep3"].includes(currentScreen);
 
   return (
-    <View style={[styles.fullscreen, { backgroundColor: theme.background }]}>
-      <StatusBar
-        barStyle={isThemeDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.background}
-      />
-      <ViewShot
-        ref={viewShotRef}
-        style={{ flex: 1 }}
-        options={{ format: "jpg", quality: 0.9 }}
-      >
+    <View style={{ flex: 1 }}>
+      <StatusBar backgroundColor="#FFC700" barStyle="dark-content" />
+
+      <ViewShot ref={viewShotRef} style={{ flex: 1 }}>
         <View
-          style={styles.fullscreen}
-          {...(magnifier.isActive
-            ? magnifierPanResponder.panHandlers
-            : panResponder.panHandlers)}
+          style={{ flex: 1 }}
+          {...(magnifier.isActive ? magnifierPanResponder.panHandlers : panResponder.panHandlers)}
         >
           <NavigationContainer
-            ref={navigationRef}
-            theme={navigationTheme}
-            onReady={() => {
-              setCurrentRouteName(navigationRef.getCurrentRoute()?.name);
-            }}
-            onStateChange={() => {
+            onStateChange={(nav) => {
               clearAllElements();
-              const newRouteName = navigationRef.getCurrentRoute()?.name;
-              setCurrentRouteName(newRouteName);
+              setCurrentScreen(nav?.routes?.[nav.routes.length - 1]?.name);
             }}
           >
-            <Stack.Navigator
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: theme.background },
-              }}
-            >
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
               {!user ? (
-                <Stack.Group>
+                <>
                   <Stack.Screen name="Welcome" component={WelcomeScreen} />
-                  <Stack.Screen
-                    name="TutorialStep1"
-                    component={TutorialStep1Screen}
-                  />
-                  <Stack.Screen
-                    name="TutorialStep2"
-                    component={TutorialStep2Screen}
-                  />
-                  <Stack.Screen
-                    name="TutorialStep3"
-                    component={TutorialStep3Screen}
-                  />
+                  <Stack.Screen name="TutorialStep1" component={TutorialStep1Screen} />
+                  <Stack.Screen name="TutorialStep2" component={TutorialStep2Screen} />
+                  <Stack.Screen name="TutorialStep3" component={TutorialStep3Screen} />
                   <Stack.Screen name="Login" component={LoginScreen} />
-                  <Stack.Screen
-                    name="ForgotPassword"
-                    component={ForgotPasswordScreen}
-                  />
-                  <Stack.Screen
-                    name="ResetPassword"
-                    component={ResetPasswordScreen}
-                  />
-                  <Stack.Screen
-                    name="ConfirmSignUp"
-                    component={ConfirmSignUpScreen}
-                  />
-                  <Stack.Screen
-                    name="NewPassword"
-                    component={NewPasswordScreen}
-                  />
-                </Stack.Group>
+                  <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+                  <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+                  <Stack.Screen name="ConfirmSignUp" component={ConfirmSignUpScreen} />
+                  <Stack.Screen name="NewPassword" component={NewPasswordScreen} />
+                </>
               ) : user.isAdmin ? (
-                <Stack.Group>
-                  <Stack.Screen
-                    name="AdminDashboard"
-                    component={AdminDashboardScreen}
-                  />
-                  <Stack.Screen
-                    name="AdminUserDetail"
-                    component={AdminUserDetailScreen}
-                  />
-                  <Stack.Screen
-                    name="AdminIncorrectAnswers"
-                    component={AdminIncorrectAnswersScreen}
-                  />
-                  <Stack.Screen
-                    name="AdminRegisterUser"
-                    component={AdminRegisterUserScreen}
-                  />
-                </Stack.Group>
+                <>
+                  <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+                  <Stack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} />
+                  <Stack.Screen name="AdminIncorrectAnswers" component={AdminIncorrectAnswersScreen} />
+                  <Stack.Screen name="AdminRegisterUser" component={AdminRegisterUserScreen} />
+                </>
               ) : (
-                <Stack.Group>
+                <>
                   <Stack.Screen name="Home" component={HomeScreen} />
                   <Stack.Screen name="Ranking" component={RankingScreen} />
-                  <Stack.Screen
-                    name="Achievements"
-                    component={AchievementsScreen}
-                  />
+                  <Stack.Screen name="Achievements" component={AchievementsScreen} />
                   <Stack.Screen name="Progress" component={ProgressScreen} />
                   <Stack.Screen name="Settings" component={SettingsScreen} />
-                  <Stack.Screen
-                    name="ModuleContent"
-                    component={ModuleContentScreen}
-                  />
-                  <Stack.Screen
-                    name="ModulePreQuiz"
-                    component={ModulePreQuizScreen}
-                  />
-                  <Stack.Screen
-                    name="ModuleQuiz"
-                    component={ModuleQuizScreen}
-                  />
-                  <Stack.Screen
-                    name="Alphabet"
-                    component={BrailleAlphabetScreen}
-                  />
-                  <Stack.Screen
-                    name="ModuleResult"
-                    component={ModuleResultScreen}
-                  />
-                  <Stack.Screen
-                    name="Contrast"
-                    component={SelectedContrastScreen}
-                  />
+                  <Stack.Screen name="ModuleContent" component={ModuleContentScreen} />
+                  <Stack.Screen name="ModulePreQuiz" component={ModulePreQuizScreen} />
+                  <Stack.Screen name="ModuleQuiz" component={ModuleQuizScreen} />
+                  <Stack.Screen name="ModuleResult" component={ModuleResultScreen} />
+                  <Stack.Screen name="Alphabet" component={BrailleAlphabetScreen} />
+                  <Stack.Screen name="Contrast" component={SelectedContrastScreen} />
                   <Stack.Screen name="Braille" component={BrailleScreen} />
-                  <Stack.Screen
-                    name="LearningPath"
-                    component={LearningPathScreen}
-                  />
-                  <Stack.Screen
-                    name="BraillePractice"
-                    component={BraillePracticeScreen}
-                  />
-                </Stack.Group>
+                  <Stack.Screen name="LearningPath" component={LearningPathScreen} />
+                  <Stack.Screen name="BraillePractice" component={BraillePracticeScreen} />
+                </>
               )}
             </Stack.Navigator>
           </NavigationContainer>
 
           {magnifier.isActive && <MagnifierLens viewShotRef={viewShotRef} />}
-          {showAccessibilityHub && <AccessibilityHub />}
+          {showHub && <AccessibilityHub />}
         </View>
       </ViewShot>
     </View>
   );
 }
 
-function AppContent() {
-  const [fontsLoaded] = useFonts({
-    "OpenDyslexic-Regular": require("./assets/fonts/OpenDyslexic-Regular.otf"),
-  });
-  const { theme } = useContrast();
-  if (!fontsLoaded) {
-    return (
-      <View
-        style={[styles.loadingContainer, { backgroundColor: theme.background }]}
-      >
-        <ActivityIndicator size="large" color={theme.text} />
-      </View>
-    );
-  }
+function Loading() {
   return (
-    <GestureHandlerRootView
-      style={[styles.fullscreen, { backgroundColor: theme.background }]}
-    >
-      <AppNavigation />
-    </GestureHandlerRootView>
+    <View style={styles.loading}>
+      <ActivityIndicator size="large" color="#191970" />
+    </View>
   );
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    "OpenDyslexic-Regular": require("./assets/fonts/OpenDyslexic-Regular.otf"),
+  });
+
+  if (!fontsLoaded) return <Loading />;
+
   return (
-    <AccessibilityProvider
-      speechConfig={{ lang: "pt-BR", rate: 0.9, volume: 1.0 }}
-    >
+    <AccessibilityProvider>
       <ContrastProvider>
         <AccessibilitySettingsProvider>
-          <AppContent />
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <AppNavigation />
+          </GestureHandlerRootView>
         </AccessibilitySettingsProvider>
       </ContrastProvider>
     </AccessibilityProvider>
@@ -321,11 +181,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  fullscreen: { flex: 1 },
-  loadingContainer: {
-    backgroundColor: "#fff",
+  loading: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#FFC700",
   },
 });

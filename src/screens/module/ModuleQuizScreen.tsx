@@ -111,6 +111,7 @@ export default function ModuleQuizScreen({
       correctSound?.unloadAsync();
       wrongSound?.unloadAsync();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -226,12 +227,12 @@ export default function ModuleQuizScreen({
 
       if (user?.userId && activeProgressId) {
         try {
+          // CHAMADA CORRIGIDA: remover string extra e passar apenas até 7 argumentos
           await finishModule(
             user.userId,
             activeProgressId,
             parseInt(String(moduleId), 10),
             duration,
-            `Concluiu o módulo ${moduleId}`,
             coinsEarned,
             correctCount,
             wrongCount

@@ -1,6 +1,152 @@
 /* eslint-disable */
 // this is an auto generated file. This will be overwritten
 
+export const getProgress = /* GraphQL */ `
+  query GetProgress($id: ID!) {
+    getProgress(id: $id) {
+      id
+      userId
+      user {
+        id
+        name
+        email
+        role
+        coins
+        points
+        modulesCompleted
+        currentModule
+        precision
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleId
+      module {
+        id
+        title
+        description
+        moduleNumber
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleNumber
+      accuracy
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      completed
+      completedAt
+      errorDetails
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listProgresses = /* GraphQL */ `
+  query ListProgresses(
+    $filter: ModelProgressFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listProgresses(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        userId
+        moduleId
+        moduleNumber
+        accuracy
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        completed
+        completedAt
+        errorDetails
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const progressesByUserId = /* GraphQL */ `
+  query ProgressesByUserId(
+    $userId: ID!
+    $sortDirection: ModelSortDirection
+    $filter: ModelProgressFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    progressesByUserId(
+      userId: $userId
+      sortDirection: $sortDirection
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        id
+        userId
+        moduleId
+        moduleNumber
+        accuracy
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        completed
+        completedAt
+        errorDetails
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const progressesByModuleId = /* GraphQL */ `
+  query ProgressesByModuleId(
+    $moduleId: ID!
+    $sortDirection: ModelSortDirection
+    $filter: ModelProgressFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    progressesByModuleId(
+      moduleId: $moduleId
+      sortDirection: $sortDirection
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        id
+        userId
+        moduleId
+        moduleNumber
+        accuracy
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        completed
+        completedAt
+        errorDetails
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
 export const getUser = /* GraphQL */ `
   query GetUser($id: ID!) {
     getUser(id: $id) {
@@ -178,152 +324,6 @@ export const achievementsByUserId = /* GraphQL */ `
         description
         moduleNumber
         userId
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
-export const getProgress = /* GraphQL */ `
-  query GetProgress($id: ID!) {
-    getProgress(id: $id) {
-      id
-      userId
-      user {
-        id
-        name
-        email
-        role
-        coins
-        points
-        modulesCompleted
-        currentModule
-        precision
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleId
-      module {
-        id
-        title
-        description
-        moduleNumber
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleNumber
-      accuracy
-      correctAnswers
-      wrongAnswers
-      timeSpent
-      completed
-      completedAt
-      errorDetails
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const listProgresses = /* GraphQL */ `
-  query ListProgresses(
-    $filter: ModelProgressFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    listProgresses(filter: $filter, limit: $limit, nextToken: $nextToken) {
-      items {
-        id
-        userId
-        moduleId
-        moduleNumber
-        accuracy
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        completed
-        completedAt
-        errorDetails
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
-export const progressesByUserId = /* GraphQL */ `
-  query ProgressesByUserId(
-    $userId: ID!
-    $sortDirection: ModelSortDirection
-    $filter: ModelProgressFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    progressesByUserId(
-      userId: $userId
-      sortDirection: $sortDirection
-      filter: $filter
-      limit: $limit
-      nextToken: $nextToken
-    ) {
-      items {
-        id
-        userId
-        moduleId
-        moduleNumber
-        accuracy
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        completed
-        completedAt
-        errorDetails
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
-export const progressesByModuleId = /* GraphQL */ `
-  query ProgressesByModuleId(
-    $moduleId: ID!
-    $sortDirection: ModelSortDirection
-    $filter: ModelProgressFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    progressesByModuleId(
-      moduleId: $moduleId
-      sortDirection: $sortDirection
-      filter: $filter
-      limit: $limit
-      nextToken: $nextToken
-    ) {
-      items {
-        id
-        userId
-        moduleId
-        moduleNumber
-        accuracy
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        completed
-        completedAt
-        errorDetails
         createdAt
         updatedAt
         __typename

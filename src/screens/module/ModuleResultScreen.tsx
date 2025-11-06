@@ -158,16 +158,16 @@ export default function ModuleResultScreen({
       console.log(`📊 Acertos: ${correctAnswers}, Erros: ${errors}, Total: ${totalQuestions}`);
 
       // ✅ Chamar finishModule
-      const result = await finishModule(
-        user.userId,
-        finalProgressId,
-        moduleNumber,
-        timeSpent,
-        achievementTitle,
-        coinsEarned || 150,
-        correctAnswers,
-        errors
-      );
+     const result = await finishModule(
+  user.userId,
+  finalProgressId,
+  moduleNumber,
+  timeSpent,
+  coinsEarned || 150,
+  correctAnswers,
+  errors
+);
+
 
       if (result) {
         console.log("✅ Progresso salvo com sucesso!");

@@ -1,6 +1,153 @@
 /* eslint-disable */
 // this is an auto generated file. This will be overwritten
 
+export const onCreateProgress = /* GraphQL */ `
+  subscription OnCreateProgress(
+    $filter: ModelSubscriptionProgressFilterInput
+    $userId: String
+  ) {
+    onCreateProgress(filter: $filter, userId: $userId) {
+      id
+      userId
+      user {
+        id
+        name
+        email
+        role
+        coins
+        points
+        modulesCompleted
+        currentModule
+        precision
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleId
+      module {
+        id
+        title
+        description
+        moduleNumber
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleNumber
+      accuracy
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      completed
+      completedAt
+      errorDetails
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onUpdateProgress = /* GraphQL */ `
+  subscription OnUpdateProgress(
+    $filter: ModelSubscriptionProgressFilterInput
+    $userId: String
+  ) {
+    onUpdateProgress(filter: $filter, userId: $userId) {
+      id
+      userId
+      user {
+        id
+        name
+        email
+        role
+        coins
+        points
+        modulesCompleted
+        currentModule
+        precision
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleId
+      module {
+        id
+        title
+        description
+        moduleNumber
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleNumber
+      accuracy
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      completed
+      completedAt
+      errorDetails
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onDeleteProgress = /* GraphQL */ `
+  subscription OnDeleteProgress(
+    $filter: ModelSubscriptionProgressFilterInput
+    $userId: String
+  ) {
+    onDeleteProgress(filter: $filter, userId: $userId) {
+      id
+      userId
+      user {
+        id
+        name
+        email
+        role
+        coins
+        points
+        modulesCompleted
+        currentModule
+        precision
+        correctAnswers
+        wrongAnswers
+        timeSpent
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleId
+      module {
+        id
+        title
+        description
+        moduleNumber
+        createdAt
+        updatedAt
+        __typename
+      }
+      moduleNumber
+      accuracy
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      completed
+      completedAt
+      errorDetails
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
 export const onCreateUser = /* GraphQL */ `
   subscription OnCreateUser(
     $filter: ModelSubscriptionUserFilterInput
@@ -193,153 +340,6 @@ export const onDeleteAchievement = /* GraphQL */ `
         updatedAt
         __typename
       }
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const onCreateProgress = /* GraphQL */ `
-  subscription OnCreateProgress(
-    $filter: ModelSubscriptionProgressFilterInput
-    $userId: String
-  ) {
-    onCreateProgress(filter: $filter, userId: $userId) {
-      id
-      userId
-      user {
-        id
-        name
-        email
-        role
-        coins
-        points
-        modulesCompleted
-        currentModule
-        precision
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleId
-      module {
-        id
-        title
-        description
-        moduleNumber
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleNumber
-      accuracy
-      correctAnswers
-      wrongAnswers
-      timeSpent
-      completed
-      completedAt
-      errorDetails
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const onUpdateProgress = /* GraphQL */ `
-  subscription OnUpdateProgress(
-    $filter: ModelSubscriptionProgressFilterInput
-    $userId: String
-  ) {
-    onUpdateProgress(filter: $filter, userId: $userId) {
-      id
-      userId
-      user {
-        id
-        name
-        email
-        role
-        coins
-        points
-        modulesCompleted
-        currentModule
-        precision
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleId
-      module {
-        id
-        title
-        description
-        moduleNumber
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleNumber
-      accuracy
-      correctAnswers
-      wrongAnswers
-      timeSpent
-      completed
-      completedAt
-      errorDetails
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const onDeleteProgress = /* GraphQL */ `
-  subscription OnDeleteProgress(
-    $filter: ModelSubscriptionProgressFilterInput
-    $userId: String
-  ) {
-    onDeleteProgress(filter: $filter, userId: $userId) {
-      id
-      userId
-      user {
-        id
-        name
-        email
-        role
-        coins
-        points
-        modulesCompleted
-        currentModule
-        precision
-        correctAnswers
-        wrongAnswers
-        timeSpent
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleId
-      module {
-        id
-        title
-        description
-        moduleNumber
-        createdAt
-        updatedAt
-        __typename
-      }
-      moduleNumber
-      accuracy
-      correctAnswers
-      wrongAnswers
-      timeSpent
-      completed
-      completedAt
-      errorDetails
       createdAt
       updatedAt
       __typename

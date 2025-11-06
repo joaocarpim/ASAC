@@ -8,10 +8,10 @@ type User
       # 🔓 Público pode apenas ler (ranking, perfis públicos)
       { allow: public, provider: apiKey, operations: [read] }
 
-      # 👤 Dono (owner) pode criar, ler e atualizar seus próprios dados
+      # 👤 Dono (owner) pode criar, ler, atualizar e deletar seus próprios dados
       { allow: owner, ownerField: "id", operations: [create, read, update, delete] }
 
-      # 🔐 Usuário autenticado (sem grupo) também pode gerenciar dados
+      # 🔐 Usuário autenticado (sem grupo) também pode gerenciar seus dados
       { allow: private, provider: userPools, operations: [create, read, update, delete] }
 
       # 🛠️ Grupo Admins pode tudo
@@ -71,13 +71,10 @@ type Progress
   @model
   @auth(
     rules: [
-      # Leitura pública (ranking e estatísticas globais)
-      { allow: public, provider: apiKey, operations: [read] }
-
-      # Dono pode criar e atualizar seu progresso
+      # Dono pode criar, ler, atualizar e deletar seu progresso
       { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
 
-      # Usuários autenticados têm permissão total em seu progresso
+      # Usuários autenticados podem gerenciar seus dados
       { allow: private, provider: userPools, operations: [create, read, update, delete] }
 
       # Admins podem acessar e gerenciar todos
@@ -98,7 +95,7 @@ type Progress
   timeSpent: Float
   completed: Boolean
   completedAt: AWSDateTime
-  errorDetails: String
+  errorDetails: AWSJSON
 }
 
 # =========================================
@@ -111,6 +108,7 @@ type Module
       # Qualquer um pode ler os módulos
       { allow: public, provider: apiKey, operations: [read] }
       { allow: private, provider: userPools, operations: [read] }
+
       # Somente Admins podem criar ou editar módulos
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
