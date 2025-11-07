@@ -1,3 +1,5 @@
+// src/screens/module/ModuleContentScreen.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -28,17 +30,28 @@ import {
 import { useSettings } from "../../hooks/useSettings";
 import { DEFAULT_MODULES, ModuleContent } from "../../navigation/moduleTypes";
 
-const { width: WINDOW_WIDTH } = Dimensions.get("window");
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string") return false;
+  // Simplificado para lidar com cores de tema
   const hex = color.replace("#", "");
   if (hex.length < 3) return false;
-  const toInt = (s: string) =>
-    s.length === 1 ? parseInt(s + s, 16) : parseInt(s, 16);
-  const r = toInt(hex.substring(0, 2));
-  const g = toInt(hex.substring(2, 4));
-  const b = toInt(hex.substring(4, 6));
+
+  // Lógica de luminância (mantida)
+  let r, g, b;
+  if (hex.length === 3) {
+    r = parseInt(hex[0] + hex[0], 16);
+    g = parseInt(hex[1] + hex[1], 16);
+    b = parseInt(hex[2] + hex[2], 16);
+  } else if (hex.length === 6) {
+    r = parseInt(hex.substring(0, 2), 16);
+    g = parseInt(hex.substring(2, 4), 16);
+    b = parseInt(hex.substring(4, 6), 16);
+  } else {
+    return false; // Formato inválido
+  }
+
   const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
   return luminance < 149;
 }
@@ -214,19 +227,20 @@ const getStyles = (
       fontSize: 18 * fontMultiplier,
       textAlign: "center",
       color: (theme as any).cardText ?? theme.text,
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     scrollWrapper: {
-      paddingHorizontal: Math.min(24, WINDOW_WIDTH * 0.04),
+      paddingHorizontal: WINDOW_WIDTH * 0.05, // ✅ Responsivo
       paddingTop: 18,
       paddingBottom: 40,
       alignItems: "center",
+      flexGrow: 1, // ✅ Garante que o ScrollView se expanda
+      justifyContent: "center", // ✅ Centraliza o card verticalmente se o conteúdo for pequeno
     },
     contentCard: {
       width: "100%",
       maxWidth: 980,
-      minHeight: WINDOW_WIDTH > 600 ? 400 : 300,
+      minHeight: WINDOW_HEIGHT * 0.5, // ✅ Responsivo à altura
       borderRadius: 12,
       backgroundColor: (theme as any).card ?? "#fff",
       ...Platform.select({
@@ -239,23 +253,24 @@ const getStyles = (
         android: { elevation: 6 },
         web: { boxShadow: "0 8px 20px rgba(0,0,0,0.12)" },
       }),
+      justifyContent: "center", // ✅ Centraliza o texto verticalmente
     },
-    cardInner: { padding: 22 },
+    cardInner: {
+      padding: WINDOW_WIDTH * 0.06, // ✅ Padding responsivo
+    },
     contentTitle: {
       fontSize: 20 * fontMultiplier,
-      fontWeight: isBold ? "700" : "700",
+      fontWeight: isBold ? "bold" : "700",
       marginBottom: 12,
       color: (theme as any).cardText ?? theme.text,
       textAlign: "left",
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     contentBody: {
       fontSize: 16 * fontMultiplier,
-      lineHeight: Math.round(22 * lineHeightMultiplier),
+      lineHeight: Math.round(22 * lineHeightMultiplier * fontMultiplier), // ✅ Aplicado fontMultiplier
       color: (theme as any).cardText ?? theme.text,
       textAlign: "left",
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     contentCenter: {
@@ -267,7 +282,6 @@ const getStyles = (
       fontSize: 16 * fontMultiplier,
       color: theme.text,
       opacity: 0.85,
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     pageIndicator: {
@@ -275,7 +289,6 @@ const getStyles = (
       color: (theme as any).cardText ?? theme.text,
       opacity: 0.85,
       fontSize: 13 * fontMultiplier,
-      // ✅ ADICIONADO
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
   });

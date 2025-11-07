@@ -1,6 +1,6 @@
 // src/context/ContrastProvider.tsx
 
-import React, { createContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useEffect, ReactNode, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ContrastContextData, ContrastMode } from "../types/contrast";
 import { themes } from "../theme";
@@ -14,9 +14,7 @@ interface ContrastProviderProps {
   children: ReactNode;
 }
 
-export const ContrastProvider: React.FC<ContrastProviderProps> = ({
-  children,
-}) => {
+export const ContrastProvider: React.FC<ContrastProviderProps> = ({ children }) => {
   const [contrastMode, setContrastMode] = useState<ContrastMode>("blue_yellow");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,10 +55,17 @@ export const ContrastProvider: React.FC<ContrastProviderProps> = ({
   }
 
   return (
-    <ContrastContext.Provider
-      value={{ contrastMode, theme, changeContrastMode }}
-    >
+    <ContrastContext.Provider value={{ contrastMode, theme, changeContrastMode }}>
       {children}
     </ContrastContext.Provider>
   );
 };
+
+// ✅ Aqui está o hook que estava faltando
+export function useContrastTheme() {
+  const context = useContext(ContrastContext);
+  if (!context) {
+    throw new Error("useContrastTheme must be used within a ContrastProvider");
+  }
+  return context;
+}

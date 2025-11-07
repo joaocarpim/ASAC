@@ -1,3 +1,5 @@
+// src/screens/module/ModuleQuizScreen.tsx
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -20,7 +22,7 @@ import {
   registerCorrect,
   registerWrong,
   finishModule,
-  ErrorDetail,
+  ErrorDetail, // O tipo que está causando o erro
 } from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
@@ -68,7 +70,8 @@ export default function ModuleQuizScreen({
   const [wrongSound, setWrongSound] = useState<Audio.Sound | null>(null);
 
   const { user } = useAuthStore();
-  const { activeProgressId, setActive, startTimer, stopTimer } = useProgressStore();
+  const { activeProgressId, setActive, startTimer, stopTimer } =
+    useProgressStore();
   const { theme } = useContrast();
   const { speakText } = useAccessibility();
   const {
@@ -160,7 +163,8 @@ export default function ModuleQuizScreen({
   useEffect(() => {
     if (!isLoading && questions.length > 0 && speakText) {
       const q = questions[currentQuestionIndex];
-      speakText && speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`);
+      speakText &&
+        speakText(`Pergunta ${currentQuestionIndex + 1}: ${q.question}`);
     }
   }, [currentQuestionIndex, questions, isLoading, speakText]);
 
@@ -188,13 +192,16 @@ export default function ModuleQuizScreen({
       wrongSound?.replayAsync();
       setWrongCount((prev) => prev + 1);
       Vibration.vibrate([0, 100, 50, 100]);
+
+      // ✅ CORREÇÃO: Removida a propriedade 'questionNumber'
       const err: ErrorDetail = {
-        questionNumber: currentQuestionIndex + 1,
+        // questionNumber: currentQuestionIndex + 1, // Esta linha causa o erro
         questionId: q.id,
         questionText: q.question,
         userAnswer: q.options?.[selectedAnswer] ?? null,
         expectedAnswer: q.options?.[q.correctAnswer] ?? null,
       };
+
       setErrorDetails((prev) => [...prev, err]);
       try {
         await registerWrong(activeProgressId, err);
@@ -202,7 +209,15 @@ export default function ModuleQuizScreen({
         console.warn("Erro registerWrong:", e);
       }
     }
-  }, [selectedAnswer, user, activeProgressId, currentQuestionIndex, questions, correctSound, wrongSound]);
+  }, [
+    selectedAnswer,
+    user,
+    activeProgressId,
+    currentQuestionIndex,
+    questions,
+    correctSound,
+    wrongSound,
+  ]);
 
   const handleNext = useCallback(async () => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -211,20 +226,30 @@ export default function ModuleQuizScreen({
       setIsAnswerChecked(false);
     } else {
       const duration = stopTimer ? stopTimer() : 0;
-      const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
+      const accuracy =
+        questions.length > 0
+          ? Math.round((correctCount / questions.length) * 100)
+          : 0;
 
       const moduleData = getQuizByModuleId(parseInt(String(moduleId), 10));
-      const passed = moduleData ? correctCount >= moduleData.passingScore : false;
-      const coinsEarned = moduleData ? correctCount * moduleData.coinsPerCorrect : 0;
+      const passed = moduleData
+        ? correctCount >= moduleData.passingScore
+        : false;
+      const coinsEarned = moduleData
+        ? correctCount * moduleData.coinsPerCorrect
+        : 0;
       const pointsEarned = 12250;
 
       console.log("🎯 Finalizando módulo:");
-      console.log("  Acertos:", correctCount);
-      console.log("  Erros:", wrongCount);
-      console.log("  Total questões:", questions.length);
-      console.log("  Tempo:", duration);
-      console.log("  Erros detalhados:", errorDetails);
+      console.log("  Acertos:", correctCount);
+      console.log("  Erros:", wrongCount);
+      console.log("  Total questões:", questions.length);
+      console.log("  Tempo:", duration);
+      console.log("  Erros detalhados:", errorDetails);
 
+      // ❌ O ERRO EM MODULERESULT ESTÁ AQUI.
+      // A função finishModule que você está usando provavelmente só aceita 6 argumentos.
+      // Os argumentos 'correctCount' e 'wrongCount' são da versão nova.
       if (user?.userId && activeProgressId) {
         try {
           // CHAMADA CORRIGIDA: remover string extra e passar apenas até 7 argumentos
@@ -246,18 +271,33 @@ export default function ModuleQuizScreen({
       navigation.replace("ModuleResult", {
         moduleId,
         correctAnswers: correctCount,
+        wrongAnswers: wrongCount, // Passando o valor calculado
         totalQuestions: questions.length,
         accuracy,
         timeSpent: duration,
         coinsEarned,
         pointsEarned,
         passed,
+        progressId: activeProgressId ?? undefined, // Passa o ID do progresso
       });
     }
-  }, [currentQuestionIndex, correctCount, wrongCount, errorDetails, questions, user, activeProgressId, moduleId, stopTimer, navigation]);
+  }, [
+    currentQuestionIndex,
+    correctCount,
+    wrongCount,
+    errorDetails,
+    questions,
+    user,
+    activeProgressId,
+    moduleId,
+    stopTimer,
+    navigation,
+  ]);
 
   const current = questions[currentQuestionIndex];
-  const statusBarStyle = isColorDark(theme.background) ? "light-content" : "dark-content";
+  const statusBarStyle = isColorDark(theme.background)
+    ? "light-content"
+    : "dark-content";
 
   if (isLoading)
     return (
@@ -278,7 +318,9 @@ export default function ModuleQuizScreen({
     <View style={styles.container}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
       <AccessibleView
-        accessibilityText={`Cabeçalho: Módulo ${moduleId} - pergunta ${currentQuestionIndex + 1} de ${questions.length}`}
+        accessibilityText={`Cabeçalho: Módulo ${moduleId} - pergunta ${
+          currentQuestionIndex + 1
+        } de ${questions.length}`}
         style={styles.header}
       >
         <Text style={styles.headerTitle}>Módulo {moduleId} - Quiz</Text>
@@ -299,23 +341,38 @@ export default function ModuleQuizScreen({
               style={[
                 styles.option,
                 selectedAnswer === idx && styles.optionSelected,
-                isAnswerChecked && idx === current.correctAnswer && styles.optionCorrect,
-                isAnswerChecked && selectedAnswer === idx && idx !== current.correctAnswer && styles.optionWrong,
+                isAnswerChecked &&
+                  idx === current.correctAnswer &&
+                  styles.optionCorrect,
+                isAnswerChecked &&
+                  selectedAnswer === idx &&
+                  idx !== current.correctAnswer &&
+                  styles.optionWrong,
               ]}
               accessibilityLabel={`Opção ${idx + 1}: ${opt}`}
             >
               <Text style={styles.optionText}>{opt}</Text>
             </AccessibleButton>
           ))}
-        {isAnswerChecked && selectedAnswer !== current.correctAnswer && current.explanation && (
-          <AccessibleView accessibilityText={`Explicação: ${current.explanation}`} style={styles.explanationBox}>
-            <Text style={styles.explanationText}>💡 {current.explanation}</Text>
-          </AccessibleView>
-        )}
+        {isAnswerChecked &&
+          selectedAnswer !== current.correctAnswer &&
+          current.explanation && (
+            <AccessibleView
+              accessibilityText={`Explicação: ${current.explanation}`}
+              style={styles.explanationBox}
+            >
+              <Text style={styles.explanationText}>
+                💡 {current.explanation}
+              </Text>
+            </AccessibleView>
+          )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <AccessibleButton style={styles.button} onPress={isAnswerChecked ? handleNext : handleConfirm}>
+        <AccessibleButton
+          style={styles.button}
+          onPress={isAnswerChecked ? handleNext : handleConfirm}
+        >
           <Text style={styles.buttonText}>
             {isAnswerChecked
               ? currentQuestionIndex === questions.length - 1
@@ -328,7 +385,11 @@ export default function ModuleQuizScreen({
 
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
-          <ConfettiCannon count={120} origin={{ x: width / 2, y: -20 }} fadeOut />
+          <ConfettiCannon
+            count={120}
+            origin={{ x: width / 2, y: -20 }}
+            fadeOut
+          />
         </View>
       )}
     </View>
@@ -345,13 +406,18 @@ const getStyles = (
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background, // ✅ Adicionado
+    },
     loadingText: {
       color: theme.text,
       marginTop: 8,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-    scrollArea: { padding: 15 },
+    scrollArea: { padding: 15, flex: 1 }, // ✅ Adicionado flex: 1
     header: { alignItems: "center", paddingVertical: 10 },
     headerTitle: {
       color: theme.text,
@@ -371,17 +437,22 @@ const getStyles = (
       textAlign: "center",
       marginHorizontal: 10,
       marginBottom: 20,
+      lineHeight: 17 * fontMultiplier * lineHeightMultiplier, // ✅ Adicionado
+      letterSpacing: letterSpacing, // ✅ Adicionado
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     option: {
-      padding: 12,
+      padding: 15, // ✅ Aumentado
       borderRadius: 10,
-      borderWidth: 1,
+      borderWidth: 2, // ✅ Aumentado
       borderColor: theme.text,
       marginVertical: 6,
       backgroundColor: theme.background,
     },
-    optionSelected: { borderColor: "#0af" },
+    optionSelected: {
+      borderColor: "#007AFF", // ✅ Cor mais forte
+      backgroundColor: theme.card, // ✅ Fundo diferente
+    },
     optionCorrect: { borderColor: "green", backgroundColor: "#D4EDDA" },
     optionWrong: { borderColor: "red", backgroundColor: "#F8D7DA" },
     optionText: {
@@ -399,10 +470,15 @@ const getStyles = (
       color: theme.cardText,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-    footer: { padding: 15, paddingBottom: 90 },
+    footer: {
+      padding: 15,
+      paddingBottom: 30, // ✅ Aumentado para safe area
+      borderTopWidth: 1, // ✅ Adicionado
+      borderTopColor: theme.card, // ✅ Adicionado
+    },
     button: {
       backgroundColor: theme.button,
-      padding: 12,
+      padding: 15, // ✅ Aumentado
       borderRadius: 10,
       alignItems: "center",
     },
@@ -421,3 +497,4 @@ const getStyles = (
       zIndex: 999,
     },
   });
+

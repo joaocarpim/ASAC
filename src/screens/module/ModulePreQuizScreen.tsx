@@ -1,4 +1,5 @@
-// ModulePreQuizScreen.tsx - Implementa a navegação para o Quiz.
+// ModulePreQuizScreen.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -6,10 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Dimensions,
+  Dimensions, // ❌ Removido
   StatusBar,
   Platform,
   ColorValue,
+  useWindowDimensions, // ✅ Adicionado
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
@@ -26,14 +28,17 @@ import {
   AccessibleText,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-// MODIFICAÇÃO 1: Importa os dados de quiz da fonte correta.
-import { getQuizByModuleId, ModuleQuiz } from "../../navigation/moduleQuestionTypes";
+import {
+  getQuizByModuleId,
+  ModuleQuiz,
+} from "../../navigation/moduleQuestionTypes";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useAccessibility } from "../../context/AccessibilityProvider";
 
-const { width } = Dimensions.get("window");
-const scaleFactor = width / 375;
-const responsiveFontSize = (size: number) => Math.round(size * scaleFactor);
+// ❌ Removido daqui
+// const { width } = Dimensions.get("window");
+// const scaleFactor = width / 375;
+// const responsiveFontSize = (size: number) => Math.round(size * scaleFactor);
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string" || !color.startsWith("#"))
@@ -66,13 +71,20 @@ export default function ModulePreQuizScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
+  // ✅ 1. Lógica de responsividade movida para DENTRO
+  const { width } = useWindowDimensions();
+  const scaleFactor = width > 0 ? width / 375 : 1;
+  const responsiveFontSize = (size: number) => Math.round(size * scaleFactor);
+
+  // ✅ 2. Estilos chamados AQUI
   const styles = getStyles(
     theme,
     fontSizeMultiplier,
     isBoldTextEnabled,
     lineHeightMultiplier,
     letterSpacing,
-    isDyslexiaFontEnabled
+    isDyslexiaFontEnabled,
+    responsiveFontSize // Passa a função
   );
 
   useEffect(() => {
@@ -101,12 +113,8 @@ export default function ModulePreQuizScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingQuiz, quizData]);
 
-  // MODIFICAÇÃO 2: Implementa a função para iniciar o quiz.
   const handleStartQuiz = async () => {
-    // A lógica de verificação de permissão (canStartModule) pode ser adicionada aqui se necessário.
-    // Por enquanto, navegamos diretamente.
     setCheckingPermission(true);
-    // Simula uma pequena verificação
     setTimeout(() => {
       setCheckingPermission(false);
       navigation.navigate("ModuleQuiz", { moduleId });
@@ -203,9 +211,7 @@ export default function ModulePreQuizScreen({
               style={styles.tipContainer}
               accessibilityText="Dica: Leia todo o conteúdo com atenção antes de iniciar o questionário."
             >
-              <Text style={[styles.icon, { fontSize: responsiveFontSize(18) }]}>
-                💡
-              </Text>
+              <Text style={styles.icon}> 💡 </Text>
               <Text style={styles.tipText}>
                 {" "}
                 Dica: Leia todo o conteúdo com atenção antes de iniciar o
@@ -228,13 +234,15 @@ export default function ModulePreQuizScreen({
   );
 }
 
+// ✅ 3. getStyles agora recebe responsiveFontSize
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
   isBold: boolean,
   lineHeightMultiplier: number,
   letterSpacing: number,
-  isDyslexiaFont: boolean
+  isDyslexiaFont: boolean,
+  responsiveFontSize: (size: number) => number // Recebe a função
 ): StyleSheet.NamedStyles<any> => {
   const isHighContrastTheme = theme.background === "#0055A4";
   const textColor = isHighContrastTheme ? "#FFFFFF" : theme.text;
@@ -295,7 +303,11 @@ const getStyles = (
       borderWidth: 1,
       borderColor: theme.card,
     },
-    icon: { marginRight: 12 },
+    icon: {
+      marginRight: 12,
+      fontSize: responsiveFontSize(18), // ✅ Corrigido
+      color: textColor, // ✅ Adicionado
+    },
     tipText: {
       fontSize: responsiveFontSize(14) * fontMultiplier,
       color: textColor,

@@ -17,6 +17,7 @@ const {
 const REGION = process.env.REGION || "us-east-1";
 const USER_POOL_ID = process.env.AUTH_ASAC2F4153AA_USERPOOLID;
 const GRAPHQL_URL = process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT;
+const API_KEY = process.env.API_ASAC_GRAPHQLAPIKEYOUTPUT;
 
 const cognito = new CognitoIdentityProviderClient({ region: REGION });
 
@@ -73,12 +74,8 @@ exports.handler = async (event) => {
     const userSub = subAttr ? subAttr.Value : null;
     console.log("🆔 Sub Cognito do novo usuário:", userSub);
 
-    // 4️⃣ Criar o registro no DynamoDB via AppSync GraphQL
+    // 4️⃣ Criar o registro no DynamoDB via AppSync GraphQL (USANDO API KEY)
     if (GRAPHQL_URL && userSub) {
-      const authHeader =
-        event.request?.headers?.authorization ||
-        event.request?.headers?.Authorization ||
-        process.env.API_ASAC_GRAPHQLAPIKEYOUTPUT; // fallback API key
 
       const mutation = `
         mutation CreateUser($input: CreateUserInput!) {
@@ -87,14 +84,8 @@ exports.handler = async (event) => {
             name
             email
             role
-            coins
-            points
             modulesCompleted
             currentModule
-            precision
-            correctAnswers
-            wrongAnswers
-            timeSpent
           }
         }
       `;
@@ -102,16 +93,12 @@ exports.handler = async (event) => {
       try {
         console.log("📡 Enviando requisição GraphQL...");
 
-        const headers = { "Content-Type": "application/json" };
-        if (authHeader.startsWith("Bearer ") || authHeader.length > 40) {
-          headers["Authorization"] = authHeader;
-        } else {
-          headers["x-api-key"] = authHeader;
-        }
-
         const response = await fetch(GRAPHQL_URL, {
           method: "POST",
-          headers,
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY, // ✅ Garantido sempre
+          },
           body: JSON.stringify({
             query: mutation,
             variables: {
@@ -137,28 +124,16 @@ exports.handler = async (event) => {
 
         if (gqlJson.errors) {
           console.error("⚠️ Erro GraphQL:", JSON.stringify(gqlJson.errors, null, 2));
-
-          const isDuplicate = gqlJson.errors.some(
-            (err) =>
-              err.message?.includes("ConditionalCheckFailedException") ||
-              err.message?.includes("duplicate") ||
-              err.message?.includes("already exists")
-          );
-
-          if (isDuplicate) {
-            console.log("⚠️ Usuário já existe no DynamoDB, continuando...");
-          } else {
-            throw new Error(`Falha ao inserir no DynamoDB: ${gqlJson.errors[0].message}`);
-          }
-        } else {
-          console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data?.createUser);
+          const firstErr = gqlJson.errors[0]?.message || "Erro desconhecido no GraphQL";
+          throw new Error(firstErr);
         }
+
+        console.log("✅ Usuário gravado no DynamoDB:", gqlJson.data?.createUser);
+
       } catch (fetchError) {
         console.error("❌ Erro ao chamar GraphQL:", fetchError);
         console.warn("⚠️ Usuário criado no Cognito mas falhou no DynamoDB");
       }
-    } else {
-      console.warn("⚠️ Sem token de autorização ou GraphQL URL inválido.");
     }
 
     const result = {
@@ -169,6 +144,7 @@ exports.handler = async (event) => {
 
     console.log("✅ Retornando resultado:", result);
     return JSON.stringify(result);
+
   } catch (error) {
     console.error("❌ Erro ao criar usuário:", error);
     throw new Error(error?.message || "Erro interno ao criar usuário");

@@ -2,11 +2,8 @@
 // this is an auto generated file. This will be overwritten
 
 export const onCreateProgress = /* GraphQL */ `
-  subscription OnCreateProgress(
-    $filter: ModelSubscriptionProgressFilterInput
-    $userId: String
-  ) {
-    onCreateProgress(filter: $filter, userId: $userId) {
+  subscription OnCreateProgress($filter: ModelSubscriptionProgressFilterInput) {
+    onCreateProgress(filter: $filter) {
       id
       userId
       user {
@@ -51,11 +48,8 @@ export const onCreateProgress = /* GraphQL */ `
   }
 `;
 export const onUpdateProgress = /* GraphQL */ `
-  subscription OnUpdateProgress(
-    $filter: ModelSubscriptionProgressFilterInput
-    $userId: String
-  ) {
-    onUpdateProgress(filter: $filter, userId: $userId) {
+  subscription OnUpdateProgress($filter: ModelSubscriptionProgressFilterInput) {
+    onUpdateProgress(filter: $filter) {
       id
       userId
       user {
@@ -100,11 +94,8 @@ export const onUpdateProgress = /* GraphQL */ `
   }
 `;
 export const onDeleteProgress = /* GraphQL */ `
-  subscription OnDeleteProgress(
-    $filter: ModelSubscriptionProgressFilterInput
-    $userId: String
-  ) {
-    onDeleteProgress(filter: $filter, userId: $userId) {
+  subscription OnDeleteProgress($filter: ModelSubscriptionProgressFilterInput) {
+    onDeleteProgress(filter: $filter) {
       id
       userId
       user {
@@ -149,11 +140,8 @@ export const onDeleteProgress = /* GraphQL */ `
   }
 `;
 export const onCreateUser = /* GraphQL */ `
-  subscription OnCreateUser(
-    $filter: ModelSubscriptionUserFilterInput
-    $id: String
-  ) {
-    onCreateUser(filter: $filter, id: $id) {
+  subscription OnCreateUser($filter: ModelSubscriptionUserFilterInput) {
+    onCreateUser(filter: $filter) {
       id
       name
       email
@@ -181,11 +169,8 @@ export const onCreateUser = /* GraphQL */ `
   }
 `;
 export const onUpdateUser = /* GraphQL */ `
-  subscription OnUpdateUser(
-    $filter: ModelSubscriptionUserFilterInput
-    $id: String
-  ) {
-    onUpdateUser(filter: $filter, id: $id) {
+  subscription OnUpdateUser($filter: ModelSubscriptionUserFilterInput) {
+    onUpdateUser(filter: $filter) {
       id
       name
       email
@@ -213,11 +198,8 @@ export const onUpdateUser = /* GraphQL */ `
   }
 `;
 export const onDeleteUser = /* GraphQL */ `
-  subscription OnDeleteUser(
-    $filter: ModelSubscriptionUserFilterInput
-    $id: String
-  ) {
-    onDeleteUser(filter: $filter, id: $id) {
+  subscription OnDeleteUser($filter: ModelSubscriptionUserFilterInput) {
+    onDeleteUser(filter: $filter) {
       id
       name
       email
@@ -247,9 +229,8 @@ export const onDeleteUser = /* GraphQL */ `
 export const onCreateAchievement = /* GraphQL */ `
   subscription OnCreateAchievement(
     $filter: ModelSubscriptionAchievementFilterInput
-    $userId: String
   ) {
-    onCreateAchievement(filter: $filter, userId: $userId) {
+    onCreateAchievement(filter: $filter) {
       id
       title
       description
@@ -281,9 +262,8 @@ export const onCreateAchievement = /* GraphQL */ `
 export const onUpdateAchievement = /* GraphQL */ `
   subscription OnUpdateAchievement(
     $filter: ModelSubscriptionAchievementFilterInput
-    $userId: String
   ) {
-    onUpdateAchievement(filter: $filter, userId: $userId) {
+    onUpdateAchievement(filter: $filter) {
       id
       title
       description
@@ -315,9 +295,8 @@ export const onUpdateAchievement = /* GraphQL */ `
 export const onDeleteAchievement = /* GraphQL */ `
   subscription OnDeleteAchievement(
     $filter: ModelSubscriptionAchievementFilterInput
-    $userId: String
   ) {
-    onDeleteAchievement(filter: $filter, userId: $userId) {
+    onDeleteAchievement(filter: $filter) {
       id
       title
       description

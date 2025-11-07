@@ -1,23 +1,27 @@
 // App.tsx
-import { Buffer } from "buffer";
-global.Buffer = global.Buffer || Buffer;
+
+import { Amplify } from "aws-amplify";
+import { Hub } from "aws-amplify/utils";
+import awsmobile from "./src/aws-exports";
+import amplifyConfig from "./src/config/amplify-config";
+
+if (process.env.NODE_ENV === "production") {
+  Amplify.configure(amplifyConfig);
+} else {
+  Amplify.configure(awsmobile);
+}
 
 import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ViewShot from "react-native-view-shot";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
-import { Hub } from "aws-amplify/utils";
-import { Amplify } from "aws-amplify";
-
-import amplifyConfig from "./src/config/amplify-config";
-Amplify.configure(amplifyConfig);
 
 // Store & Contextos
 import { useAuthStore } from "./src/store/authStore";
-import { ContrastProvider } from "./src/context/ContrastProvider";
+import { ContrastProvider, useContrastTheme } from "./src/context/ContrastProvider";
 import { AccessibilityProvider, useAccessibility } from "./src/context/AccessibilityProvider";
 import { SettingsProvider as AccessibilitySettingsProvider } from "./src/context/SettingsProvider";
 
@@ -62,17 +66,18 @@ import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
 import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
 
-
 function AppNavigation() {
+  const { theme } = useContrastTheme();
   const { user, isLoading, checkUser, signOut } = useAuthStore();
   const { panResponder, magnifier, magnifierPanResponder, clearAllElements } = useAccessibility();
   const viewShotRef = useRef<ViewShot>(null);
-  const [currentScreen, setCurrentScreen] = useState<string | undefined>();
+  const navigationRef = useNavigationContainerRef();
+  const [currentRouteName, setCurrentRouteName] = useState<string | undefined>();
 
   useEffect(() => {
     checkUser();
 
-    const sub = Hub.listen("auth", ({ payload }) => {
+    const sub = Hub.listen("auth", ({ payload }: { payload: any }) => {
       if (payload.event === "signedIn" || payload.event === "tokenRefresh") checkUser();
       if (payload.event === "signedOut") signOut();
     });
@@ -80,28 +85,26 @@ function AppNavigation() {
     return () => sub();
   }, [checkUser, signOut]);
 
-  if (isLoading) return <Loading />;
-
-  const showHub =
-    !!user &&
-    !user.isAdmin &&
-    currentScreen &&
-    !["Login", "Welcome", "TutorialStep1", "TutorialStep2", "TutorialStep3"].includes(currentScreen);
+  if (isLoading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.text} />
+      </View>
+    );
+  }
 
   return (
-    <View style={{ flex: 1 }}>
-      <StatusBar backgroundColor="#FFC700" barStyle="dark-content" />
+    <View style={[styles.fullscreen, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
 
-      <ViewShot ref={viewShotRef} style={{ flex: 1 }}>
+      <ViewShot ref={viewShotRef} style={{ flex: 1 }} options={{ format: "jpg", quality: 0.9 }}>
         <View
           style={{ flex: 1 }}
           {...(magnifier.isActive ? magnifierPanResponder.panHandlers : panResponder.panHandlers)}
         >
           <NavigationContainer
-            onStateChange={(nav) => {
-              clearAllElements();
-              setCurrentScreen(nav?.routes?.[nav.routes.length - 1]?.name);
-            }}
+            ref={navigationRef}
+            onReady={() => setCurrentRouteName(navigationRef.getCurrentRoute()?.name)}
           >
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               {!user ? (
@@ -145,17 +148,9 @@ function AppNavigation() {
           </NavigationContainer>
 
           {magnifier.isActive && <MagnifierLens viewShotRef={viewShotRef} />}
-          {showHub && <AccessibilityHub />}
+          <AccessibilityHub />
         </View>
       </ViewShot>
-    </View>
-  );
-}
-
-function Loading() {
-  return (
-    <View style={styles.loading}>
-      <ActivityIndicator size="large" color="#191970" />
     </View>
   );
 }
@@ -165,7 +160,7 @@ export default function App() {
     "OpenDyslexic-Regular": require("./assets/fonts/OpenDyslexic-Regular.otf"),
   });
 
-  if (!fontsLoaded) return <Loading />;
+  if (!fontsLoaded) return null;
 
   return (
     <AccessibilityProvider>
@@ -181,10 +176,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  loading: {
+  fullscreen: { flex: 1 },
+  loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFC700",
   },
 });

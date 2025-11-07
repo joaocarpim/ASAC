@@ -5,16 +5,8 @@ type User
   @model
   @auth(
     rules: [
-      # 🔓 Público pode apenas ler (ranking, perfis públicos)
       { allow: public, provider: apiKey, operations: [read] }
-
-      # 👤 Dono (owner) pode criar, ler, atualizar e deletar seus próprios dados
-      { allow: owner, ownerField: "id", operations: [create, read, update, delete] }
-
-      # 🔐 Usuário autenticado (sem grupo) também pode gerenciar seus dados
       { allow: private, provider: userPools, operations: [create, read, update, delete] }
-
-      # 🛠️ Grupo Admins pode tudo
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
@@ -31,7 +23,6 @@ type User
   wrongAnswers: Int
   timeSpent: Float
 
-  # Relacionamentos
   achievements: [Achievement] @hasMany(indexName: "byUser", fields: ["id"])
   progress: [Progress] @hasMany(indexName: "byUser", fields: ["id"])
 }
@@ -43,20 +34,12 @@ type Achievement
   @model
   @auth(
     rules: [
-      # Público pode ler (para exibir conquistas desbloqueadas)
       { allow: public, provider: apiKey, operations: [read] }
-
-      # Dono da conquista pode criar, ler, atualizar e deletar
-      { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
-
-      # Usuários autenticados também podem interagir
       { allow: private, provider: userPools, operations: [create, read, update, delete] }
-
-      # Admins têm permissão total
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
-  id: ID!
+  id: ID! @primaryKey
   title: String!
   description: String
   moduleNumber: Int
@@ -71,17 +54,11 @@ type Progress
   @model
   @auth(
     rules: [
-      # Dono pode criar, ler, atualizar e deletar seu progresso
-      { allow: owner, ownerField: "userId", operations: [create, read, update, delete] }
-
-      # Usuários autenticados podem gerenciar seus dados
       { allow: private, provider: userPools, operations: [create, read, update, delete] }
-
-      # Admins podem acessar e gerenciar todos
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
-  id: ID!
+  id: ID! @primaryKey
   userId: ID! @index(name: "byUser")
   user: User @belongsTo(fields: ["userId"])
 
@@ -105,15 +82,12 @@ type Module
   @model
   @auth(
     rules: [
-      # Qualquer um pode ler os módulos
       { allow: public, provider: apiKey, operations: [read] }
       { allow: private, provider: userPools, operations: [read] }
-
-      # Somente Admins podem criar ou editar módulos
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
-  id: ID!
+  id: ID! @primaryKey
   title: String!
   description: String!
   moduleNumber: Int!
@@ -135,7 +109,7 @@ type Lesson
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
-  id: ID!
+  id: ID! @primaryKey
   title: String!
   content: String!
   image: String
@@ -156,7 +130,7 @@ type Question
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
-  id: ID!
+  id: ID! @primaryKey
   questionText: String!
   options: [String!]!
   correctAnswerIndex: Int!
@@ -176,7 +150,7 @@ type BrailleSymbol
       { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
     ]
   ) {
-  id: ID!
+  id: ID! @primaryKey
   letter: String!
   description: String!
   imageKey: String!

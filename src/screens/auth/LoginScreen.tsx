@@ -147,6 +147,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<"Login"
           <Text style={styles.logoText}>ASAC</Text>
         </View>
 
+
         <View style={styles.formContainer}>
           <Text style={styles.promptText}>Acesse o App informando seus dados</Text>
 

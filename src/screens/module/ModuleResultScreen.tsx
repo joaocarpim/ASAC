@@ -1,3 +1,5 @@
+// src/screens/module/ModuleResultScreen.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -41,7 +43,7 @@ export default function ModuleResultScreen({
     passed,
     progressId, // Recebido do quiz
   } = route.params;
-  
+
   const { user } = useAuthStore();
 
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
@@ -113,7 +115,10 @@ export default function ModuleResultScreen({
 
   const handleSaveProgress = async () => {
     if (!user?.userId || !passed) {
-      console.warn("⚠️ Dados insuficientes para salvar:", { userId: user?.userId, passed });
+      console.warn("⚠️ Dados insuficientes para salvar:", {
+        userId: user?.userId,
+        passed,
+      });
       return;
     }
 
@@ -128,13 +133,14 @@ export default function ModuleResultScreen({
         accuracy,
         timeSpent,
         coinsEarned,
-        progressId
+        progressId,
       });
 
       // Extrair número do módulo (ex: "1" de "module-1" ou 1)
-      const moduleNumber = typeof moduleId === "number" 
-        ? moduleId 
-        : parseInt(String(moduleId).replace(/\D/g, "")) || 1;
+      const moduleNumber =
+        typeof moduleId === "number"
+          ? moduleId
+          : parseInt(String(moduleId).replace(/\D/g, "")) || 1;
 
       console.log(`📊 Módulo identificado: ${moduleNumber}`);
 
@@ -145,17 +151,24 @@ export default function ModuleResultScreen({
         "⭐ Completou o Módulo 3",
       ];
 
-      const achievementTitle = achievementTitles[moduleNumber - 1] || `Módulo ${moduleNumber} Concluído`;
+      const achievementTitle =
+        achievementTitles[moduleNumber - 1] ||
+        `Módulo ${moduleNumber} Concluído`;
 
       // Usar progressId se foi passado, senão criar um baseado no padrão
-      const finalProgressId = progressId || `progress-${user.userId}-${moduleNumber}`;
+      const finalProgressId =
+        progressId || `progress-${user.userId}-${moduleNumber}`;
 
-      console.log(`🎯 Chamando finishModule com progressId: ${finalProgressId}`);
+      console.log(
+        `🎯 Chamando finishModule com progressId: ${finalProgressId}`
+      );
 
       // Calcular wrongAnswers se não foi passado
-      const errors = wrongAnswers ?? (totalQuestions - correctAnswers);
+      const errors = wrongAnswers ?? totalQuestions - correctAnswers;
 
-      console.log(`📊 Acertos: ${correctAnswers}, Erros: ${errors}, Total: ${totalQuestions}`);
+      console.log(
+        `📊 Acertos: ${correctAnswers}, Erros: ${errors}, Total: ${totalQuestions}`
+      );
 
       // ✅ Chamar finishModule
      const result = await finishModule(
@@ -208,7 +221,7 @@ export default function ModuleResultScreen({
     return "#F44336";
   };
 
-  const errors = wrongAnswers ?? (totalQuestions - correctAnswers);
+  const errors = wrongAnswers ?? totalQuestions - correctAnswers;
 
   return (
     <View style={styles.container}>
@@ -233,7 +246,7 @@ export default function ModuleResultScreen({
         <Text style={styles.headerSubtitle}>
           Módulo {moduleId} {passed ? "Concluído" : "Não Concluído"}
         </Text>
-        
+
         {/* Indicador de salvamento */}
         {saving && (
           <View style={styles.savingIndicator}>
@@ -241,12 +254,18 @@ export default function ModuleResultScreen({
             <Text style={styles.savingText}>Salvando progresso...</Text>
           </View>
         )}
-        {saved && !saving && (
-          <View style={styles.savedIndicator}>
-            <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" />
-            <Text style={styles.savedText}>✅ Progresso salvo!</Text>
-          </View>
-        )}
+        {saved &&
+          !saving &&
+          passed && ( // Só mostra "Salvo" se passou e não está salvando
+            <View style={styles.savedIndicator}>
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={16}
+                color="#4CAF50"
+              />
+              <Text style={styles.savedText}>✅ Progresso salvo!</Text>
+            </View>
+          )}
       </AccessibleView>
 
       <ScrollView
@@ -302,7 +321,7 @@ export default function ModuleResultScreen({
               size={28}
               color="#FFC107"
             />
-            <Text style={styles.statNumber}>+{coinsEarned || 150}</Text>
+            <Text style={styles.statNumber}>+{coinsEarned || 0}</Text>
             <Text style={styles.statLabel}>Moedas</Text>
           </View>
         </View>
@@ -447,9 +466,11 @@ const createStyles = (
       backgroundColor: theme.card,
       borderRadius: 12,
       padding: 20,
-      width: (width - 60) / 2,
+      width: (width - 60) / 2, // 60 = 20 paddingHorizontal * 2 + 20 gap
       marginBottom: 15,
       alignItems: "center",
+      minHeight: 140, // ✅ Adicionado para alinhamento
+      justifyContent: "center", // ✅ Adicionado
     },
     statNumber: {
       color: theme.cardText,

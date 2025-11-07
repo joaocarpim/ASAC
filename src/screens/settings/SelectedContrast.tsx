@@ -1,4 +1,4 @@
-// src/screens/settings/SelectedContrast.tsx - Versão Corrigida e Responsiva
+// src/screens/settings/SelectedContrast.tsx
 
 import React, { useState } from "react";
 import {
@@ -7,12 +7,12 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  Dimensions, // ✅ 1. Importado para criar responsividade
+  useWindowDimensions, // ✅ 1. Importado
 } from "react-native";
 import { useContrast } from "../../hooks/useContrast";
 import { ContrastMode } from "../../types/contrast";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "../../navigation/types"; // ✅ Corrigido o caminho do import
+import type { RootStackParamList } from "../../navigation/types";
 import {
   AccessibleView,
   AccessibleHeader,
@@ -31,11 +31,17 @@ interface OptionCardProps {
   label: string;
   accessibilityHint: string;
   onPress: (mode: ContrastMode) => void;
+  scaleFont: (size: number) => number; // Pass scaleFont como prop
 }
 
 const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
   const { changeContrastMode } = useContrast();
   const [selection, setSelection] = useState<ContrastMode>("blue_yellow");
+
+  // ✅ 2. Use o hook DENTRO do componente
+  const { width } = useWindowDimensions();
+  const FONT_SCALE = width > 0 ? width / 375 : 1; // Previne divisão por zero
+  const scaleFont = (size: number) => Math.round(size * FONT_SCALE);
 
   const handleContinue = () => {
     changeContrastMode(selection);
@@ -55,6 +61,9 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
     cyanText: "#00FFFF",
   };
 
+  // ✅ 3. Crie os estilos DINAMICAMENTE
+  const styles = createStyles(scaleFont);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PREVIEW_COLORS.yellowBg }}>
       <StatusBar
@@ -73,7 +82,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
         </AccessibleHeader>
 
         <View style={styles.optionsContainer}>
-          {/* Os OptionCards permanecem os mesmos */}
+          {/* Os OptionCards agora recebem scaleFont */}
           <OptionCard
             colors={PREVIEW_COLORS}
             currentSelection={selection}
@@ -81,6 +90,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             label="Azul"
             accessibilityHint="Tema padrão do aplicativo."
             onPress={setSelection}
+            scaleFont={scaleFont}
           />
           <OptionCard
             colors={PREVIEW_COLORS}
@@ -89,6 +99,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             label="Escuro"
             accessibilityHint="Alto contraste com fundo preto."
             onPress={setSelection}
+            scaleFont={scaleFont}
           />
           <OptionCard
             colors={PREVIEW_COLORS}
@@ -97,6 +108,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             label="Claro"
             accessibilityHint="Alto contraste com fundo branco."
             onPress={setSelection}
+            scaleFont={scaleFont}
           />
           <OptionCard
             colors={PREVIEW_COLORS}
@@ -105,6 +117,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             label="Sépia"
             accessibilityHint="Para leitura confortável, reduz a luz azul."
             onPress={setSelection}
+            scaleFont={scaleFont}
           />
           <OptionCard
             colors={PREVIEW_COLORS}
@@ -113,6 +126,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             label="Cinza"
             accessibilityHint="Para visão acromática, sem cores."
             onPress={setSelection}
+            scaleFont={scaleFont}
           />
           <OptionCard
             colors={PREVIEW_COLORS}
@@ -121,6 +135,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             label="Ciano"
             accessibilityHint="Tema escuro eficaz para daltonismo."
             onPress={setSelection}
+            scaleFont={scaleFont}
           />
         </View>
 
@@ -145,11 +160,15 @@ const OptionCard: React.FC<OptionCardProps> = ({
   label,
   accessibilityHint,
   onPress,
+  scaleFont, // Recebe a função
 }) => {
   const isSelected = currentSelection === mode;
   const accessibilityFullText = `Opção ${label}. ${accessibilityHint} ${
     isSelected ? "Atualmente selecionado." : ""
   }`;
+
+  // ✅ 4. Recria os estilos dinamicamente
+  const styles = createStyles(scaleFont);
 
   const cardStyles: Record<
     ContrastMode,
@@ -194,74 +213,66 @@ const OptionCard: React.FC<OptionCardProps> = ({
   );
 };
 
-// ✅ 2. Lógica para fontes responsivas
-const { width } = Dimensions.get("window");
-// Usamos uma tela de referência (ex: iPhone 8) para criar um fator de escala
-const FONT_SCALE = width / 375;
-
-const scaleFont = (size: number) => size * FONT_SCALE;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // ✅ 3. A centralização agora é controlada pelo flexbox para melhor adaptação
-    justifyContent: "center",
-    marginTop:100,
-    alignItems: "center",
-    paddingHorizontal: 10,
-    // marginTop: 100, // Removido para permitir centralização vertical automática
-  },
-  title: {
-    // ✅ 4. Aplicando a fonte responsiva
-    fontSize: scaleFont(24),
-    textAlign: "center",
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  optionsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    width: "100%",
-    marginBottom: 20,
-  },
-  cardWrapper: {
-    width: "33.33%",
-    aspectRatio: 1,
-    padding: 10,
-  },
-  card: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    // ✅ 5. Padding corrigido para ser uniforme e não achatar o texto
-    padding: 24,
-    borderRadius: 12,
-  },
-  selectedCard: {
-    borderWidth: 3,
-    borderColor: "#0066CC", // Cor de seleção mais vibrante
-    elevation: 5,
-    transform: [{ scale: 1.05 }], // Efeito de zoom sutil quando selecionado
-  },
-  cardText: {
-    fontSize: scaleFont(14),
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  button: {
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    width: "95%",
-    alignItems: "center",
-    marginTop: 10,
-    elevation: 3,
-  },
-  buttonText: {
-    fontSize: scaleFont(18),
-    fontWeight: "bold",
-  },
-});
+// ✅ 5. Transforme os estilos em uma função
+const createStyles = (scaleFont: (size: number) => number) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: "center", // Centraliza o conteúdo
+      // marginTop: 100, // ❌ REMOVIDO: Isso quebrava o layout
+      alignItems: "center",
+      paddingHorizontal: 10,
+      paddingBottom: 20, // Garante que o botão não cole na borda
+    },
+    title: {
+      fontSize: scaleFont(24),
+      textAlign: "center",
+      fontWeight: "bold",
+      marginBottom: 20,
+    },
+    optionsContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      width: "100%",
+      marginBottom: 20,
+    },
+    cardWrapper: {
+      width: "33.33%",
+      aspectRatio: 1,
+      padding: 10,
+    },
+    card: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+      borderRadius: 12,
+    },
+    selectedCard: {
+      borderWidth: 3,
+      borderColor: "#0066CC",
+      elevation: 5,
+      transform: [{ scale: 1.05 }],
+    },
+    cardText: {
+      fontSize: scaleFont(14),
+      fontWeight: "bold",
+      textAlign: "center",
+    },
+    button: {
+      paddingVertical: 15,
+      paddingHorizontal: 20,
+      borderRadius: 25,
+      width: "95%",
+      alignItems: "center",
+      marginTop: 10,
+      elevation: 3,
+    },
+    buttonText: {
+      fontSize: scaleFont(18),
+      fontWeight: "bold",
+    },
+  });
 
 export default ContrastScreen;

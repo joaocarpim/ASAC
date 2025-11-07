@@ -49,11 +49,19 @@ export const getProgress = /* GraphQL */ `
 `;
 export const listProgresses = /* GraphQL */ `
   query ListProgresses(
+    $id: ID
     $filter: ModelProgressFilterInput
     $limit: Int
     $nextToken: String
+    $sortDirection: ModelSortDirection
   ) {
-    listProgresses(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    listProgresses(
+      id: $id
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+      sortDirection: $sortDirection
+    ) {
       items {
         id
         userId
@@ -283,11 +291,19 @@ export const getAchievement = /* GraphQL */ `
 `;
 export const listAchievements = /* GraphQL */ `
   query ListAchievements(
+    $id: ID
     $filter: ModelAchievementFilterInput
     $limit: Int
     $nextToken: String
+    $sortDirection: ModelSortDirection
   ) {
-    listAchievements(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    listAchievements(
+      id: $id
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+      sortDirection: $sortDirection
+    ) {
       items {
         id
         title
@@ -360,11 +376,19 @@ export const getModule = /* GraphQL */ `
 `;
 export const listModules = /* GraphQL */ `
   query ListModules(
+    $id: ID
     $filter: ModelModuleFilterInput
     $limit: Int
     $nextToken: String
+    $sortDirection: ModelSortDirection
   ) {
-    listModules(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    listModules(
+      id: $id
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+      sortDirection: $sortDirection
+    ) {
       items {
         id
         title
@@ -405,11 +429,19 @@ export const getLesson = /* GraphQL */ `
 `;
 export const listLessons = /* GraphQL */ `
   query ListLessons(
+    $id: ID
     $filter: ModelLessonFilterInput
     $limit: Int
     $nextToken: String
+    $sortDirection: ModelSortDirection
   ) {
-    listLessons(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    listLessons(
+      id: $id
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+      sortDirection: $sortDirection
+    ) {
       items {
         id
         title
@@ -484,11 +516,19 @@ export const getQuestion = /* GraphQL */ `
 `;
 export const listQuestions = /* GraphQL */ `
   query ListQuestions(
+    $id: ID
     $filter: ModelQuestionFilterInput
     $limit: Int
     $nextToken: String
+    $sortDirection: ModelSortDirection
   ) {
-    listQuestions(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    listQuestions(
+      id: $id
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+      sortDirection: $sortDirection
+    ) {
       items {
         id
         questionText
@@ -549,11 +589,19 @@ export const getBrailleSymbol = /* GraphQL */ `
 `;
 export const listBrailleSymbols = /* GraphQL */ `
   query ListBrailleSymbols(
+    $id: ID
     $filter: ModelBrailleSymbolFilterInput
     $limit: Int
     $nextToken: String
+    $sortDirection: ModelSortDirection
   ) {
-    listBrailleSymbols(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    listBrailleSymbols(
+      id: $id
+      filter: $filter
+      limit: $limit
+      nextToken: $nextToken
+      sortDirection: $sortDirection
+    ) {
       items {
         id
         letter
