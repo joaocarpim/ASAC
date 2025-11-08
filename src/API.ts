@@ -9,10 +9,12 @@ export type CreateUserInput = {
   role: string,
   coins?: number | null,
   points?: number | null,
-  modulesCompleted?: string | null,
-  precision?: string | null,
+  modulesCompleted?: Array< number | null > | null,
+  currentModule?: number | null,
+  precision?: number | null,
   correctAnswers?: number | null,
-  timeSpent?: string | null,
+  wrongAnswers?: number | null,
+  timeSpent?: number | null,
 };
 
 export type ModelUserConditionInput = {
@@ -21,13 +23,17 @@ export type ModelUserConditionInput = {
   role?: ModelStringInput | null,
   coins?: ModelIntInput | null,
   points?: ModelIntInput | null,
-  modulesCompleted?: ModelStringInput | null,
-  precision?: ModelStringInput | null,
+  modulesCompleted?: ModelIntInput | null,
+  currentModule?: ModelIntInput | null,
+  precision?: ModelFloatInput | null,
   correctAnswers?: ModelIntInput | null,
-  timeSpent?: ModelStringInput | null,
+  wrongAnswers?: ModelIntInput | null,
+  timeSpent?: ModelFloatInput | null,
   and?: Array< ModelUserConditionInput | null > | null,
   or?: Array< ModelUserConditionInput | null > | null,
   not?: ModelUserConditionInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
 };
 
 export type ModelStringInput = {
@@ -82,6 +88,18 @@ export type ModelIntInput = {
   attributeType?: ModelAttributeTypes | null,
 };
 
+export type ModelFloatInput = {
+  ne?: number | null,
+  eq?: number | null,
+  le?: number | null,
+  lt?: number | null,
+  ge?: number | null,
+  gt?: number | null,
+  between?: Array< number | null > | null,
+  attributeExists?: boolean | null,
+  attributeType?: ModelAttributeTypes | null,
+};
+
 export type User = {
   __typename: "User",
   id: string,
@@ -90,46 +108,59 @@ export type User = {
   role: string,
   coins?: number | null,
   points?: number | null,
-  modulesCompleted?: string | null,
-  precision?: string | null,
+  modulesCompleted?: Array< number | null > | null,
+  currentModule?: number | null,
+  precision?: number | null,
   correctAnswers?: number | null,
-  timeSpent?: string | null,
+  wrongAnswers?: number | null,
+  timeSpent?: number | null,
+  achievements?: ModelAchievementConnection | null,
+  progress?: ModelProgressConnection | null,
   createdAt: string,
   updatedAt: string,
-  owner?: string | null,
 };
 
-export type UpdateUserInput = {
+export type ModelAchievementConnection = {
+  __typename: "ModelAchievementConnection",
+  items:  Array<Achievement | null >,
+  nextToken?: string | null,
+};
+
+export type Achievement = {
+  __typename: "Achievement",
   id: string,
-  name?: string | null,
-  email?: string | null,
-  role?: string | null,
-  coins?: number | null,
-  points?: number | null,
-  modulesCompleted?: string | null,
-  precision?: string | null,
-  correctAnswers?: number | null,
-  timeSpent?: string | null,
-};
-
-export type DeleteUserInput = {
-  id: string,
-};
-
-export type CreateModuleInput = {
-  id?: string | null,
   title: string,
-  description: string,
-  moduleNumber: number,
+  description?: string | null,
+  moduleNumber?: number | null,
+  userId: string,
+  user?: User | null,
+  createdAt: string,
+  updatedAt: string,
 };
 
-export type ModelModuleConditionInput = {
-  title?: ModelStringInput | null,
-  description?: ModelStringInput | null,
-  moduleNumber?: ModelIntInput | null,
-  and?: Array< ModelModuleConditionInput | null > | null,
-  or?: Array< ModelModuleConditionInput | null > | null,
-  not?: ModelModuleConditionInput | null,
+export type ModelProgressConnection = {
+  __typename: "ModelProgressConnection",
+  items:  Array<Progress | null >,
+  nextToken?: string | null,
+};
+
+export type Progress = {
+  __typename: "Progress",
+  id: string,
+  userId: string,
+  user?: User | null,
+  moduleId: string,
+  module?: Module | null,
+  moduleNumber?: number | null,
+  accuracy?: number | null,
+  correctAnswers?: number | null,
+  wrongAnswers?: number | null,
+  timeSpent?: number | null,
+  completed?: boolean | null,
+  completedAt?: string | null,
+  errorDetails?: string | null,
+  createdAt: string,
+  updatedAt: string,
 };
 
 export type Module = {
@@ -140,6 +171,7 @@ export type Module = {
   moduleNumber: number,
   lessons?: ModelLessonConnection | null,
   questions?: ModelQuestionConnection | null,
+  progress?: ModelProgressConnection | null,
   createdAt: string,
   updatedAt: string,
 };
@@ -157,8 +189,8 @@ export type Lesson = {
   content: string,
   image?: string | null,
   lessonNumber: number,
-  module?: Module | null,
   moduleId: string,
+  module?: Module | null,
   createdAt: string,
   updatedAt: string,
 };
@@ -175,10 +207,152 @@ export type Question = {
   questionText: string,
   options: Array< string >,
   correctAnswerIndex: number,
-  module?: Module | null,
   moduleId: string,
+  module?: Module | null,
   createdAt: string,
   updatedAt: string,
+};
+
+export type UpdateUserInput = {
+  id: string,
+  name?: string | null,
+  email?: string | null,
+  role?: string | null,
+  coins?: number | null,
+  points?: number | null,
+  modulesCompleted?: Array< number | null > | null,
+  currentModule?: number | null,
+  precision?: number | null,
+  correctAnswers?: number | null,
+  wrongAnswers?: number | null,
+  timeSpent?: number | null,
+};
+
+export type DeleteUserInput = {
+  id: string,
+};
+
+export type CreateAchievementInput = {
+  id?: string | null,
+  title: string,
+  description?: string | null,
+  moduleNumber?: number | null,
+  userId: string,
+};
+
+export type ModelAchievementConditionInput = {
+  title?: ModelStringInput | null,
+  description?: ModelStringInput | null,
+  moduleNumber?: ModelIntInput | null,
+  userId?: ModelIDInput | null,
+  and?: Array< ModelAchievementConditionInput | null > | null,
+  or?: Array< ModelAchievementConditionInput | null > | null,
+  not?: ModelAchievementConditionInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+};
+
+export type ModelIDInput = {
+  ne?: string | null,
+  eq?: string | null,
+  le?: string | null,
+  lt?: string | null,
+  ge?: string | null,
+  gt?: string | null,
+  contains?: string | null,
+  notContains?: string | null,
+  between?: Array< string | null > | null,
+  beginsWith?: string | null,
+  attributeExists?: boolean | null,
+  attributeType?: ModelAttributeTypes | null,
+  size?: ModelSizeInput | null,
+};
+
+export type UpdateAchievementInput = {
+  id: string,
+  title?: string | null,
+  description?: string | null,
+  moduleNumber?: number | null,
+  userId?: string | null,
+};
+
+export type DeleteAchievementInput = {
+  id: string,
+};
+
+export type CreateProgressInput = {
+  id?: string | null,
+  userId: string,
+  moduleId: string,
+  moduleNumber?: number | null,
+  accuracy?: number | null,
+  correctAnswers?: number | null,
+  wrongAnswers?: number | null,
+  timeSpent?: number | null,
+  completed?: boolean | null,
+  completedAt?: string | null,
+  errorDetails?: string | null,
+};
+
+export type ModelProgressConditionInput = {
+  userId?: ModelIDInput | null,
+  moduleId?: ModelIDInput | null,
+  moduleNumber?: ModelIntInput | null,
+  accuracy?: ModelFloatInput | null,
+  correctAnswers?: ModelIntInput | null,
+  wrongAnswers?: ModelIntInput | null,
+  timeSpent?: ModelFloatInput | null,
+  completed?: ModelBooleanInput | null,
+  completedAt?: ModelStringInput | null,
+  errorDetails?: ModelStringInput | null,
+  and?: Array< ModelProgressConditionInput | null > | null,
+  or?: Array< ModelProgressConditionInput | null > | null,
+  not?: ModelProgressConditionInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+};
+
+export type ModelBooleanInput = {
+  ne?: boolean | null,
+  eq?: boolean | null,
+  attributeExists?: boolean | null,
+  attributeType?: ModelAttributeTypes | null,
+};
+
+export type UpdateProgressInput = {
+  id: string,
+  userId?: string | null,
+  moduleId?: string | null,
+  moduleNumber?: number | null,
+  accuracy?: number | null,
+  correctAnswers?: number | null,
+  wrongAnswers?: number | null,
+  timeSpent?: number | null,
+  completed?: boolean | null,
+  completedAt?: string | null,
+  errorDetails?: string | null,
+};
+
+export type DeleteProgressInput = {
+  id: string,
+};
+
+export type CreateModuleInput = {
+  id?: string | null,
+  title: string,
+  description: string,
+  moduleNumber: number,
+};
+
+export type ModelModuleConditionInput = {
+  title?: ModelStringInput | null,
+  description?: ModelStringInput | null,
+  moduleNumber?: ModelIntInput | null,
+  and?: Array< ModelModuleConditionInput | null > | null,
+  or?: Array< ModelModuleConditionInput | null > | null,
+  not?: ModelModuleConditionInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
 };
 
 export type UpdateModuleInput = {
@@ -210,22 +384,8 @@ export type ModelLessonConditionInput = {
   and?: Array< ModelLessonConditionInput | null > | null,
   or?: Array< ModelLessonConditionInput | null > | null,
   not?: ModelLessonConditionInput | null,
-};
-
-export type ModelIDInput = {
-  ne?: string | null,
-  eq?: string | null,
-  le?: string | null,
-  lt?: string | null,
-  ge?: string | null,
-  gt?: string | null,
-  contains?: string | null,
-  notContains?: string | null,
-  between?: Array< string | null > | null,
-  beginsWith?: string | null,
-  attributeExists?: boolean | null,
-  attributeType?: ModelAttributeTypes | null,
-  size?: ModelSizeInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
 };
 
 export type UpdateLessonInput = {
@@ -257,6 +417,8 @@ export type ModelQuestionConditionInput = {
   and?: Array< ModelQuestionConditionInput | null > | null,
   or?: Array< ModelQuestionConditionInput | null > | null,
   not?: ModelQuestionConditionInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
 };
 
 export type UpdateQuestionInput = {
@@ -285,6 +447,8 @@ export type ModelBrailleSymbolConditionInput = {
   and?: Array< ModelBrailleSymbolConditionInput | null > | null,
   or?: Array< ModelBrailleSymbolConditionInput | null > | null,
   not?: ModelBrailleSymbolConditionInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
 };
 
 export type BrailleSymbol = {
@@ -308,6 +472,31 @@ export type DeleteBrailleSymbolInput = {
   id: string,
 };
 
+export type ModelProgressFilterInput = {
+  id?: ModelIDInput | null,
+  userId?: ModelIDInput | null,
+  moduleId?: ModelIDInput | null,
+  moduleNumber?: ModelIntInput | null,
+  accuracy?: ModelFloatInput | null,
+  correctAnswers?: ModelIntInput | null,
+  wrongAnswers?: ModelIntInput | null,
+  timeSpent?: ModelFloatInput | null,
+  completed?: ModelBooleanInput | null,
+  completedAt?: ModelStringInput | null,
+  errorDetails?: ModelStringInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+  and?: Array< ModelProgressFilterInput | null > | null,
+  or?: Array< ModelProgressFilterInput | null > | null,
+  not?: ModelProgressFilterInput | null,
+};
+
+export enum ModelSortDirection {
+  ASC = "ASC",
+  DESC = "DESC",
+}
+
+
 export type ModelUserFilterInput = {
   id?: ModelIDInput | null,
   name?: ModelStringInput | null,
@@ -315,10 +504,14 @@ export type ModelUserFilterInput = {
   role?: ModelStringInput | null,
   coins?: ModelIntInput | null,
   points?: ModelIntInput | null,
-  modulesCompleted?: ModelStringInput | null,
-  precision?: ModelStringInput | null,
+  modulesCompleted?: ModelIntInput | null,
+  currentModule?: ModelIntInput | null,
+  precision?: ModelFloatInput | null,
   correctAnswers?: ModelIntInput | null,
-  timeSpent?: ModelStringInput | null,
+  wrongAnswers?: ModelIntInput | null,
+  timeSpent?: ModelFloatInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
   and?: Array< ModelUserFilterInput | null > | null,
   or?: Array< ModelUserFilterInput | null > | null,
   not?: ModelUserFilterInput | null,
@@ -330,11 +523,26 @@ export type ModelUserConnection = {
   nextToken?: string | null,
 };
 
+export type ModelAchievementFilterInput = {
+  id?: ModelIDInput | null,
+  title?: ModelStringInput | null,
+  description?: ModelStringInput | null,
+  moduleNumber?: ModelIntInput | null,
+  userId?: ModelIDInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+  and?: Array< ModelAchievementFilterInput | null > | null,
+  or?: Array< ModelAchievementFilterInput | null > | null,
+  not?: ModelAchievementFilterInput | null,
+};
+
 export type ModelModuleFilterInput = {
   id?: ModelIDInput | null,
   title?: ModelStringInput | null,
   description?: ModelStringInput | null,
   moduleNumber?: ModelIntInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
   and?: Array< ModelModuleFilterInput | null > | null,
   or?: Array< ModelModuleFilterInput | null > | null,
   not?: ModelModuleFilterInput | null,
@@ -353,36 +561,11 @@ export type ModelLessonFilterInput = {
   image?: ModelStringInput | null,
   lessonNumber?: ModelIntInput | null,
   moduleId?: ModelIDInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
   and?: Array< ModelLessonFilterInput | null > | null,
   or?: Array< ModelLessonFilterInput | null > | null,
   not?: ModelLessonFilterInput | null,
-};
-
-export type ModelQuestionFilterInput = {
-  id?: ModelIDInput | null,
-  questionText?: ModelStringInput | null,
-  options?: ModelStringInput | null,
-  correctAnswerIndex?: ModelIntInput | null,
-  moduleId?: ModelIDInput | null,
-  and?: Array< ModelQuestionFilterInput | null > | null,
-  or?: Array< ModelQuestionFilterInput | null > | null,
-  not?: ModelQuestionFilterInput | null,
-};
-
-export type ModelBrailleSymbolFilterInput = {
-  id?: ModelIDInput | null,
-  letter?: ModelStringInput | null,
-  description?: ModelStringInput | null,
-  imageKey?: ModelStringInput | null,
-  and?: Array< ModelBrailleSymbolFilterInput | null > | null,
-  or?: Array< ModelBrailleSymbolFilterInput | null > | null,
-  not?: ModelBrailleSymbolFilterInput | null,
-};
-
-export type ModelBrailleSymbolConnection = {
-  __typename: "ModelBrailleSymbolConnection",
-  items:  Array<BrailleSymbol | null >,
-  nextToken?: string | null,
 };
 
 export type ModelIntKeyConditionInput = {
@@ -394,43 +577,56 @@ export type ModelIntKeyConditionInput = {
   between?: Array< number | null > | null,
 };
 
-export enum ModelSortDirection {
-  ASC = "ASC",
-  DESC = "DESC",
-}
+export type ModelQuestionFilterInput = {
+  id?: ModelIDInput | null,
+  questionText?: ModelStringInput | null,
+  options?: ModelStringInput | null,
+  correctAnswerIndex?: ModelIntInput | null,
+  moduleId?: ModelIDInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+  and?: Array< ModelQuestionFilterInput | null > | null,
+  or?: Array< ModelQuestionFilterInput | null > | null,
+  not?: ModelQuestionFilterInput | null,
+};
 
+export type ModelBrailleSymbolFilterInput = {
+  id?: ModelIDInput | null,
+  letter?: ModelStringInput | null,
+  description?: ModelStringInput | null,
+  imageKey?: ModelStringInput | null,
+  createdAt?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+  and?: Array< ModelBrailleSymbolFilterInput | null > | null,
+  or?: Array< ModelBrailleSymbolFilterInput | null > | null,
+  not?: ModelBrailleSymbolFilterInput | null,
+};
 
-export type ModelSubscriptionUserFilterInput = {
+export type ModelBrailleSymbolConnection = {
+  __typename: "ModelBrailleSymbolConnection",
+  items:  Array<BrailleSymbol | null >,
+  nextToken?: string | null,
+};
+
+export type ModelSubscriptionProgressFilterInput = {
   id?: ModelSubscriptionIDInput | null,
-  name?: ModelSubscriptionStringInput | null,
-  email?: ModelSubscriptionStringInput | null,
-  role?: ModelSubscriptionStringInput | null,
-  coins?: ModelSubscriptionIntInput | null,
-  points?: ModelSubscriptionIntInput | null,
-  modulesCompleted?: ModelSubscriptionStringInput | null,
-  precision?: ModelSubscriptionStringInput | null,
+  userId?: ModelSubscriptionIDInput | null,
+  moduleId?: ModelSubscriptionIDInput | null,
+  moduleNumber?: ModelSubscriptionIntInput | null,
+  accuracy?: ModelSubscriptionFloatInput | null,
   correctAnswers?: ModelSubscriptionIntInput | null,
-  timeSpent?: ModelSubscriptionStringInput | null,
-  and?: Array< ModelSubscriptionUserFilterInput | null > | null,
-  or?: Array< ModelSubscriptionUserFilterInput | null > | null,
+  wrongAnswers?: ModelSubscriptionIntInput | null,
+  timeSpent?: ModelSubscriptionFloatInput | null,
+  completed?: ModelSubscriptionBooleanInput | null,
+  completedAt?: ModelSubscriptionStringInput | null,
+  errorDetails?: ModelSubscriptionStringInput | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
+  and?: Array< ModelSubscriptionProgressFilterInput | null > | null,
+  or?: Array< ModelSubscriptionProgressFilterInput | null > | null,
 };
 
 export type ModelSubscriptionIDInput = {
-  ne?: string | null,
-  eq?: string | null,
-  le?: string | null,
-  lt?: string | null,
-  ge?: string | null,
-  gt?: string | null,
-  contains?: string | null,
-  notContains?: string | null,
-  between?: Array< string | null > | null,
-  beginsWith?: string | null,
-  in?: Array< string | null > | null,
-  notIn?: Array< string | null > | null,
-};
-
-export type ModelSubscriptionStringInput = {
   ne?: string | null,
   eq?: string | null,
   le?: string | null,
@@ -457,11 +653,76 @@ export type ModelSubscriptionIntInput = {
   notIn?: Array< number | null > | null,
 };
 
+export type ModelSubscriptionFloatInput = {
+  ne?: number | null,
+  eq?: number | null,
+  le?: number | null,
+  lt?: number | null,
+  ge?: number | null,
+  gt?: number | null,
+  between?: Array< number | null > | null,
+  in?: Array< number | null > | null,
+  notIn?: Array< number | null > | null,
+};
+
+export type ModelSubscriptionBooleanInput = {
+  ne?: boolean | null,
+  eq?: boolean | null,
+};
+
+export type ModelSubscriptionStringInput = {
+  ne?: string | null,
+  eq?: string | null,
+  le?: string | null,
+  lt?: string | null,
+  ge?: string | null,
+  gt?: string | null,
+  contains?: string | null,
+  notContains?: string | null,
+  between?: Array< string | null > | null,
+  beginsWith?: string | null,
+  in?: Array< string | null > | null,
+  notIn?: Array< string | null > | null,
+};
+
+export type ModelSubscriptionUserFilterInput = {
+  id?: ModelSubscriptionIDInput | null,
+  name?: ModelSubscriptionStringInput | null,
+  email?: ModelSubscriptionStringInput | null,
+  role?: ModelSubscriptionStringInput | null,
+  coins?: ModelSubscriptionIntInput | null,
+  points?: ModelSubscriptionIntInput | null,
+  modulesCompleted?: ModelSubscriptionIntInput | null,
+  currentModule?: ModelSubscriptionIntInput | null,
+  precision?: ModelSubscriptionFloatInput | null,
+  correctAnswers?: ModelSubscriptionIntInput | null,
+  wrongAnswers?: ModelSubscriptionIntInput | null,
+  timeSpent?: ModelSubscriptionFloatInput | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
+  and?: Array< ModelSubscriptionUserFilterInput | null > | null,
+  or?: Array< ModelSubscriptionUserFilterInput | null > | null,
+};
+
+export type ModelSubscriptionAchievementFilterInput = {
+  id?: ModelSubscriptionIDInput | null,
+  title?: ModelSubscriptionStringInput | null,
+  description?: ModelSubscriptionStringInput | null,
+  moduleNumber?: ModelSubscriptionIntInput | null,
+  userId?: ModelSubscriptionIDInput | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
+  and?: Array< ModelSubscriptionAchievementFilterInput | null > | null,
+  or?: Array< ModelSubscriptionAchievementFilterInput | null > | null,
+};
+
 export type ModelSubscriptionModuleFilterInput = {
   id?: ModelSubscriptionIDInput | null,
   title?: ModelSubscriptionStringInput | null,
   description?: ModelSubscriptionStringInput | null,
   moduleNumber?: ModelSubscriptionIntInput | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionModuleFilterInput | null > | null,
   or?: Array< ModelSubscriptionModuleFilterInput | null > | null,
 };
@@ -473,6 +734,8 @@ export type ModelSubscriptionLessonFilterInput = {
   image?: ModelSubscriptionStringInput | null,
   lessonNumber?: ModelSubscriptionIntInput | null,
   moduleId?: ModelSubscriptionIDInput | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionLessonFilterInput | null > | null,
   or?: Array< ModelSubscriptionLessonFilterInput | null > | null,
 };
@@ -483,6 +746,8 @@ export type ModelSubscriptionQuestionFilterInput = {
   options?: ModelSubscriptionStringInput | null,
   correctAnswerIndex?: ModelSubscriptionIntInput | null,
   moduleId?: ModelSubscriptionIDInput | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionQuestionFilterInput | null > | null,
   or?: Array< ModelSubscriptionQuestionFilterInput | null > | null,
 };
@@ -492,8 +757,20 @@ export type ModelSubscriptionBrailleSymbolFilterInput = {
   letter?: ModelSubscriptionStringInput | null,
   description?: ModelSubscriptionStringInput | null,
   imageKey?: ModelSubscriptionStringInput | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionBrailleSymbolFilterInput | null > | null,
   or?: Array< ModelSubscriptionBrailleSymbolFilterInput | null > | null,
+};
+
+export type AdminRegisterUserMutationVariables = {
+  name: string,
+  email: string,
+  password: string,
+};
+
+export type AdminRegisterUserMutation = {
+  adminRegisterUser?: string | null,
 };
 
 export type CreateUserMutationVariables = {
@@ -510,13 +787,22 @@ export type CreateUserMutation = {
     role: string,
     coins?: number | null,
     points?: number | null,
-    modulesCompleted?: string | null,
-    precision?: string | null,
+    modulesCompleted?: Array< number | null > | null,
+    currentModule?: number | null,
+    precision?: number | null,
     correctAnswers?: number | null,
-    timeSpent?: string | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    achievements?:  {
+      __typename: "ModelAchievementConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
-    owner?: string | null,
   } | null,
 };
 
@@ -534,13 +820,22 @@ export type UpdateUserMutation = {
     role: string,
     coins?: number | null,
     points?: number | null,
-    modulesCompleted?: string | null,
-    precision?: string | null,
+    modulesCompleted?: Array< number | null > | null,
+    currentModule?: number | null,
+    precision?: number | null,
     correctAnswers?: number | null,
-    timeSpent?: string | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    achievements?:  {
+      __typename: "ModelAchievementConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
-    owner?: string | null,
   } | null,
 };
 
@@ -558,13 +853,277 @@ export type DeleteUserMutation = {
     role: string,
     coins?: number | null,
     points?: number | null,
-    modulesCompleted?: string | null,
-    precision?: string | null,
+    modulesCompleted?: Array< number | null > | null,
+    currentModule?: number | null,
+    precision?: number | null,
     correctAnswers?: number | null,
-    timeSpent?: string | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    achievements?:  {
+      __typename: "ModelAchievementConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
-    owner?: string | null,
+  } | null,
+};
+
+export type CreateAchievementMutationVariables = {
+  input: CreateAchievementInput,
+  condition?: ModelAchievementConditionInput | null,
+};
+
+export type CreateAchievementMutation = {
+  createAchievement?:  {
+    __typename: "Achievement",
+    id: string,
+    title: string,
+    description?: string | null,
+    moduleNumber?: number | null,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type UpdateAchievementMutationVariables = {
+  input: UpdateAchievementInput,
+  condition?: ModelAchievementConditionInput | null,
+};
+
+export type UpdateAchievementMutation = {
+  updateAchievement?:  {
+    __typename: "Achievement",
+    id: string,
+    title: string,
+    description?: string | null,
+    moduleNumber?: number | null,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type DeleteAchievementMutationVariables = {
+  input: DeleteAchievementInput,
+  condition?: ModelAchievementConditionInput | null,
+};
+
+export type DeleteAchievementMutation = {
+  deleteAchievement?:  {
+    __typename: "Achievement",
+    id: string,
+    title: string,
+    description?: string | null,
+    moduleNumber?: number | null,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type CreateProgressMutationVariables = {
+  input: CreateProgressInput,
+  condition?: ModelProgressConditionInput | null,
+};
+
+export type CreateProgressMutation = {
+  createProgress?:  {
+    __typename: "Progress",
+    id: string,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleNumber?: number | null,
+    accuracy?: number | null,
+    correctAnswers?: number | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    completed?: boolean | null,
+    completedAt?: string | null,
+    errorDetails?: string | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type UpdateProgressMutationVariables = {
+  input: UpdateProgressInput,
+  condition?: ModelProgressConditionInput | null,
+};
+
+export type UpdateProgressMutation = {
+  updateProgress?:  {
+    __typename: "Progress",
+    id: string,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleNumber?: number | null,
+    accuracy?: number | null,
+    correctAnswers?: number | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    completed?: boolean | null,
+    completedAt?: string | null,
+    errorDetails?: string | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type DeleteProgressMutationVariables = {
+  input: DeleteProgressInput,
+  condition?: ModelProgressConditionInput | null,
+};
+
+export type DeleteProgressMutation = {
+  deleteProgress?:  {
+    __typename: "Progress",
+    id: string,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleNumber?: number | null,
+    accuracy?: number | null,
+    correctAnswers?: number | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    completed?: boolean | null,
+    completedAt?: string | null,
+    errorDetails?: string | null,
+    createdAt: string,
+    updatedAt: string,
   } | null,
 };
 
@@ -586,6 +1145,10 @@ export type CreateModuleMutation = {
     } | null,
     questions?:  {
       __typename: "ModelQuestionConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
       nextToken?: string | null,
     } | null,
     createdAt: string,
@@ -613,6 +1176,10 @@ export type UpdateModuleMutation = {
       __typename: "ModelQuestionConnection",
       nextToken?: string | null,
     } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -638,6 +1205,10 @@ export type DeleteModuleMutation = {
       __typename: "ModelQuestionConnection",
       nextToken?: string | null,
     } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -656,6 +1227,7 @@ export type CreateLessonMutation = {
     content: string,
     image?: string | null,
     lessonNumber: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -665,7 +1237,6 @@ export type CreateLessonMutation = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -684,6 +1255,7 @@ export type UpdateLessonMutation = {
     content: string,
     image?: string | null,
     lessonNumber: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -693,7 +1265,6 @@ export type UpdateLessonMutation = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -712,6 +1283,7 @@ export type DeleteLessonMutation = {
     content: string,
     image?: string | null,
     lessonNumber: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -721,7 +1293,6 @@ export type DeleteLessonMutation = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -739,6 +1310,7 @@ export type CreateQuestionMutation = {
     questionText: string,
     options: Array< string >,
     correctAnswerIndex: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -748,7 +1320,6 @@ export type CreateQuestionMutation = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -766,6 +1337,7 @@ export type UpdateQuestionMutation = {
     questionText: string,
     options: Array< string >,
     correctAnswerIndex: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -775,7 +1347,6 @@ export type UpdateQuestionMutation = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -793,6 +1364,7 @@ export type DeleteQuestionMutation = {
     questionText: string,
     options: Array< string >,
     correctAnswerIndex: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -802,7 +1374,6 @@ export type DeleteQuestionMutation = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -859,6 +1430,148 @@ export type DeleteBrailleSymbolMutation = {
   } | null,
 };
 
+export type GetProgressQueryVariables = {
+  id: string,
+};
+
+export type GetProgressQuery = {
+  getProgress?:  {
+    __typename: "Progress",
+    id: string,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleNumber?: number | null,
+    accuracy?: number | null,
+    correctAnswers?: number | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    completed?: boolean | null,
+    completedAt?: string | null,
+    errorDetails?: string | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type ListProgressesQueryVariables = {
+  id?: string | null,
+  filter?: ModelProgressFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
+};
+
+export type ListProgressesQuery = {
+  listProgresses?:  {
+    __typename: "ModelProgressConnection",
+    items:  Array< {
+      __typename: "Progress",
+      id: string,
+      userId: string,
+      moduleId: string,
+      moduleNumber?: number | null,
+      accuracy?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      completed?: boolean | null,
+      completedAt?: string | null,
+      errorDetails?: string | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type ProgressesByUserIdQueryVariables = {
+  userId: string,
+  sortDirection?: ModelSortDirection | null,
+  filter?: ModelProgressFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+};
+
+export type ProgressesByUserIdQuery = {
+  progressesByUserId?:  {
+    __typename: "ModelProgressConnection",
+    items:  Array< {
+      __typename: "Progress",
+      id: string,
+      userId: string,
+      moduleId: string,
+      moduleNumber?: number | null,
+      accuracy?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      completed?: boolean | null,
+      completedAt?: string | null,
+      errorDetails?: string | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type ProgressesByModuleIdQueryVariables = {
+  moduleId: string,
+  sortDirection?: ModelSortDirection | null,
+  filter?: ModelProgressFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+};
+
+export type ProgressesByModuleIdQuery = {
+  progressesByModuleId?:  {
+    __typename: "ModelProgressConnection",
+    items:  Array< {
+      __typename: "Progress",
+      id: string,
+      userId: string,
+      moduleId: string,
+      moduleNumber?: number | null,
+      accuracy?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      completed?: boolean | null,
+      completedAt?: string | null,
+      errorDetails?: string | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
 export type GetUserQueryVariables = {
   id: string,
 };
@@ -872,20 +1585,31 @@ export type GetUserQuery = {
     role: string,
     coins?: number | null,
     points?: number | null,
-    modulesCompleted?: string | null,
-    precision?: string | null,
+    modulesCompleted?: Array< number | null > | null,
+    currentModule?: number | null,
+    precision?: number | null,
     correctAnswers?: number | null,
-    timeSpent?: string | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    achievements?:  {
+      __typename: "ModelAchievementConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
-    owner?: string | null,
   } | null,
 };
 
 export type ListUsersQueryVariables = {
+  id?: string | null,
   filter?: ModelUserFilterInput | null,
   limit?: number | null,
   nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
 };
 
 export type ListUsersQuery = {
@@ -899,13 +1623,130 @@ export type ListUsersQuery = {
       role: string,
       coins?: number | null,
       points?: number | null,
-      modulesCompleted?: string | null,
-      precision?: string | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
       correctAnswers?: number | null,
-      timeSpent?: string | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
       createdAt: string,
       updatedAt: string,
-      owner?: string | null,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type UsersByEmailQueryVariables = {
+  email: string,
+  sortDirection?: ModelSortDirection | null,
+  filter?: ModelUserFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+};
+
+export type UsersByEmailQuery = {
+  usersByEmail?:  {
+    __typename: "ModelUserConnection",
+    items:  Array< {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type GetAchievementQueryVariables = {
+  id: string,
+};
+
+export type GetAchievementQuery = {
+  getAchievement?:  {
+    __typename: "Achievement",
+    id: string,
+    title: string,
+    description?: string | null,
+    moduleNumber?: number | null,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type ListAchievementsQueryVariables = {
+  id?: string | null,
+  filter?: ModelAchievementFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
+};
+
+export type ListAchievementsQuery = {
+  listAchievements?:  {
+    __typename: "ModelAchievementConnection",
+    items:  Array< {
+      __typename: "Achievement",
+      id: string,
+      title: string,
+      description?: string | null,
+      moduleNumber?: number | null,
+      userId: string,
+      createdAt: string,
+      updatedAt: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type AchievementsByUserIdQueryVariables = {
+  userId: string,
+  sortDirection?: ModelSortDirection | null,
+  filter?: ModelAchievementFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+};
+
+export type AchievementsByUserIdQuery = {
+  achievementsByUserId?:  {
+    __typename: "ModelAchievementConnection",
+    items:  Array< {
+      __typename: "Achievement",
+      id: string,
+      title: string,
+      description?: string | null,
+      moduleNumber?: number | null,
+      userId: string,
+      createdAt: string,
+      updatedAt: string,
     } | null >,
     nextToken?: string | null,
   } | null,
@@ -930,15 +1771,21 @@ export type GetModuleQuery = {
       __typename: "ModelQuestionConnection",
       nextToken?: string | null,
     } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
   } | null,
 };
 
 export type ListModulesQueryVariables = {
+  id?: string | null,
   filter?: ModelModuleFilterInput | null,
   limit?: number | null,
   nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
 };
 
 export type ListModulesQuery = {
@@ -969,6 +1816,7 @@ export type GetLessonQuery = {
     content: string,
     image?: string | null,
     lessonNumber: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -978,16 +1826,17 @@ export type GetLessonQuery = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
 };
 
 export type ListLessonsQueryVariables = {
+  id?: string | null,
   filter?: ModelLessonFilterInput | null,
   limit?: number | null,
   nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
 };
 
 export type ListLessonsQuery = {
@@ -1001,93 +1850,6 @@ export type ListLessonsQuery = {
       image?: string | null,
       lessonNumber: number,
       moduleId: string,
-      createdAt: string,
-      updatedAt: string,
-    } | null >,
-    nextToken?: string | null,
-  } | null,
-};
-
-export type GetQuestionQueryVariables = {
-  id: string,
-};
-
-export type GetQuestionQuery = {
-  getQuestion?:  {
-    __typename: "Question",
-    id: string,
-    questionText: string,
-    options: Array< string >,
-    correctAnswerIndex: number,
-    module?:  {
-      __typename: "Module",
-      id: string,
-      title: string,
-      description: string,
-      moduleNumber: number,
-      createdAt: string,
-      updatedAt: string,
-    } | null,
-    moduleId: string,
-    createdAt: string,
-    updatedAt: string,
-  } | null,
-};
-
-export type ListQuestionsQueryVariables = {
-  filter?: ModelQuestionFilterInput | null,
-  limit?: number | null,
-  nextToken?: string | null,
-};
-
-export type ListQuestionsQuery = {
-  listQuestions?:  {
-    __typename: "ModelQuestionConnection",
-    items:  Array< {
-      __typename: "Question",
-      id: string,
-      questionText: string,
-      options: Array< string >,
-      correctAnswerIndex: number,
-      moduleId: string,
-      createdAt: string,
-      updatedAt: string,
-    } | null >,
-    nextToken?: string | null,
-  } | null,
-};
-
-export type GetBrailleSymbolQueryVariables = {
-  id: string,
-};
-
-export type GetBrailleSymbolQuery = {
-  getBrailleSymbol?:  {
-    __typename: "BrailleSymbol",
-    id: string,
-    letter: string,
-    description: string,
-    imageKey: string,
-    createdAt: string,
-    updatedAt: string,
-  } | null,
-};
-
-export type ListBrailleSymbolsQueryVariables = {
-  filter?: ModelBrailleSymbolFilterInput | null,
-  limit?: number | null,
-  nextToken?: string | null,
-};
-
-export type ListBrailleSymbolsQuery = {
-  listBrailleSymbols?:  {
-    __typename: "ModelBrailleSymbolConnection",
-    items:  Array< {
-      __typename: "BrailleSymbol",
-      id: string,
-      letter: string,
-      description: string,
-      imageKey: string,
       createdAt: string,
       updatedAt: string,
     } | null >,
@@ -1122,6 +1884,57 @@ export type LessonsByModuleIdAndLessonNumberQuery = {
   } | null,
 };
 
+export type GetQuestionQueryVariables = {
+  id: string,
+};
+
+export type GetQuestionQuery = {
+  getQuestion?:  {
+    __typename: "Question",
+    id: string,
+    questionText: string,
+    options: Array< string >,
+    correctAnswerIndex: number,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type ListQuestionsQueryVariables = {
+  id?: string | null,
+  filter?: ModelQuestionFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
+};
+
+export type ListQuestionsQuery = {
+  listQuestions?:  {
+    __typename: "ModelQuestionConnection",
+    items:  Array< {
+      __typename: "Question",
+      id: string,
+      questionText: string,
+      options: Array< string >,
+      correctAnswerIndex: number,
+      moduleId: string,
+      createdAt: string,
+      updatedAt: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
 export type QuestionsByModuleIdQueryVariables = {
   moduleId: string,
   sortDirection?: ModelSortDirection | null,
@@ -1147,9 +1960,195 @@ export type QuestionsByModuleIdQuery = {
   } | null,
 };
 
+export type GetBrailleSymbolQueryVariables = {
+  id: string,
+};
+
+export type GetBrailleSymbolQuery = {
+  getBrailleSymbol?:  {
+    __typename: "BrailleSymbol",
+    id: string,
+    letter: string,
+    description: string,
+    imageKey: string,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type ListBrailleSymbolsQueryVariables = {
+  id?: string | null,
+  filter?: ModelBrailleSymbolFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
+};
+
+export type ListBrailleSymbolsQuery = {
+  listBrailleSymbols?:  {
+    __typename: "ModelBrailleSymbolConnection",
+    items:  Array< {
+      __typename: "BrailleSymbol",
+      id: string,
+      letter: string,
+      description: string,
+      imageKey: string,
+      createdAt: string,
+      updatedAt: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type OnCreateProgressSubscriptionVariables = {
+  filter?: ModelSubscriptionProgressFilterInput | null,
+};
+
+export type OnCreateProgressSubscription = {
+  onCreateProgress?:  {
+    __typename: "Progress",
+    id: string,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleNumber?: number | null,
+    accuracy?: number | null,
+    correctAnswers?: number | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    completed?: boolean | null,
+    completedAt?: string | null,
+    errorDetails?: string | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type OnUpdateProgressSubscriptionVariables = {
+  filter?: ModelSubscriptionProgressFilterInput | null,
+};
+
+export type OnUpdateProgressSubscription = {
+  onUpdateProgress?:  {
+    __typename: "Progress",
+    id: string,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleNumber?: number | null,
+    accuracy?: number | null,
+    correctAnswers?: number | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    completed?: boolean | null,
+    completedAt?: string | null,
+    errorDetails?: string | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type OnDeleteProgressSubscriptionVariables = {
+  filter?: ModelSubscriptionProgressFilterInput | null,
+};
+
+export type OnDeleteProgressSubscription = {
+  onDeleteProgress?:  {
+    __typename: "Progress",
+    id: string,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleId: string,
+    module?:  {
+      __typename: "Module",
+      id: string,
+      title: string,
+      description: string,
+      moduleNumber: number,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    moduleNumber?: number | null,
+    accuracy?: number | null,
+    correctAnswers?: number | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    completed?: boolean | null,
+    completedAt?: string | null,
+    errorDetails?: string | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
 export type OnCreateUserSubscriptionVariables = {
   filter?: ModelSubscriptionUserFilterInput | null,
-  owner?: string | null,
 };
 
 export type OnCreateUserSubscription = {
@@ -1161,19 +2160,27 @@ export type OnCreateUserSubscription = {
     role: string,
     coins?: number | null,
     points?: number | null,
-    modulesCompleted?: string | null,
-    precision?: string | null,
+    modulesCompleted?: Array< number | null > | null,
+    currentModule?: number | null,
+    precision?: number | null,
     correctAnswers?: number | null,
-    timeSpent?: string | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    achievements?:  {
+      __typename: "ModelAchievementConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
-    owner?: string | null,
   } | null,
 };
 
 export type OnUpdateUserSubscriptionVariables = {
   filter?: ModelSubscriptionUserFilterInput | null,
-  owner?: string | null,
 };
 
 export type OnUpdateUserSubscription = {
@@ -1185,19 +2192,27 @@ export type OnUpdateUserSubscription = {
     role: string,
     coins?: number | null,
     points?: number | null,
-    modulesCompleted?: string | null,
-    precision?: string | null,
+    modulesCompleted?: Array< number | null > | null,
+    currentModule?: number | null,
+    precision?: number | null,
     correctAnswers?: number | null,
-    timeSpent?: string | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    achievements?:  {
+      __typename: "ModelAchievementConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
-    owner?: string | null,
   } | null,
 };
 
 export type OnDeleteUserSubscriptionVariables = {
   filter?: ModelSubscriptionUserFilterInput | null,
-  owner?: string | null,
 };
 
 export type OnDeleteUserSubscription = {
@@ -1209,13 +2224,124 @@ export type OnDeleteUserSubscription = {
     role: string,
     coins?: number | null,
     points?: number | null,
-    modulesCompleted?: string | null,
-    precision?: string | null,
+    modulesCompleted?: Array< number | null > | null,
+    currentModule?: number | null,
+    precision?: number | null,
     correctAnswers?: number | null,
-    timeSpent?: string | null,
+    wrongAnswers?: number | null,
+    timeSpent?: number | null,
+    achievements?:  {
+      __typename: "ModelAchievementConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
-    owner?: string | null,
+  } | null,
+};
+
+export type OnCreateAchievementSubscriptionVariables = {
+  filter?: ModelSubscriptionAchievementFilterInput | null,
+};
+
+export type OnCreateAchievementSubscription = {
+  onCreateAchievement?:  {
+    __typename: "Achievement",
+    id: string,
+    title: string,
+    description?: string | null,
+    moduleNumber?: number | null,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type OnUpdateAchievementSubscriptionVariables = {
+  filter?: ModelSubscriptionAchievementFilterInput | null,
+};
+
+export type OnUpdateAchievementSubscription = {
+  onUpdateAchievement?:  {
+    __typename: "Achievement",
+    id: string,
+    title: string,
+    description?: string | null,
+    moduleNumber?: number | null,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
+  } | null,
+};
+
+export type OnDeleteAchievementSubscriptionVariables = {
+  filter?: ModelSubscriptionAchievementFilterInput | null,
+};
+
+export type OnDeleteAchievementSubscription = {
+  onDeleteAchievement?:  {
+    __typename: "Achievement",
+    id: string,
+    title: string,
+    description?: string | null,
+    moduleNumber?: number | null,
+    userId: string,
+    user?:  {
+      __typename: "User",
+      id: string,
+      name: string,
+      email: string,
+      role: string,
+      coins?: number | null,
+      points?: number | null,
+      modulesCompleted?: Array< number | null > | null,
+      currentModule?: number | null,
+      precision?: number | null,
+      correctAnswers?: number | null,
+      wrongAnswers?: number | null,
+      timeSpent?: number | null,
+      createdAt: string,
+      updatedAt: string,
+    } | null,
+    createdAt: string,
+    updatedAt: string,
   } | null,
 };
 
@@ -1236,6 +2362,10 @@ export type OnCreateModuleSubscription = {
     } | null,
     questions?:  {
       __typename: "ModelQuestionConnection",
+      nextToken?: string | null,
+    } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
       nextToken?: string | null,
     } | null,
     createdAt: string,
@@ -1262,6 +2392,10 @@ export type OnUpdateModuleSubscription = {
       __typename: "ModelQuestionConnection",
       nextToken?: string | null,
     } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -1286,6 +2420,10 @@ export type OnDeleteModuleSubscription = {
       __typename: "ModelQuestionConnection",
       nextToken?: string | null,
     } | null,
+    progress?:  {
+      __typename: "ModelProgressConnection",
+      nextToken?: string | null,
+    } | null,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -1303,6 +2441,7 @@ export type OnCreateLessonSubscription = {
     content: string,
     image?: string | null,
     lessonNumber: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -1312,7 +2451,6 @@ export type OnCreateLessonSubscription = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -1330,6 +2468,7 @@ export type OnUpdateLessonSubscription = {
     content: string,
     image?: string | null,
     lessonNumber: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -1339,7 +2478,6 @@ export type OnUpdateLessonSubscription = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -1357,6 +2495,7 @@ export type OnDeleteLessonSubscription = {
     content: string,
     image?: string | null,
     lessonNumber: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -1366,7 +2505,6 @@ export type OnDeleteLessonSubscription = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -1383,6 +2521,7 @@ export type OnCreateQuestionSubscription = {
     questionText: string,
     options: Array< string >,
     correctAnswerIndex: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -1392,7 +2531,6 @@ export type OnCreateQuestionSubscription = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -1409,6 +2547,7 @@ export type OnUpdateQuestionSubscription = {
     questionText: string,
     options: Array< string >,
     correctAnswerIndex: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -1418,7 +2557,6 @@ export type OnUpdateQuestionSubscription = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,
@@ -1435,6 +2573,7 @@ export type OnDeleteQuestionSubscription = {
     questionText: string,
     options: Array< string >,
     correctAnswerIndex: number,
+    moduleId: string,
     module?:  {
       __typename: "Module",
       id: string,
@@ -1444,7 +2583,6 @@ export type OnDeleteQuestionSubscription = {
       createdAt: string,
       updatedAt: string,
     } | null,
-    moduleId: string,
     createdAt: string,
     updatedAt: string,
   } | null,

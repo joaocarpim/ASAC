@@ -12,6 +12,7 @@ import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useFocusEffect } from "@react-navigation/native";
 import { generateClient } from "aws-amplify/api";
+import { listProgresses } from "../../graphql/queries";
 
 type IncorrectAnswer = {
   id: string;
@@ -48,7 +49,9 @@ export default function AdminIncorrectAnswersScreen({
   route,
 }: RootStackScreenProps<"AdminIncorrectAnswers">) {
   const { userId } = route.params;
-  const [incorrectAnswers, setIncorrectAnswers] = useState<IncorrectAnswer[]>([]);
+  const [incorrectAnswers, setIncorrectAnswers] = useState<IncorrectAnswer[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
 
   const fetchIncorrectAnswers = useCallback(async () => {
@@ -56,64 +59,60 @@ export default function AdminIncorrectAnswersScreen({
     try {
       const client = generateClient();
 
-      // Query CORRIGIDA - usar listProgresses (plural)
-      const progressQuery = `
-        query ListProgresses($filter: ModelProgressFilterInput) {
-          listProgresses(filter: $filter) {
-            items {
-              id
-              moduleNumber
-              errorDetails
-              wrongAnswers
-            }
-          }
-        }
-      `;
-
       const result: any = await client.graphql({
-        query: progressQuery,
-        variables: { 
-          filter: { 
-            userId: { eq: userId } 
-          } 
+        query: listProgresses,
+        variables: {
+          filter: {
+            userId: { eq: userId },
+          },
         },
+        authMode: "userPool",
       });
 
-      const progressList =
-        result?.data?.listProgresses?.items || [];
+      const progressList = result?.data?.listProgresses?.items || [];
 
-      console.log("📊 Admin Errors: Raw progress list:", progressList);
+      console.log(
+        "📊 Admin Errors: Raw progress list:",
+        JSON.stringify(progressList, null, 2)
+      );
 
       const aggregatedErrors: IncorrectAnswer[] = [];
 
-      // CORRIGIDO: Processar TODOS os erros de TODOS os módulos
       progressList.forEach((progress: any) => {
-        const moduleNumber =
-          typeof progress.moduleNumber === "string" 
-            ? parseInt(progress.moduleNumber, 10) 
-            : progress.moduleNumber;
-        
+        const moduleNumber = Number(progress.moduleNumber ?? 0);
         const errorData = progress.errorDetails;
-        
+
         console.log(`🔍 Processando Módulo ${moduleNumber}:`);
-        console.log("  errorDetails type:", typeof errorData);
-        console.log("  errorDetails value:", errorData);
+        console.log(
+          `  📦 errorDetails (tipo: ${typeof errorData}):`,
+          errorData
+        );
 
         if (!errorData) {
-          console.log(`  ⚠️ Módulo ${moduleNumber}: Sem errorDetails`);
+          console.log(
+            `  ⚠️ Módulo ${moduleNumber}: errorDetails é null/undefined`
+          );
           return;
         }
 
         let errors: any[] = [];
 
-        // Converter errorDetails para array de erros
+        // ✅ CORREÇÃO: Parse mais robusto
         if (typeof errorData === "string") {
+          // Pode ser string JSON ou string vazia
+          if (errorData.trim() === "" || errorData === "[]") {
+            console.log(`  ⚠️ Módulo ${moduleNumber}: errorDetails vazio`);
+            return;
+          }
           try {
             const parsed = JSON.parse(errorData);
-            console.log("  📄 Parsed JSON:", parsed);
-            errors = Array.isArray(parsed) ? parsed : [parsed];
+            if (Array.isArray(parsed)) {
+              errors = parsed;
+            } else if (parsed && typeof parsed === "object") {
+              errors = [parsed];
+            }
           } catch (e) {
-            console.warn("  ⚠️ errorDetails não é JSON válido:", e);
+            console.warn(`  ⚠️ errorDetails não é JSON válido:`, e);
             return;
           }
         } else if (Array.isArray(errorData)) {
@@ -122,22 +121,30 @@ export default function AdminIncorrectAnswersScreen({
           errors = [errorData];
         }
 
-        console.log(`  ✅ Módulo ${moduleNumber}: ${errors.length} erros encontrados`);
+        // ✅ Filtra erros vazios
+        errors = errors.filter((err) => err && typeof err === "object");
 
-        // ADICIONAR TODOS OS ERROS (não apenas o primeiro)
+        console.log(
+          `  ✅ Módulo ${moduleNumber}: ${errors.length} erros encontrados`,
+          errors
+        );
+
         errors.forEach((err: any, idx: number) => {
           aggregatedErrors.push({
             id: `${progress.id}-${idx}`,
             moduleNumber,
-            questionNumber: err.questionNumber ?? idx + 1,
-            questionText: err.questionText ?? err.question ?? "Pergunta não disponível",
-            userAnswer: err.userAnswer ?? err.answer ?? err.selected ?? "Não respondida",
-            correctAnswer: err.expectedAnswer ?? err.correctAnswer ?? "N/A",
+            questionNumber: err.questionNumber ?? err.questionId ?? idx + 1,
+            questionText:
+              err.questionText ?? err.question ?? "Pergunta não disponível",
+            userAnswer:
+              err.userAnswer ?? err.answer ?? err.selected ?? "Não respondida",
+            correctAnswer:
+              err.expectedAnswer ?? err.correctAnswer ?? err.expected ?? "N/A",
           });
         });
       });
 
-      // Ordenar por módulo e número da pergunta
+      // Ordenar por módulo e questão
       aggregatedErrors.sort((a, b) => {
         const ma = a.moduleNumber ?? 0;
         const mb = b.moduleNumber ?? 0;
@@ -228,10 +235,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 40,
   },
-  emptyContainer: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
+  emptyContainer: { alignItems: "center", paddingVertical: 40 },
   emptyText: {
     fontSize: 18,
     fontWeight: "bold",
@@ -279,9 +283,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 8,
   },
-  correctAnswer: {
-    color: "#4CAF50",
-    fontSize: 14,
-    fontWeight: "500",
-  },
+  correctAnswer: { color: "#4CAF50", fontSize: 14, fontWeight: "500" },
 });

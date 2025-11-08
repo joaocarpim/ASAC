@@ -1,4 +1,4 @@
-// App.tsx
+// App.tsx (Corrigido)
 
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
@@ -13,7 +13,11 @@ if (process.env.NODE_ENV === "production") {
 
 import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
-import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  DefaultTheme,
+  useNavigationContainerRef,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ViewShot from "react-native-view-shot";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -21,8 +25,14 @@ import { useFonts } from "expo-font";
 
 // Store & Contextos
 import { useAuthStore } from "./src/store/authStore";
-import { ContrastProvider, useContrastTheme } from "./src/context/ContrastProvider";
-import { AccessibilityProvider, useAccessibility } from "./src/context/AccessibilityProvider";
+import {
+  ContrastProvider,
+  useContrastTheme,
+} from "./src/context/ContrastProvider";
+import {
+  AccessibilityProvider,
+  useAccessibility,
+} from "./src/context/AccessibilityProvider";
 import { SettingsProvider as AccessibilitySettingsProvider } from "./src/context/SettingsProvider";
 
 // Componentes Acessibilidade
@@ -59,6 +69,8 @@ import BrailleScreen from "./src/screens/module/BrailleScreen";
 import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen";
 import LearningPathScreen from "./src/screens/session/LearningPathScreen";
 import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
+// ✅ ADICIONE ESTA LINHA:
+import IncorrectAnswersScreen from "./src/screens/main/IncorrectAnswersScreen";
 
 // Telas Admin
 import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
@@ -69,16 +81,20 @@ import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen
 function AppNavigation() {
   const { theme } = useContrastTheme();
   const { user, isLoading, checkUser, signOut } = useAuthStore();
-  const { panResponder, magnifier, magnifierPanResponder, clearAllElements } = useAccessibility();
+  const { panResponder, magnifier, magnifierPanResponder, clearAllElements } =
+    useAccessibility();
   const viewShotRef = useRef<ViewShot>(null);
   const navigationRef = useNavigationContainerRef();
-  const [currentRouteName, setCurrentRouteName] = useState<string | undefined>();
+  const [currentRouteName, setCurrentRouteName] = useState<
+    string | undefined
+  >();
 
   useEffect(() => {
     checkUser();
 
     const sub = Hub.listen("auth", ({ payload }: { payload: any }) => {
-      if (payload.event === "signedIn" || payload.event === "tokenRefresh") checkUser();
+      if (payload.event === "signedIn" || payload.event === "tokenRefresh")
+        checkUser();
       if (payload.event === "signedOut") signOut();
     });
 
@@ -87,7 +103,9 @@ function AppNavigation() {
 
   if (isLoading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <View
+        style={[styles.loadingContainer, { backgroundColor: theme.background }]}
+      >
         <ActivityIndicator size="large" color={theme.text} />
       </View>
     );
@@ -97,51 +115,125 @@ function AppNavigation() {
     <View style={[styles.fullscreen, { backgroundColor: theme.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={theme.background} />
 
-      <ViewShot ref={viewShotRef} style={{ flex: 1 }} options={{ format: "jpg", quality: 0.9 }}>
+      <ViewShot
+        ref={viewShotRef}
+        style={{ flex: 1 }}
+        options={{ format: "jpg", quality: 0.9 }}
+      >
         <View
           style={{ flex: 1 }}
-          {...(magnifier.isActive ? magnifierPanResponder.panHandlers : panResponder.panHandlers)}
+          {...(magnifier.isActive
+            ? magnifierPanResponder.panHandlers
+            : panResponder.panHandlers)}
         >
           <NavigationContainer
             ref={navigationRef}
-            onReady={() => setCurrentRouteName(navigationRef.getCurrentRoute()?.name)}
+            onReady={() =>
+              setCurrentRouteName(navigationRef.getCurrentRoute()?.name)
+            }
           >
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               {!user ? (
                 <>
                   <Stack.Screen name="Welcome" component={WelcomeScreen} />
-                  <Stack.Screen name="TutorialStep1" component={TutorialStep1Screen} />
-                  <Stack.Screen name="TutorialStep2" component={TutorialStep2Screen} />
-                  <Stack.Screen name="TutorialStep3" component={TutorialStep3Screen} />
+                  <Stack.Screen
+                    name="TutorialStep1"
+                    component={TutorialStep1Screen}
+                  />
+                  <Stack.Screen
+                    name="TutorialStep2"
+                    component={TutorialStep2Screen}
+                  />
+                  <Stack.Screen
+                    name="TutorialStep3"
+                    component={TutorialStep3Screen}
+                  />
                   <Stack.Screen name="Login" component={LoginScreen} />
-                  <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                  <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-                  <Stack.Screen name="ConfirmSignUp" component={ConfirmSignUpScreen} />
-                  <Stack.Screen name="NewPassword" component={NewPasswordScreen} />
+                  <Stack.Screen
+                    name="ForgotPassword"
+                    component={ForgotPasswordScreen}
+                  />
+                  <Stack.Screen
+                    name="ResetPassword"
+                    component={ResetPasswordScreen}
+                  />
+                  <Stack.Screen
+                    name="ConfirmSignUp"
+                    component={ConfirmSignUpScreen}
+                  />
+                  <Stack.Screen
+                    name="NewPassword"
+                    component={NewPasswordScreen}
+                  />
                 </>
               ) : user.isAdmin ? (
                 <>
-                  <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
-                  <Stack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} />
-                  <Stack.Screen name="AdminIncorrectAnswers" component={AdminIncorrectAnswersScreen} />
-                  <Stack.Screen name="AdminRegisterUser" component={AdminRegisterUserScreen} />
+                  <Stack.Screen
+                    name="AdminDashboard"
+                    component={AdminDashboardScreen}
+                  />
+                  <Stack.Screen
+                    name="AdminUserDetail"
+                    component={AdminUserDetailScreen}
+                  />
+                  <Stack.Screen
+                    name="AdminIncorrectAnswers"
+                    component={AdminIncorrectAnswersScreen}
+                  />
+                  <Stack.Screen
+                    name="AdminRegisterUser"
+                    component={AdminRegisterUserScreen}
+                  />
                 </>
               ) : (
                 <>
                   <Stack.Screen name="Home" component={HomeScreen} />
                   <Stack.Screen name="Ranking" component={RankingScreen} />
-                  <Stack.Screen name="Achievements" component={AchievementsScreen} />
+                  <Stack.Screen
+                    name="Achievements"
+                    component={AchievementsScreen}
+                  />
                   <Stack.Screen name="Progress" component={ProgressScreen} />
                   <Stack.Screen name="Settings" component={SettingsScreen} />
-                  <Stack.Screen name="ModuleContent" component={ModuleContentScreen} />
-                  <Stack.Screen name="ModulePreQuiz" component={ModulePreQuizScreen} />
-                  <Stack.Screen name="ModuleQuiz" component={ModuleQuizScreen} />
-                  <Stack.Screen name="ModuleResult" component={ModuleResultScreen} />
-                  <Stack.Screen name="Alphabet" component={BrailleAlphabetScreen} />
-                  <Stack.Screen name="Contrast" component={SelectedContrastScreen} />
+                  <Stack.Screen
+                    name="ModuleContent"
+                    component={ModuleContentScreen}
+                  />
+                  <Stack.Screen
+                    name="ModulePreQuiz"
+                    component={ModulePreQuizScreen}
+                  />
+                  <Stack.Screen
+                    name="ModuleQuiz"
+                    component={ModuleQuizScreen}
+                  />
+                  <Stack.Screen
+                    name="ModuleResult"
+                    component={ModuleResultScreen}
+                  />
+                  <Stack.Screen
+                    name="Alphabet"
+                    component={BrailleAlphabetScreen}
+                  />
+                  <Stack.Screen
+                    name="Contrast"
+                    component={SelectedContrastScreen}
+                  />
                   <Stack.Screen name="Braille" component={BrailleScreen} />
-                  <Stack.Screen name="LearningPath" component={LearningPathScreen} />
-                  <Stack.Screen name="BraillePractice" component={BraillePracticeScreen} />
+                  <Stack.Screen
+                    name="LearningPath"
+                    component={LearningPathScreen}
+                  />
+                  <Stack.Screen
+                    name="BraillePractice"
+                    component={BraillePracticeScreen}
+                  />
+
+                  {/* ✅ ADICIONE ESTA LINHA: */}
+                  <Stack.Screen
+                    name="IncorrectAnswers"
+                    component={IncorrectAnswersScreen}
+                  />
                 </>
               )}
             </Stack.Navigator>

@@ -1,3 +1,4 @@
+// src/screens/admin/AdminRegisterUserScreen.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -13,6 +14,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { generateClient } from "aws-amplify/api";
+// Importa a mutação gerada pelo 'amplify codegen' (Passo 1)
+import { adminRegisterUser } from "../../graphql/mutations";
 
 export default function AdminRegisterUserScreen({
   navigation,
@@ -27,121 +30,80 @@ export default function AdminRegisterUserScreen({
       Alert.alert("Erro", "Preencha todos os campos.");
       return;
     }
-
     if (password.length < 8) {
       Alert.alert("Erro", "A senha deve ter no mínimo 8 caracteres.");
       return;
     }
-
     setLoading(true);
 
     try {
       const client = generateClient();
-      
-      const ADMIN_REGISTER_MUTATION = `
-        mutation AdminRegisterUser($name: String!, $email: String!, $password: String!) {
-          adminRegisterUser(name: $name, email: $email, password: $password)
-        }
-      `;
-
       console.log("📤 Enviando requisição GraphQL...");
 
-      const result = await client.graphql({
-        query: ADMIN_REGISTER_MUTATION,
+      const result: any = await client.graphql({
+        query: adminRegisterUser, // Usa a mutação importada
         variables: {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password: password,
         },
+        authMode: "userPool",
       });
 
       console.log("📥 Resposta completa:", JSON.stringify(result, null, 2));
 
-      // Verificar se há erros no GraphQL
-      if ('errors' in result && result.errors && result.errors.length > 0) {
-        console.error("❌ Erros GraphQL:", JSON.stringify(result.errors, null, 2));
-        
-        const errorMsg = result.errors[0].message || "Erro ao cadastrar usuário";
-        Alert.alert("Erro GraphQL", errorMsg);
-        setLoading(false);
-        return;
+      if (result.errors && result.errors.length > 0) {
+        throw new Error(result.errors[0].message);
       }
 
-      // Verificar resposta
-      if ('data' in result && result.data) {
-        const response = result.data as any;
-        console.log("✅ Data recebida:", response);
-        
-        // A Lambda retorna um JSON string, precisamos parsear
-        if (response.adminRegisterUser) {
-          try {
-            const lambdaResponse = JSON.parse(response.adminRegisterUser);
-            console.log("📦 Resposta da Lambda parseada:", lambdaResponse);
-            
-            if (lambdaResponse.success) {
-              // Limpar campos IMEDIATAMENTE
-              const userName = name;
-              const userEmail = email;
-              setName("");
-              setEmail("");
-              setPassword("");
-              
-              // Voltar para o Dashboard ANTES do alerta
-              navigation.goBack();
-              
-              // Mostrar alerta depois (opcional)
-              setTimeout(() => {
-                Alert.alert(
-                  "✅ Sucesso",
-                  `Usuário cadastrado!\n\n${userName}\n${userEmail}`
-                );
-              }, 300);
-            } else {
-              Alert.alert("Erro", lambdaResponse.error || "Falha ao cadastrar usuário.");
-            }
-          } catch (parseError) {
-            console.error("❌ Erro ao parsear resposta:", parseError);
-            // Se não for JSON, pode ser string direta
-            if (typeof response.adminRegisterUser === 'string') {
-              Alert.alert("Erro", response.adminRegisterUser);
-            } else {
-              Alert.alert("Erro", "Resposta inválida da Lambda.");
-            }
-          }
+      if (result.data?.adminRegisterUser) {
+        const response = result.data.adminRegisterUser;
+        let lambdaResponse: {
+          success: boolean;
+          message?: string;
+          error?: string;
+        };
+
+        try {
+          lambdaResponse = JSON.parse(response);
+        } catch (parseError) {
+          throw new Error("Resposta inválida da Lambda.");
+        }
+
+        console.log("📦 Resposta da Lambda parseada:", lambdaResponse);
+
+        if (lambdaResponse.success) {
+          const userName = name;
+          const userEmail = email;
+          setName("");
+          setEmail("");
+          setPassword("");
+
+          navigation.goBack();
+
+          setTimeout(() => {
+            Alert.alert(
+              "✅ Sucesso",
+              `Usuário cadastrado!\n\n${userName}\n${userEmail}`
+            );
+          }, 300);
         } else {
-          Alert.alert("Erro", "Resposta vazia da Lambda.");
+          throw new Error(
+            lambdaResponse.error || "Falha ao cadastrar usuário."
+          );
         }
       } else {
-        Alert.alert("Erro", "Resposta inválida da API.");
+        throw new Error("Resposta vazia da Lambda.");
       }
     } catch (error: any) {
       console.error("❌ Erro ao registrar usuário:", error);
-      console.error("❌ Erro completo:", JSON.stringify(error, null, 2));
-      
-      let errorMessage = "Erro desconhecido ao cadastrar usuário.";
-      
-      // Tratamento detalhado de erros
-      if (error?.errors && error.errors.length > 0) {
-        const firstError = error.errors[0];
-        console.error("❌ Primeiro erro:", firstError);
-        
-        errorMessage = firstError.message || JSON.stringify(firstError);
-        
-        // Se for erro de autorização
-        if (errorMessage.includes("UnauthorizedException") || 
-            errorMessage.includes("Unauthorized")) {
-          errorMessage = "Você não tem permissão para cadastrar usuários.";
-        }
-        
-        // Se for erro do Cognito
-        if (errorMessage.includes("UsernameExistsException")) {
-          errorMessage = "Este email já está cadastrado.";
-        }
-      } else if (error?.message) {
-        errorMessage = error.message;
+      let errorMessage = error.message || "Erro desconhecido.";
+      if (errorMessage.includes("UsernameExistsException")) {
+        errorMessage = "Este email já está cadastrado.";
+      } else if (errorMessage.includes("Unauthorized")) {
+        errorMessage = "Você não tem permissão para cadastrar usuários.";
       }
-      
-      Alert.alert("Erro", errorMessage);
+      Alert.alert("Erro no Cadastro", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -151,7 +113,6 @@ export default function AdminRegisterUserScreen({
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
       <ScreenHeader title="Cadastrar Assistido" />
-
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <MaterialCommunityIcons
@@ -160,7 +121,6 @@ export default function AdminRegisterUserScreen({
             color="#191970"
           />
         </View>
-
         <View style={styles.form}>
           <View style={styles.inputContainer}>
             <MaterialCommunityIcons
@@ -178,7 +138,6 @@ export default function AdminRegisterUserScreen({
               editable={!loading}
             />
           </View>
-
           <View style={styles.inputContainer}>
             <MaterialCommunityIcons
               name="email"
@@ -197,7 +156,6 @@ export default function AdminRegisterUserScreen({
               editable={!loading}
             />
           </View>
-
           <View style={styles.inputContainer}>
             <MaterialCommunityIcons
               name="lock"
@@ -215,11 +173,9 @@ export default function AdminRegisterUserScreen({
               editable={!loading}
             />
           </View>
-
           <Text style={styles.hint}>
             💡 A senha deve ter no mínimo 8 caracteres
           </Text>
-
           <TouchableOpacity
             style={[styles.registerButton, loading && styles.buttonDisabled]}
             onPress={handleRegister}
@@ -246,22 +202,10 @@ export default function AdminRegisterUserScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F0EFEA",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  iconContainer: {
-    alignItems: "center",
-    marginVertical: 20,
-  },
-  form: {
-    marginTop: 10,
-  },
+  container: { flex: 1, backgroundColor: "#F0EFEA" },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+  iconContainer: { alignItems: "center", marginVertical: 20 },
+  form: { marginTop: 10 },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -275,21 +219,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 15,
-    fontSize: 16,
-    color: "#191970",
-  },
-  hint: {
-    color: "#666",
-    fontSize: 14,
-    marginBottom: 20,
-    textAlign: "center",
-  },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, paddingVertical: 15, fontSize: 16, color: "#191970" },
+  hint: { color: "#666", fontSize: 14, marginBottom: 20, textAlign: "center" },
   registerButton: {
     backgroundColor: "#191970",
     borderRadius: 12,
@@ -303,12 +235,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  registerButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  buttonDisabled: { opacity: 0.6 },
+  registerButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
 });

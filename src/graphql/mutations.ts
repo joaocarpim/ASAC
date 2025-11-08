@@ -8,6 +8,17 @@ type GeneratedMutation<InputType, OutputType> = string & {
   __generatedMutationOutput: OutputType;
 };
 
+export const adminRegisterUser = /* GraphQL */ `mutation AdminRegisterUser(
+  $name: String!
+  $email: String!
+  $password: String!
+) {
+  adminRegisterUser(name: $name, email: $email, password: $password)
+}
+` as GeneratedMutation<
+  APITypes.AdminRegisterUserMutationVariables,
+  APITypes.AdminRegisterUserMutation
+>;
 export const createUser = /* GraphQL */ `mutation CreateUser(
   $input: CreateUserInput!
   $condition: ModelUserConditionInput
@@ -20,12 +31,21 @@ export const createUser = /* GraphQL */ `mutation CreateUser(
     coins
     points
     modulesCompleted
+    currentModule
     precision
     correctAnswers
+    wrongAnswers
     timeSpent
+    achievements {
+      nextToken
+      __typename
+    }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
-    owner
     __typename
   }
 }
@@ -45,12 +65,21 @@ export const updateUser = /* GraphQL */ `mutation UpdateUser(
     coins
     points
     modulesCompleted
+    currentModule
     precision
     correctAnswers
+    wrongAnswers
     timeSpent
+    achievements {
+      nextToken
+      __typename
+    }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
-    owner
     __typename
   }
 }
@@ -70,18 +99,288 @@ export const deleteUser = /* GraphQL */ `mutation DeleteUser(
     coins
     points
     modulesCompleted
+    currentModule
     precision
     correctAnswers
+    wrongAnswers
     timeSpent
+    achievements {
+      nextToken
+      __typename
+    }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
-    owner
     __typename
   }
 }
 ` as GeneratedMutation<
   APITypes.DeleteUserMutationVariables,
   APITypes.DeleteUserMutation
+>;
+export const createAchievement = /* GraphQL */ `mutation CreateAchievement(
+  $input: CreateAchievementInput!
+  $condition: ModelAchievementConditionInput
+) {
+  createAchievement(input: $input, condition: $condition) {
+    id
+    title
+    description
+    moduleNumber
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.CreateAchievementMutationVariables,
+  APITypes.CreateAchievementMutation
+>;
+export const updateAchievement = /* GraphQL */ `mutation UpdateAchievement(
+  $input: UpdateAchievementInput!
+  $condition: ModelAchievementConditionInput
+) {
+  updateAchievement(input: $input, condition: $condition) {
+    id
+    title
+    description
+    moduleNumber
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.UpdateAchievementMutationVariables,
+  APITypes.UpdateAchievementMutation
+>;
+export const deleteAchievement = /* GraphQL */ `mutation DeleteAchievement(
+  $input: DeleteAchievementInput!
+  $condition: ModelAchievementConditionInput
+) {
+  deleteAchievement(input: $input, condition: $condition) {
+    id
+    title
+    description
+    moduleNumber
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.DeleteAchievementMutationVariables,
+  APITypes.DeleteAchievementMutation
+>;
+export const createProgress = /* GraphQL */ `mutation CreateProgress(
+  $input: CreateProgressInput!
+  $condition: ModelProgressConditionInput
+) {
+  createProgress(input: $input, condition: $condition) {
+    id
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleId
+    module {
+      id
+      title
+      description
+      moduleNumber
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleNumber
+    accuracy
+    correctAnswers
+    wrongAnswers
+    timeSpent
+    completed
+    completedAt
+    errorDetails
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.CreateProgressMutationVariables,
+  APITypes.CreateProgressMutation
+>;
+export const updateProgress = /* GraphQL */ `mutation UpdateProgress(
+  $input: UpdateProgressInput!
+  $condition: ModelProgressConditionInput
+) {
+  updateProgress(input: $input, condition: $condition) {
+    id
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleId
+    module {
+      id
+      title
+      description
+      moduleNumber
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleNumber
+    accuracy
+    correctAnswers
+    wrongAnswers
+    timeSpent
+    completed
+    completedAt
+    errorDetails
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.UpdateProgressMutationVariables,
+  APITypes.UpdateProgressMutation
+>;
+export const deleteProgress = /* GraphQL */ `mutation DeleteProgress(
+  $input: DeleteProgressInput!
+  $condition: ModelProgressConditionInput
+) {
+  deleteProgress(input: $input, condition: $condition) {
+    id
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleId
+    module {
+      id
+      title
+      description
+      moduleNumber
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleNumber
+    accuracy
+    correctAnswers
+    wrongAnswers
+    timeSpent
+    completed
+    completedAt
+    errorDetails
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.DeleteProgressMutationVariables,
+  APITypes.DeleteProgressMutation
 >;
 export const createModule = /* GraphQL */ `mutation CreateModule(
   $input: CreateModuleInput!
@@ -97,6 +396,10 @@ export const createModule = /* GraphQL */ `mutation CreateModule(
       __typename
     }
     questions {
+      nextToken
+      __typename
+    }
+    progress {
       nextToken
       __typename
     }
@@ -126,6 +429,10 @@ export const updateModule = /* GraphQL */ `mutation UpdateModule(
       nextToken
       __typename
     }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
     __typename
@@ -152,6 +459,10 @@ export const deleteModule = /* GraphQL */ `mutation DeleteModule(
       nextToken
       __typename
     }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
     __typename
@@ -171,6 +482,7 @@ export const createLesson = /* GraphQL */ `mutation CreateLesson(
     content
     image
     lessonNumber
+    moduleId
     module {
       id
       title
@@ -180,7 +492,6 @@ export const createLesson = /* GraphQL */ `mutation CreateLesson(
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -200,6 +511,7 @@ export const updateLesson = /* GraphQL */ `mutation UpdateLesson(
     content
     image
     lessonNumber
+    moduleId
     module {
       id
       title
@@ -209,7 +521,6 @@ export const updateLesson = /* GraphQL */ `mutation UpdateLesson(
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -229,6 +540,7 @@ export const deleteLesson = /* GraphQL */ `mutation DeleteLesson(
     content
     image
     lessonNumber
+    moduleId
     module {
       id
       title
@@ -238,7 +550,6 @@ export const deleteLesson = /* GraphQL */ `mutation DeleteLesson(
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -257,6 +568,7 @@ export const createQuestion = /* GraphQL */ `mutation CreateQuestion(
     questionText
     options
     correctAnswerIndex
+    moduleId
     module {
       id
       title
@@ -266,7 +578,6 @@ export const createQuestion = /* GraphQL */ `mutation CreateQuestion(
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -285,6 +596,7 @@ export const updateQuestion = /* GraphQL */ `mutation UpdateQuestion(
     questionText
     options
     correctAnswerIndex
+    moduleId
     module {
       id
       title
@@ -294,7 +606,6 @@ export const updateQuestion = /* GraphQL */ `mutation UpdateQuestion(
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -313,6 +624,7 @@ export const deleteQuestion = /* GraphQL */ `mutation DeleteQuestion(
     questionText
     options
     correctAnswerIndex
+    moduleId
     module {
       id
       title
@@ -322,7 +634,6 @@ export const deleteQuestion = /* GraphQL */ `mutation DeleteQuestion(
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename

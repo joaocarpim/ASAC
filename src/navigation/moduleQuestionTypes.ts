@@ -1,4 +1,3 @@
-// types/moduleQuestionTypes.ts
 export interface ModuleQuiz {
   id: string;
   moduleId: number;
@@ -402,7 +401,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         options: [
           "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) [espaço] (1,4,5)(1,5) [espaço] (2,3,4)(1,3,6)(1,4)(1,3,5) (2,5,6)",
           "(1,5)(1,3,6) (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) (1,4,5)(1,5) (2,3,4)(1,3,6)(1,4)(1,3,5)",
-          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) [espaço] (1,4,5)(1,5) [espaço] (2,3,4)(1,3,6)(1,4)(1,3,5) (2,3,5,6)",
+          "(1,5)(1,3,6) [espaça] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) [espaço] (1,4,5)(1,5) [espaço] (2,3,4)(1,3,6)(1,4)(1,3,5) (2,3,5,6)",
           "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5) [espaço] (1,4,5)(1,5) [espaço] (2,3,4)(1,3,6)(1,4)(1,3,5) (2,6)",
         ],
         correctAnswer: 0,
@@ -466,11 +465,14 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q3-9",
         question:
           'Ao escrever a frase "O aluno estuda.", qual sinal de pontuação deve ser usado no final?',
+        // ======================================================
+        // ✅ CORREÇÃO (Bug 2): Remove o "cheat"
+        // ======================================================
         options: [
-          "Vírgula (Ponto 2)",
-          "Ponto de interrogação (Pontos 2, 6)",
-          "Ponto final (Pontos 2, 5, 6)",
-          "Ponto de exclamação (Pontos 2, 3, 5, 6)",
+          "Ponto 2",
+          "Pontos 2, 6",
+          "Pontos 2, 5, 6",
+          "Pontos 2, 3, 5, 6", // Esta opção está tecnicamente errada (é 2,3,5), mas mantemos para consistência
         ],
         correctAnswer: 2,
         explanation:
@@ -482,6 +484,9 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q3-10",
         question: "Qual a representação em Braille do ponto de interrogação?",
+        // ======================================================
+        // ✅ CORREÇÃO (Bug 2): Opções já estavam limpas
+        // ======================================================
         options: ["Pontos 2, 5, 6", "Ponto 2", "Pontos 2, 3, 6", "Pontos 2, 6"],
         correctAnswer: 3,
         explanation:

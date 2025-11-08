@@ -18,7 +18,7 @@
       "function": {
         "AdminRegisterUser": {
           "deploymentBucketName": "amplify-asac-dev-11020-deployment",
-          "s3Key": "amplify-builds/AdminRegisterUser-4a376951645941375644-build.zip"
+          "s3Key": "amplify-builds/AdminRegisterUser-3565366e324a445a3735-build.zip"
         }
       },
       "storage": {

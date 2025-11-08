@@ -17,10 +17,8 @@ export interface DetectedElement extends ElementInfo {
 
 export const useElementDetection = () => {
   const detectedElementsRef = useRef<Map<string, DetectedElement>>(new Map());
-  // --- CORREÇÃO APLICADA ---
-  // O tipo correto para o retorno de setTimeout em React Native é NodeJS.Timeout,
-  // pois seu ambiente de tipagem é baseado no Node.js.
-  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // ✅ CORREÇÃO: Usar ReturnType para compatibilidade cross-platform
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const measureQueueRef = useRef<
     Array<{
       component: any;

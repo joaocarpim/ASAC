@@ -1,5 +1,4 @@
-// src/screens/main/HomeScreen.tsx
-
+// src/screens/main/HomeScreen.tsx (Corrigido com todos os botões)
 import React, { useState, useCallback } from "react";
 import {
   StyleSheet,
@@ -18,29 +17,21 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import * as APIt from "../../API";
 import { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
-
-import {
-  getUserById,
-  canStartModule,
-  ensureUserInDB,
-} from "../../services/progressService";
-
+import { getUserById } from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
-
 import {
   AccessibleView,
   AccessibleText,
   AccessibleHeader,
   AccessibleButton,
 } from "../../components/AccessibleComponents";
-
 import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
 
 /* ===========================
-   Estilos (criado antes da tipagem para evitar forward-ref TS)
-   =========================== */
+    Estilos
+    =========================== */
 
 const BOX_SIZE = 90;
 
@@ -59,9 +50,7 @@ const createStyles = (
       alignItems: "center",
       backgroundColor: theme.background,
     },
-
     container: { flex: 1, backgroundColor: theme.background },
-
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -69,7 +58,6 @@ const createStyles = (
       marginTop: 10,
       paddingHorizontal: 20,
     },
-
     headerTitle: {
       fontSize: 24 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
@@ -78,7 +66,6 @@ const createStyles = (
       lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
       letterSpacing,
     },
-
     headerSubtitle: {
       fontSize: 14 * fontMultiplier,
       color: theme.text,
@@ -87,13 +74,11 @@ const createStyles = (
       lineHeight: 14 * fontMultiplier * lineHeightMultiplier,
       letterSpacing,
     },
-
     headerIcon: {
       backgroundColor: theme.button ?? "#191970",
       borderRadius: 12,
       padding: 6,
     },
-
     statsContainer: {
       flexDirection: "row",
       justifyContent: "center",
@@ -102,7 +87,6 @@ const createStyles = (
       alignSelf: "center",
       marginVertical: 14,
     },
-
     statCard: {
       width: BOX_SIZE,
       height: BOX_SIZE,
@@ -112,12 +96,10 @@ const createStyles = (
       alignItems: "center",
       padding: 6,
     },
-
     statIcon: {
       fontSize: 28 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
-
     statValue: {
       color: theme.cardText,
       fontSize: 18 * fontMultiplier,
@@ -125,7 +107,6 @@ const createStyles = (
       marginTop: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-
     statLabel: {
       color: theme.cardText,
       fontSize: 11 * fontMultiplier,
@@ -133,9 +114,7 @@ const createStyles = (
       textAlign: "center",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-
     modulesList: { paddingHorizontal: 20, paddingBottom: 10, gap: 8 },
-
     moduleItem: {
       backgroundColor: theme.card,
       borderRadius: 12,
@@ -144,21 +123,17 @@ const createStyles = (
       flexDirection: "row",
       alignItems: "center",
     },
-
     moduleIconContainer: {
       backgroundColor: theme.background,
       borderRadius: 25,
       padding: 8,
       marginRight: 12,
     },
-
     moduleIcon: {
       fontSize: 24 * fontMultiplier,
       color: theme.text,
     } as TextStyle,
-
     moduleTextContainer: { flex: 1 },
-
     moduleTitle: {
       color: theme.cardText,
       fontSize: 14 * fontMultiplier,
@@ -166,38 +141,34 @@ const createStyles = (
       marginBottom: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-
     moduleSubtitle: {
       color: theme.cardText,
       fontSize: 12 * fontMultiplier,
       opacity: 0.9,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-
     moduleStatusIndicator: {
       width: 16,
       height: 16,
       borderRadius: 8,
       marginLeft: 10,
     },
-
     lockIcon: {
       fontSize: 26 * fontMultiplier,
       color: theme.text,
       marginLeft: 10,
     } as TextStyle,
-
     actionsContainer: {
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
+      flexWrap: "wrap", // ✅ ADICIONADO PARA OS 6 BOTÕES CABEREM
       gap: 8,
       margin: 5,
       alignSelf: "center",
       paddingBottom: 70,
       paddingHorizontal: 20,
     },
-
     actionButton: {
       width: BOX_SIZE,
       height: BOX_SIZE,
@@ -207,12 +178,10 @@ const createStyles = (
       alignItems: "center",
       padding: 6,
     },
-
     actionIcon: {
       fontSize: 28 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
-
     actionLabel: {
       color: theme.cardText,
       fontSize: 11 * fontMultiplier,
@@ -223,8 +192,8 @@ const createStyles = (
   });
 
 /* ===========================
-   Tipagens (agora que createStyles existe)
-   =========================== */
+    Tipagens
+    =========================== */
 
 type HomeScreenStyles = ReturnType<typeof createStyles>;
 
@@ -252,39 +221,66 @@ interface ModuleItemProps {
 
 /* ---------- SUBCOMPONENTES ---------- */
 
-const StatCard: React.FC<StatCardProps> = ({ iconName, value, label, styles }) => {
+const StatCard: React.FC<StatCardProps> = ({
+  iconName,
+  value,
+  label,
+  styles,
+}) => {
   const iconStyle = styles.statIcon as TextStyle;
   return (
-    <AccessibleView accessibilityText={`${label}: ${value}.`} style={styles.statCard}>
-      <MaterialCommunityIcons name={iconName} size={iconStyle.fontSize} color={iconStyle.color} />
+    <AccessibleView
+      accessibilityText={`${label}: ${value}.`}
+      style={styles.statCard}
+    >
+      <MaterialCommunityIcons
+        name={iconName}
+        size={iconStyle.fontSize}
+        color={iconStyle.color}
+      />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </AccessibleView>
   );
 };
-
-const ActionButton: React.FC<ActionButtonProps> = ({ iconName, label, onPress, styles }) => {
+const ActionButton: React.FC<ActionButtonProps> = ({
+  iconName,
+  label,
+  onPress,
+  styles,
+}) => {
   const iconStyle = styles.actionIcon as TextStyle;
   return (
-    <AccessibleButton accessibilityText={`${label}. Toque para abrir.`} onPress={onPress} style={styles.actionButton}>
-      <MaterialCommunityIcons name={iconName} size={iconStyle.fontSize} color={iconStyle.color} />
+    <AccessibleButton
+      accessibilityText={`${label}. Toque para abrir.`}
+      onPress={onPress}
+      style={styles.actionButton}
+    >
+      <MaterialCommunityIcons
+        name={iconName}
+        size={iconStyle.fontSize}
+        color={iconStyle.color}
+      />
       <Text style={styles.actionLabel}>{label}</Text>
     </AccessibleButton>
   );
 };
-
-const ModuleItem: React.FC<ModuleItemProps> = ({ module, completed, isLocked, onPress, styles }) => {
+const ModuleItem: React.FC<ModuleItemProps> = ({
+  module,
+  completed,
+  isLocked,
+  onPress,
+  styles,
+}) => {
   const iconStyle = styles.moduleIcon as TextStyle;
   const lockIconStyle = styles.lockIcon as TextStyle;
-  // icons preparados: módulo 1, 2, 3
-  const iconMap: React.ComponentProps<typeof MaterialCommunityIcons>["name"][] = [
-    "alphabet-latin",
-    "hand-wave-outline",
-    "star-box-outline",
-  ];
-
-  const iconName = iconMap[module.moduleId - 1] ?? ("book-outline" as React.ComponentProps<typeof MaterialCommunityIcons>["name"]);
-
+  const iconMap: React.ComponentProps<typeof MaterialCommunityIcons>["name"][] =
+    ["alphabet-latin", "hand-wave-outline", "star-box-outline"];
+  const iconName =
+    iconMap[module.moduleId - 1] ??
+    ("book-outline" as React.ComponentProps<
+      typeof MaterialCommunityIcons
+    >["name"]);
   return (
     <AccessibleButton
       accessibilityText={`Módulo ${module.moduleId}. ${completed ? "Concluído" : isLocked ? "Bloqueado" : "Disponível"}.`}
@@ -293,24 +289,38 @@ const ModuleItem: React.FC<ModuleItemProps> = ({ module, completed, isLocked, on
       style={[styles.moduleItem, isLocked && { opacity: 0.55 }]}
     >
       <View style={styles.moduleIconContainer}>
-        <MaterialCommunityIcons name={iconName} size={iconStyle.fontSize} color={iconStyle.color} />
+        <MaterialCommunityIcons
+          name={iconName}
+          size={iconStyle.fontSize}
+          color={iconStyle.color}
+        />
       </View>
       <View style={styles.moduleTextContainer}>
         <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
         <Text style={styles.moduleSubtitle}>{module.title}</Text>
       </View>
       {isLocked ? (
-        <MaterialCommunityIcons name="lock-outline" size={lockIconStyle.fontSize} color={lockIconStyle.color} />
+        <MaterialCommunityIcons
+          name="lock-outline"
+          size={lockIconStyle.fontSize}
+          color={lockIconStyle.color}
+        />
       ) : (
-        <View style={[styles.moduleStatusIndicator, { backgroundColor: completed ? "#4CD964" : "#FFCC00" }]} />
+        <View
+          style={[
+            styles.moduleStatusIndicator,
+            { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
+          ]}
+        />
       )}
     </AccessibleButton>
   );
 };
 
 /* ---------- COMPONENTE PRINCIPAL ---------- */
-
-const HomeScreen: React.FC<NativeStackScreenProps<RootStackParamList, "Home">> = ({ navigation }) => {
+const HomeScreen: React.FC<
+  NativeStackScreenProps<RootStackParamList, "Home">
+> = ({ navigation }) => {
   const { user, signOut } = useAuthStore();
   const [loadingUser, setLoadingUser] = useState(true);
   const [dbUser, setDbUser] = useState<APIt.User | null>(null);
@@ -339,20 +349,16 @@ const HomeScreen: React.FC<NativeStackScreenProps<RootStackParamList, "Home">> =
       return;
     }
     setLoadingUser(true);
-
     try {
-      let uResult = await getUserById(user.userId);
-      if (!uResult && user.email && user.name) {
-        uResult = await ensureUserInDB(user.userId, user.name, user.email);
-      }
-      setDbUser(uResult);
+      const uResult = await getUserById(user.userId);
+      setDbUser(uResult as APIt.User | null);
     } catch (err) {
       console.error("Erro ao buscar usuário:", err);
       setDbUser(null);
     } finally {
       setLoadingUser(false);
     }
-  }, [user?.userId, user?.email, user?.name]);
+  }, [user?.userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -360,9 +366,17 @@ const HomeScreen: React.FC<NativeStackScreenProps<RootStackParamList, "Home">> =
     }, [fetchData])
   );
 
-  const openModule = async (moduleId: number) => {
+  const canStartModule = (
+    moduleId: number,
+    completedModules: number[]
+  ): boolean => {
+    if (moduleId === 1) return true;
+    return completedModules.includes(moduleId - 1);
+  };
+
+  const openModule = async (moduleId: number, completedModules: number[]) => {
     if (!user?.userId) return;
-    const allowed = await canStartModule(user.userId, moduleId);
+    const allowed = canStartModule(moduleId, completedModules);
     if (!allowed) {
       Alert.alert("Bloqueado", "Conclua o módulo anterior para avançar.");
       return;
@@ -379,51 +393,36 @@ const HomeScreen: React.FC<NativeStackScreenProps<RootStackParamList, "Home">> =
 
   if (loadingUser || !dbUser) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <View
+        style={[styles.loadingContainer, { backgroundColor: theme.background }]}
+      >
         <ActivityIndicator size="large" color={theme.text} />
       </View>
     );
   }
 
-  /* ✅ Parsing seguro de modulesCompleted (pode ser array, string JSON, etc.) */
-  const rawModules = (() => {
-    const m = dbUser.modulesCompleted ?? [];
-    if (Array.isArray(m)) return m;
-    if (typeof m === "string") {
-      try {
-        const parsed = JSON.parse(m);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        // string simples com separador?
-        return m.split?.(",").map((s: string) => parseInt(String(s).trim(), 10)).filter((n: number) => !isNaN(n)) ?? [];
-      }
+  const rawModules = dbUser.modulesCompleted;
+  const completedModuleNumbers: number[] = (() => {
+    if (Array.isArray(rawModules)) {
+      return rawModules.filter((n): n is number => typeof n === "number");
     }
     return [];
   })();
-
-  const completedModuleNumbers: number[] = Array.from(
-    new Set(
-      rawModules.map((item: any) => {
-        if (typeof item === "number") return item;
-        if (typeof item === "string") {
-          const n = parseInt(item, 10);
-          return isNaN(n) ? NaN : n;
-        }
-        if (item && typeof item === "object" && typeof item.moduleNumber === "number") {
-          return item.moduleNumber;
-        }
-        return NaN;
-      })
-    )
-  ).filter((n) => !isNaN(n));
 
   const completedCount = completedModuleNumbers.length;
   const modulesProgressString = `${completedCount}/${DEFAULT_MODULES.length}`;
 
   return (
-    <View style={[styles.container, { paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0 }]}>
-      <StatusBar barStyle={theme.statusBarStyle} backgroundColor={theme.background} />
-
+    <View
+      style={[
+        styles.container,
+        { paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0 },
+      ]}
+    >
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
       <View style={styles.header}>
         <View>
           <AccessibleHeader level={1} style={styles.headerTitle}>
@@ -433,16 +432,34 @@ const HomeScreen: React.FC<NativeStackScreenProps<RootStackParamList, "Home">> =
             Continue aprendendo com ASAC
           </AccessibleText>
         </View>
-
         <AccessibleButton onPress={handleLogout} style={styles.headerIcon}>
-          <MaterialCommunityIcons name="logout" size={26} color={theme.buttonText ?? "#FFFFFF"} />
+          <MaterialCommunityIcons
+            name="logout"
+            size={26}
+            color={theme.buttonText ?? "#FFFFFF"}
+          />
         </AccessibleButton>
       </View>
 
       <View style={styles.statsContainer}>
-        <StatCard iconName="hand-coin" value={dbUser.coins ?? 0} label="Moedas" styles={styles} />
-        <StatCard iconName="trophy-variant" value={(dbUser.points ?? 0).toLocaleString("pt-BR")} label="Pontos" styles={styles} />
-        <StatCard iconName="book-multiple" value={modulesProgressString} label="Módulos" styles={styles} />
+        <StatCard
+          iconName="hand-coin"
+          value={dbUser.coins ?? 0}
+          label="Moedas"
+          styles={styles}
+        />
+        <StatCard
+          iconName="trophy-variant"
+          value={(dbUser.points ?? 0).toLocaleString("pt-BR")}
+          label="Pontos"
+          styles={styles}
+        />
+        <StatCard
+          iconName="book-multiple"
+          value={modulesProgressString}
+          label="Módulos"
+          styles={styles}
+        />
       </View>
 
       <FlatList
@@ -450,14 +467,17 @@ const HomeScreen: React.FC<NativeStackScreenProps<RootStackParamList, "Home">> =
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const isCompleted = completedModuleNumbers.includes(item.moduleId);
-          const isLocked = !isCompleted && item.moduleId > 1 && !completedModuleNumbers.includes(item.moduleId - 1);
+          const isLocked = !canStartModule(
+            item.moduleId,
+            completedModuleNumbers
+          );
 
           return (
             <ModuleItem
               module={item}
               completed={isCompleted}
               isLocked={isLocked}
-              onPress={() => openModule(item.moduleId)}
+              onPress={() => openModule(item.moduleId, completedModuleNumbers)}
               styles={styles}
             />
           );
@@ -465,12 +485,52 @@ const HomeScreen: React.FC<NativeStackScreenProps<RootStackParamList, "Home">> =
         contentContainerStyle={styles.modulesList}
       />
 
+      {/* ====================================================== */}
+      {/* ✅ INÍCIO DA CORREÇÃO (Botões Adicionados) */}
+      {/* ====================================================== */}
       <View style={styles.actionsContainer}>
-        <ActionButton iconName="podium-gold" label="Ranking" onPress={() => navigation.navigate("Ranking")} styles={styles} />
-        <ActionButton iconName="road-variant" label="Jornada" onPress={() => navigation.navigate("LearningPath")} styles={styles} />
-        <ActionButton iconName="medal-outline" label="Conquistas" onPress={() => navigation.navigate("Achievements")} styles={styles} />
-        <ActionButton iconName="rocket-launch-outline" label="Progresso" onPress={() => navigation.navigate("Progress")} styles={styles} />
+        <ActionButton
+          iconName="podium-gold"
+          label="Ranking"
+          onPress={() => navigation.navigate("Ranking")}
+          styles={styles}
+        />
+        <ActionButton
+          iconName="road-variant"
+          label="Jornada"
+          onPress={() => navigation.navigate("LearningPath")}
+          styles={styles}
+        />
+        <ActionButton
+          iconName="medal-outline"
+          label="Conquistas"
+          onPress={() => navigation.navigate("Achievements")}
+          styles={styles}
+        />
+        <ActionButton
+          iconName="rocket-launch-outline"
+          label="Progresso"
+          onPress={() => navigation.navigate("Progress")}
+          styles={styles}
+        />
+        {/* 🔽 BOTÕES ADICIONADOS AQUI 🔽 */}
+        <ActionButton
+          iconName="alphabetical"
+          label="Alfabeto"
+          onPress={() => navigation.navigate("Alphabet")}
+          styles={styles}
+        />
+        <ActionButton
+          iconName="cog"
+          label="Configs"
+          onPress={() => navigation.navigate("Settings")}
+          styles={styles}
+        />
+        {/* 🔼 BOTÕES ADICIONADOS AQUI 🔼 */}
       </View>
+      {/* ====================================================== */}
+      {/* FIM DA CORREÇÃO */}
+      {/* ====================================================== */}
     </View>
   );
 };

@@ -1,6 +1,6 @@
-// src/navigation/types.ts
-
+// src/navigation/types.ts (Corrigido)
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { ErrorDetail } from "../services/progressService";
 
 export type RootStackParamList = {
   // Onboarding
@@ -22,6 +22,10 @@ export type RootStackParamList = {
   Achievements: undefined;
   Progress: undefined;
   Braille: undefined;
+  // ======================================================
+  // ✅ NOVA TELA DE ERROS DO USUÁRIO
+  // ======================================================
+  IncorrectAnswers: { moduleNumber: number };
 
   // Sessões e Prática
   LearningPath: undefined;
@@ -42,14 +46,14 @@ export type RootStackParamList = {
   ModuleResult: {
     moduleId: string;
     correctAnswers: number;
-     wrongAnswers?: number; // ✅ ADICIONADO
+    wrongAnswers?: number; 
     totalQuestions: number;
     accuracy: number;
     timeSpent: number;
     coinsEarned: number;
     passed: boolean;
-    progressId?: string;        // ✅ LINHA NOVA
-     errorDetails?: string;      // ✅ LINHA NOVA
+    progressId?: string;
+    errorDetails?: string; // (JSON string)
     pointsEarned: number;
   };
 

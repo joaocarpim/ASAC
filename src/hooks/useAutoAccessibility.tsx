@@ -37,7 +37,7 @@ export const useAutoAccessibility = (
   customType?: string,
   options: AutoAccessibilityOptions = {}
 ) => {
-  const { isAccessibilityMode, refreshElements } = useBasicAccessibility(); // Usar versão básica por enquanto
+  const { isAccessibilityMode, refreshElements } = useBasicAccessibility();
 
   const { registerElement, unregisterElement, updateElementPosition } =
     useElementDetection();
@@ -45,9 +45,8 @@ export const useAutoAccessibility = (
   const elementRef = useRef<any>(null);
   const elementIdRef = useRef<string | null>(null);
   const lastComponentRef = useRef<any>(null);
-  // --- CORREÇÃO APLICADA ---
-  // O tipo correto para o ambiente React Native é NodeJS.Timeout
-  const registerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // ✅ CORREÇÃO: Usar ReturnType para compatibilidade cross-platform
+  const registerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRegisteredRef = useRef<boolean>(false);
 
   const [registrationAttempts, setRegistrationAttempts] = useState(0);

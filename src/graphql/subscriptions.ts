@@ -8,11 +8,152 @@ type GeneratedSubscription<InputType, OutputType> = string & {
   __generatedSubscriptionOutput: OutputType;
 };
 
-export const onCreateUser = /* GraphQL */ `subscription OnCreateUser(
-  $filter: ModelSubscriptionUserFilterInput
-  $owner: String
-) {
-  onCreateUser(filter: $filter, owner: $owner) {
+export const onCreateProgress = /* GraphQL */ `subscription OnCreateProgress($filter: ModelSubscriptionProgressFilterInput) {
+  onCreateProgress(filter: $filter) {
+    id
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleId
+    module {
+      id
+      title
+      description
+      moduleNumber
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleNumber
+    accuracy
+    correctAnswers
+    wrongAnswers
+    timeSpent
+    completed
+    completedAt
+    errorDetails
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnCreateProgressSubscriptionVariables,
+  APITypes.OnCreateProgressSubscription
+>;
+export const onUpdateProgress = /* GraphQL */ `subscription OnUpdateProgress($filter: ModelSubscriptionProgressFilterInput) {
+  onUpdateProgress(filter: $filter) {
+    id
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleId
+    module {
+      id
+      title
+      description
+      moduleNumber
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleNumber
+    accuracy
+    correctAnswers
+    wrongAnswers
+    timeSpent
+    completed
+    completedAt
+    errorDetails
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnUpdateProgressSubscriptionVariables,
+  APITypes.OnUpdateProgressSubscription
+>;
+export const onDeleteProgress = /* GraphQL */ `subscription OnDeleteProgress($filter: ModelSubscriptionProgressFilterInput) {
+  onDeleteProgress(filter: $filter) {
+    id
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleId
+    module {
+      id
+      title
+      description
+      moduleNumber
+      createdAt
+      updatedAt
+      __typename
+    }
+    moduleNumber
+    accuracy
+    correctAnswers
+    wrongAnswers
+    timeSpent
+    completed
+    completedAt
+    errorDetails
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnDeleteProgressSubscriptionVariables,
+  APITypes.OnDeleteProgressSubscription
+>;
+export const onCreateUser = /* GraphQL */ `subscription OnCreateUser($filter: ModelSubscriptionUserFilterInput) {
+  onCreateUser(filter: $filter) {
     id
     name
     email
@@ -20,12 +161,21 @@ export const onCreateUser = /* GraphQL */ `subscription OnCreateUser(
     coins
     points
     modulesCompleted
+    currentModule
     precision
     correctAnswers
+    wrongAnswers
     timeSpent
+    achievements {
+      nextToken
+      __typename
+    }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
-    owner
     __typename
   }
 }
@@ -33,11 +183,8 @@ export const onCreateUser = /* GraphQL */ `subscription OnCreateUser(
   APITypes.OnCreateUserSubscriptionVariables,
   APITypes.OnCreateUserSubscription
 >;
-export const onUpdateUser = /* GraphQL */ `subscription OnUpdateUser(
-  $filter: ModelSubscriptionUserFilterInput
-  $owner: String
-) {
-  onUpdateUser(filter: $filter, owner: $owner) {
+export const onUpdateUser = /* GraphQL */ `subscription OnUpdateUser($filter: ModelSubscriptionUserFilterInput) {
+  onUpdateUser(filter: $filter) {
     id
     name
     email
@@ -45,12 +192,21 @@ export const onUpdateUser = /* GraphQL */ `subscription OnUpdateUser(
     coins
     points
     modulesCompleted
+    currentModule
     precision
     correctAnswers
+    wrongAnswers
     timeSpent
+    achievements {
+      nextToken
+      __typename
+    }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
-    owner
     __typename
   }
 }
@@ -58,11 +214,8 @@ export const onUpdateUser = /* GraphQL */ `subscription OnUpdateUser(
   APITypes.OnUpdateUserSubscriptionVariables,
   APITypes.OnUpdateUserSubscription
 >;
-export const onDeleteUser = /* GraphQL */ `subscription OnDeleteUser(
-  $filter: ModelSubscriptionUserFilterInput
-  $owner: String
-) {
-  onDeleteUser(filter: $filter, owner: $owner) {
+export const onDeleteUser = /* GraphQL */ `subscription OnDeleteUser($filter: ModelSubscriptionUserFilterInput) {
+  onDeleteUser(filter: $filter) {
     id
     name
     email
@@ -70,18 +223,132 @@ export const onDeleteUser = /* GraphQL */ `subscription OnDeleteUser(
     coins
     points
     modulesCompleted
+    currentModule
     precision
     correctAnswers
+    wrongAnswers
     timeSpent
+    achievements {
+      nextToken
+      __typename
+    }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
-    owner
     __typename
   }
 }
 ` as GeneratedSubscription<
   APITypes.OnDeleteUserSubscriptionVariables,
   APITypes.OnDeleteUserSubscription
+>;
+export const onCreateAchievement = /* GraphQL */ `subscription OnCreateAchievement(
+  $filter: ModelSubscriptionAchievementFilterInput
+) {
+  onCreateAchievement(filter: $filter) {
+    id
+    title
+    description
+    moduleNumber
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnCreateAchievementSubscriptionVariables,
+  APITypes.OnCreateAchievementSubscription
+>;
+export const onUpdateAchievement = /* GraphQL */ `subscription OnUpdateAchievement(
+  $filter: ModelSubscriptionAchievementFilterInput
+) {
+  onUpdateAchievement(filter: $filter) {
+    id
+    title
+    description
+    moduleNumber
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnUpdateAchievementSubscriptionVariables,
+  APITypes.OnUpdateAchievementSubscription
+>;
+export const onDeleteAchievement = /* GraphQL */ `subscription OnDeleteAchievement(
+  $filter: ModelSubscriptionAchievementFilterInput
+) {
+  onDeleteAchievement(filter: $filter) {
+    id
+    title
+    description
+    moduleNumber
+    userId
+    user {
+      id
+      name
+      email
+      role
+      coins
+      points
+      modulesCompleted
+      currentModule
+      precision
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      createdAt
+      updatedAt
+      __typename
+    }
+    createdAt
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnDeleteAchievementSubscriptionVariables,
+  APITypes.OnDeleteAchievementSubscription
 >;
 export const onCreateModule = /* GraphQL */ `subscription OnCreateModule($filter: ModelSubscriptionModuleFilterInput) {
   onCreateModule(filter: $filter) {
@@ -94,6 +361,10 @@ export const onCreateModule = /* GraphQL */ `subscription OnCreateModule($filter
       __typename
     }
     questions {
+      nextToken
+      __typename
+    }
+    progress {
       nextToken
       __typename
     }
@@ -120,6 +391,10 @@ export const onUpdateModule = /* GraphQL */ `subscription OnUpdateModule($filter
       nextToken
       __typename
     }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
     __typename
@@ -143,6 +418,10 @@ export const onDeleteModule = /* GraphQL */ `subscription OnDeleteModule($filter
       nextToken
       __typename
     }
+    progress {
+      nextToken
+      __typename
+    }
     createdAt
     updatedAt
     __typename
@@ -159,6 +438,7 @@ export const onCreateLesson = /* GraphQL */ `subscription OnCreateLesson($filter
     content
     image
     lessonNumber
+    moduleId
     module {
       id
       title
@@ -168,7 +448,6 @@ export const onCreateLesson = /* GraphQL */ `subscription OnCreateLesson($filter
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -185,6 +464,7 @@ export const onUpdateLesson = /* GraphQL */ `subscription OnUpdateLesson($filter
     content
     image
     lessonNumber
+    moduleId
     module {
       id
       title
@@ -194,7 +474,6 @@ export const onUpdateLesson = /* GraphQL */ `subscription OnUpdateLesson($filter
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -211,6 +490,7 @@ export const onDeleteLesson = /* GraphQL */ `subscription OnDeleteLesson($filter
     content
     image
     lessonNumber
+    moduleId
     module {
       id
       title
@@ -220,7 +500,6 @@ export const onDeleteLesson = /* GraphQL */ `subscription OnDeleteLesson($filter
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -236,6 +515,7 @@ export const onCreateQuestion = /* GraphQL */ `subscription OnCreateQuestion($fi
     questionText
     options
     correctAnswerIndex
+    moduleId
     module {
       id
       title
@@ -245,7 +525,6 @@ export const onCreateQuestion = /* GraphQL */ `subscription OnCreateQuestion($fi
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -261,6 +540,7 @@ export const onUpdateQuestion = /* GraphQL */ `subscription OnUpdateQuestion($fi
     questionText
     options
     correctAnswerIndex
+    moduleId
     module {
       id
       title
@@ -270,7 +550,6 @@ export const onUpdateQuestion = /* GraphQL */ `subscription OnUpdateQuestion($fi
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename
@@ -286,6 +565,7 @@ export const onDeleteQuestion = /* GraphQL */ `subscription OnDeleteQuestion($fi
     questionText
     options
     correctAnswerIndex
+    moduleId
     module {
       id
       title
@@ -295,7 +575,6 @@ export const onDeleteQuestion = /* GraphQL */ `subscription OnDeleteQuestion($fi
       updatedAt
       __typename
     }
-    moduleId
     createdAt
     updatedAt
     __typename

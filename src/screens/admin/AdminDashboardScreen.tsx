@@ -1,4 +1,3 @@
-// src/screens/admin/AdminDashboardScreen.tsx
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -11,31 +10,18 @@ import {
   StatusBar,
   ImageSourcePropType,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
-import { signOut, fetchAuthSession } from "@aws-amplify/auth";
-import { generateClient } from "aws-amplify/api";
-import { listUsers } from "../../graphql/queries";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  CognitoIdentityProviderClient,
-  ListUsersCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
-import awsconfig from "../../aws-exports";
+import { useAuthStore } from "../../store/authStore";
+import { getAllUsers } from "../../services/progressService";
+
+// ✅ Usa o tipo User do authStore
+type User = import("../../store/authStore").User & { id: string }; // Pega o 'id' do dynamo
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-type User = {
-  id: string;
-  userId?: string;
-  name: string;
-  coins?: number | null;
-  points?: number | null;
-  modulesCompleted?: (number | null)[] | null;
-  currentModule?: number | null;
-  avatar?: ImageSourcePropType;
-};
-
 type StatCardProps = { icon: IconName; value: string; label: string };
 type UserListItemProps = { item: User; onPress: () => void };
 
@@ -49,7 +35,7 @@ const StatCard = ({ icon, value, label }: StatCardProps) => (
 
 const UserListItem = ({ item, onPress }: UserListItemProps) => {
   const modulesCount = Array.isArray(item.modulesCompleted)
-    ? item.modulesCompleted.filter((m) => m !== null).length
+    ? item.modulesCompleted.length
     : 0;
 
   return (
@@ -88,6 +74,7 @@ const UserListItem = ({ item, onPress }: UserListItemProps) => {
 export default function AdminDashboardScreen({
   navigation,
 }: RootStackScreenProps<"AdminDashboard">) {
+  const { user } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,11 +86,13 @@ export default function AdminDashboardScreen({
 
   const calculateStats = (userList: User[]) => {
     const totalUsers = userList.length;
-    const activeUsers = userList.filter((user) => (user.currentModule ?? 0) > 0)
-      .length;
+    const activeUsers = userList.filter(
+      (u: User) => (u.currentModule ?? 0) > 1 || (u.points ?? 0) > 0
+    ).length;
+
     const totalModulesCompleted = userList.reduce((sum, user) => {
       const modules = Array.isArray(user.modulesCompleted)
-        ? user.modulesCompleted.filter((m) => m !== null).length
+        ? user.modulesCompleted.length
         : 0;
       return sum + modules;
     }, 0);
@@ -120,93 +109,24 @@ export default function AdminDashboardScreen({
     });
   };
 
-  function convertCognitoUserToApp(userFromCognito: any): User {
-    const attrs = userFromCognito.Attributes || [];
-    const attrMap: Record<string, string> = {};
-    for (const a of attrs) {
-      if (a?.Name) attrMap[a.Name] = a.Value ?? "";
-    }
-
-    const name =
-      attrMap["name"] ||
-      attrMap["given_name"] ||
-      attrMap["email"] ||
-      userFromCognito.Username ||
-      "Usuário";
-
-    let modulesCompleted: (number | null)[] | null = null;
-    try {
-      const mm = attrMap["custom:modulesCompleted"];
-      if (mm) {
-        const parsed = JSON.parse(mm);
-        if (Array.isArray(parsed)) modulesCompleted = parsed;
-      }
-    } catch {}
-
-    return {
-      id: userFromCognito.Username,
-      userId: userFromCognito.Username,
-      name,
-      coins: Number(attrMap["custom:coins"] ?? 0),
-      points: Number(attrMap["custom:points"] ?? 0),
-      modulesCompleted,
-      currentModule: Number(attrMap["custom:currentModule"] ?? 0),
-    };
-  }
-
-  const fetchUsersFromCognito = async (): Promise<User[]> => {
-    try {
-      const session: any = await fetchAuthSession();
-      const { accessKeyId, secretAccessKey, sessionToken } =
-        session.credentials!;
-
-      const client = new CognitoIdentityProviderClient({
-        region: awsconfig.aws_cognito_region,
-        credentials: { accessKeyId, secretAccessKey, sessionToken },
-      });
-
-      const cmd = new ListUsersCommand({
-        UserPoolId: awsconfig.aws_user_pools_id,
-        Limit: 60,
-      });
-
-      const resp = await client.send(cmd);
-      const items = resp.Users ?? [];
-      return items.map((u) => convertCognitoUserToApp(u));
-    } catch (err) {
-      console.warn("fetchUsersFromCognito falhou:", err);
-      throw err;
-    }
-  };
-
-  const fetchUsersFromGraphQL = async (): Promise<User[]> => {
-    const client = generateClient();
-    const result: any = await client.graphql({ query: listUsers });
-   const items = result?.data?.listUsers?.items ?? [];
-    return items.map((u: any) => ({
-      id: u.id,
-      userId: u.id,
-      name: u.name ?? "Usuário",
-      coins: u.coins ?? 0,
-      points: u.points ?? 0,
-      modulesCompleted: u.modulesCompleted ?? [],
-      currentModule: u.currentModule ?? 0,
-    }));
-  };
-
   const fetchUsers = async () => {
     if (!loading) setLoading(true);
     try {
-      try {
-        const cognitoUsers = await fetchUsersFromCognito();
-        setUsers(cognitoUsers);
-        calculateStats(cognitoUsers);
-        return;
-      } catch {}
+      const allUsers = (await getAllUsers()) as User[]; // Força o tipo
 
-      const graphqlUsers = await fetchUsersFromGraphQL();
-      setUsers(graphqlUsers);
-      calculateStats(graphqlUsers);
+      // ======================================================
+      // ✅ CORREÇÃO: Usa 'u.isAdmin' (do authStore) em vez de 'u.role'
+      // ======================================================
+      const assistidos = allUsers.filter((u: User) => !u.isAdmin);
+
+      setUsers(assistidos);
+      calculateStats(assistidos);
+    } catch (error: any) {
+      console.error("Erro final ao buscar usuários:", error);
+      Alert.alert(
+        "Erro",
+        "Não foi possível buscar os usuários. Tente novamente."
+      );
     } finally {
       setLoading(false);
     }
@@ -214,13 +134,17 @@ export default function AdminDashboardScreen({
 
   useFocusEffect(
     useCallback(() => {
-      fetchUsers();
-    }, [])
+      if (user) {
+        fetchUsers();
+      } else {
+        console.warn("AdminDashboard montado sem usuário no store.");
+        setLoading(false);
+      }
+    }, [user])
   );
 
   const handleLogout = async () => {
-    await signOut();
-    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    useAuthStore.getState().signOut();
   };
 
   return (
@@ -228,7 +152,11 @@ export default function AdminDashboardScreen({
       <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <MaterialCommunityIcons name="account-cog" size={32} color="#191970" />
+          <MaterialCommunityIcons
+            name="account-cog"
+            size={32}
+            color="#191970"
+          />
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.headerTitle}>Painel Administrativo</Text>
             <Text style={styles.headerSubtitle}>Gestão completa da ASAC</Text>
@@ -240,19 +168,39 @@ export default function AdminDashboardScreen({
       </View>
 
       <View style={styles.statsContainer}>
-        <StatCard icon="account-group" value={stats.totalUsers.toString()} label="Assistidos" />
-        <StatCard icon="account-check" value={stats.activeUsers.toString()} label="Ativos" />
-        <StatCard icon="chart-donut" value={`${stats.averageProgress}%`} label="Progresso Médio" />
+        <StatCard
+          icon="account-group"
+          value={stats.totalUsers.toString()}
+          label="Assistidos"
+        />
+        <StatCard
+          icon="account-check"
+          value={stats.activeUsers.toString()}
+          label="Ativos"
+        />
+        <StatCard
+          icon="chart-donut"
+          value={`${stats.averageProgress}%`}
+          label="Progresso Médio"
+        />
       </View>
 
       <View style={styles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={24} color="#888" />
-        <TextInput style={styles.searchInput} placeholder="Procurar assistido..." value={searchQuery} onChangeText={setSearchQuery} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Procurar assistido..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
 
       <View style={styles.listHeader}>
         <Text style={styles.listTitle}>Lista de assistidos</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("AdminRegisterUser")}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate("AdminRegisterUser")}
+        >
           <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -261,15 +209,23 @@ export default function AdminDashboardScreen({
         <ActivityIndicator size="large" color="#191970" style={{ flex: 1 }} />
       ) : (
         <FlatList
-          data={users.filter((user) => user.name.toLowerCase().includes(searchQuery.toLowerCase()))}
-          keyExtractor={(item) => item.userId ?? item.id}
+          data={users.filter((user: User) =>
+            (user.name ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+          )}
+          // ======================================================
+          // ✅ CORREÇÃO 2: O ID principal do tipo User é 'id' (do dynamo)
+          // ======================================================
+          keyExtractor={(item: User) => item.id}
           renderItem={({ item }) => (
             <UserListItem
               item={item}
               onPress={() =>
                 navigation.navigate("AdminUserDetail", {
-                  userId: item.userId ?? item.id,
-                  userName: item.name,
+                  // ================================================
+                  // ✅ CORREÇÃO 3: Passar 'item.id'
+                  // ================================================
+                  userId: item.id,
+                  userName: item.name ?? "Usuário",
                 })
               }
             />
@@ -283,6 +239,7 @@ export default function AdminDashboardScreen({
   );
 }
 
+// ... Estilos não mudam ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0EFEA" },
   header: {

@@ -14,6 +14,7 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useFocusEffect } from "@react-navigation/native";
 import { getUserById } from "../../services/progressService";
 import { generateClient } from "aws-amplify/api";
+import { listProgresses } from "../../graphql/queries";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 type StatGridItemProps = {
@@ -43,54 +44,42 @@ export default function AdminUserDetailScreen({
   const fetchUserData = useCallback(async () => {
     setLoading(true);
     try {
+      // 1. Busca o usuário
       const user = await getUserById(userId);
+      console.log("📊 Usuário completo:", user);
       setUserData(user);
 
-      // Buscar progresso por módulo - QUERY CORRIGIDA
+      // 2. Busca o progresso
       const client = generateClient();
-      const progressQuery = `
-        query ListProgresses($filter: ModelProgressFilterInput) {
-          listProgresses(filter: $filter) {
-            items {
-              id
-              moduleNumber
-              accuracy
-              correctAnswers
-              wrongAnswers
-              timeSpent
-              completed
-            }
-          }
-        }
-      `;
-
       const result: any = await client.graphql({
-        query: progressQuery,
-        variables: { 
-          filter: { 
-            userId: { eq: userId } 
-          } 
+        query: listProgresses,
+        variables: {
+          filter: {
+            userId: { eq: userId },
+          },
         },
+        authMode: "userPool",
       });
 
       const progressList = result?.data?.listProgresses?.items || [];
-      
-      console.log("📊 Admin Detail - Progresso encontrado:", progressList);
-      
-      // Normalizar os dados
+      console.log(
+        "📊 Admin Detail - Progresso RAW:",
+        JSON.stringify(progressList, null, 2)
+      );
+
+      // ✅ CORREÇÃO: Normalizar com valores REAIS do banco
       const normalized = progressList.map((p: any) => ({
         ...p,
-        moduleNumber: typeof p.moduleNumber === "string" ? parseInt(p.moduleNumber, 10) : p.moduleNumber,
+        moduleNumber: Number(p.moduleNumber ?? 0),
         correctAnswers: Number(p.correctAnswers ?? 0),
         wrongAnswers: Number(p.wrongAnswers ?? 0),
         timeSpent: Number(p.timeSpent ?? 0),
         accuracy: Number(p.accuracy ?? 0),
       }));
-      
+
       console.log("📊 Admin Detail - Progresso normalizado:", normalized);
       setModuleProgress(normalized);
 
-      // Selecionar o primeiro módulo com dados ou módulo 1
       if (normalized.length > 0) {
         setSelectedModule(normalized[0].moduleNumber);
       } else {
@@ -121,7 +110,9 @@ export default function AdminUserDetailScreen({
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
         <ScreenHeader title={userName} />
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator size="large" color="#191970" />
         </View>
       </View>
@@ -133,7 +124,9 @@ export default function AdminUserDetailScreen({
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
         <ScreenHeader title={userName} />
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <Text style={{ color: "#191970", fontSize: 16 }}>
             Usuário não encontrado
           </Text>
@@ -142,37 +135,40 @@ export default function AdminUserDetailScreen({
     );
   }
 
+  // ✅ CORREÇÃO: Lê os tipos corretos
   const modulesCompleted = Array.isArray(userData.modulesCompleted)
     ? userData.modulesCompleted
     : [];
 
-  // Dados do módulo selecionado
+  // ✅ CORREÇÃO: Pega os dados DO MÓDULO SELECIONADO
   const selectedModuleData = moduleProgress.find(
     (m) => m.moduleNumber === selectedModule
   );
 
   console.log(`📊 Dados do módulo ${selectedModule}:`, selectedModuleData);
 
-  const moduleCorrect = selectedModuleData?.correctAnswers || 0;
-  const moduleWrong = selectedModuleData?.wrongAnswers || 0;
-  const moduleTime = selectedModuleData?.timeSpent || 0;
+  // ✅ CORREÇÃO: Se não houver dados, mostrar 0
+  const moduleCorrect = selectedModuleData?.correctAnswers ?? 0;
+  const moduleWrong = selectedModuleData?.wrongAnswers ?? 0;
+  const moduleTime = selectedModuleData?.timeSpent ?? 0;
   const moduleTotalAnswers = moduleCorrect + moduleWrong;
   const modulePrecision =
     moduleTotalAnswers > 0
       ? Math.round((moduleCorrect / moduleTotalAnswers) * 100)
       : 0;
 
-  console.log(`📊 Estatísticas Módulo ${selectedModule}: ${moduleCorrect} acertos, ${moduleWrong} erros, ${modulePrecision}% precisão`);
+  // ✅ CORREÇÃO: Estatísticas GERAIS vêm da tabela User
+  const totalCorrect = Number(userData.correctAnswers ?? 0);
+  const totalWrong = Number(userData.wrongAnswers ?? 0);
+  const totalTime = Number(userData.timeSpent ?? 0);
+  const totalPrecision = Number(userData.precision ?? 0);
 
-  // Dados gerais do usuário (ACUMULADOS de todos os módulos)
-  const totalCorrect = moduleProgress.reduce((sum, m) => sum + (m.correctAnswers || 0), 0);
-  const totalWrong = moduleProgress.reduce((sum, m) => sum + (m.wrongAnswers || 0), 0);
-  const totalTime = moduleProgress.reduce((sum, m) => sum + (m.timeSpent || 0), 0);
-  const totalAnswers = totalCorrect + totalWrong;
-  const totalPrecision =
-    totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0;
-
-  console.log(`📊 Estatísticas Totais: ${totalCorrect} acertos, ${totalWrong} erros, ${totalPrecision}% precisão`);
+  console.log("📊 Estatísticas Gerais:", {
+    totalCorrect,
+    totalWrong,
+    totalTime,
+    totalPrecision,
+  });
 
   return (
     <View style={styles.container}>
@@ -187,8 +183,14 @@ export default function AdminUserDetailScreen({
               <Text style={styles.cardValue}>{userData.email || "N/A"}</Text>
             </View>
             <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Role</Text>
-              <Text style={styles.cardValue}>{userData.role || "user"}</Text>
+              <Text style={styles.cardLabel}>ID</Text>
+              <Text
+                style={styles.cardValue}
+                numberOfLines={1}
+                ellipsizeMode="middle"
+              >
+                {userData.id?.substring(0, 8) || "N/A"}
+              </Text>
             </View>
           </View>
         </View>
@@ -255,7 +257,9 @@ export default function AdminUserDetailScreen({
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>Estatísticas Gerais (Todos os Módulos)</Text>
+          <Text style={styles.cardSectionTitle}>
+            Estatísticas Gerais (Todos os Módulos)
+          </Text>
           <View style={styles.cardRow}>
             <View style={styles.cardColumn}>
               <Text style={styles.cardLabel}>Total Acertos</Text>
@@ -293,6 +297,7 @@ export default function AdminUserDetailScreen({
               <Text style={styles.cardLabel}>Módulos Concluídos</Text>
               <Text style={styles.cardValue}>{modulesCompleted.length}/3</Text>
             </View>
+            <View style={styles.cardColumn}></View>
           </View>
         </View>
 
@@ -334,11 +339,7 @@ const styles = StyleSheet.create({
   },
   cardColumn: { flex: 1 },
   cardLabel: { color: "#CCCCCC", fontSize: 14, marginBottom: 4 },
-  cardValue: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  cardValue: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
   cardSectionTitle: {
     color: "#FFFFFF",
     fontSize: 18,
@@ -373,10 +374,7 @@ const styles = StyleSheet.create({
     color: "#191970",
     marginBottom: 10,
   },
-  modulesButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  modulesButtons: { flexDirection: "row", justifyContent: "space-between" },
   moduleButton: {
     backgroundColor: "#CCCCCC",
     width: "31%",
@@ -391,14 +389,8 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#FFC700",
   },
-  moduleButtonText: {
-    color: "#666666",
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  moduleButtonTextSelected: {
-    color: "#FFFFFF",
-  },
+  moduleButtonText: { color: "#666666", fontSize: 24, fontWeight: "bold" },
+  moduleButtonTextSelected: { color: "#FFFFFF" },
   completedBadge: {
     position: "absolute",
     top: -5,

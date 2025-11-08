@@ -1,3 +1,5 @@
+// ATENÇÃO: Este arquivo NÃO está sendo usado pelo seu App.tsx,
+// mas se estiver, aqui está a versão corrigida
 import React, {
   createContext,
   useContext,
@@ -9,29 +11,19 @@ import { getCurrentUser, fetchAuthSession, signOut } from "@aws-amplify/auth";
 import { generateClient } from "aws-amplify/api";
 import { getUser, listUsers } from "../graphql/queries";
 import { createUser } from "../graphql/mutations";
+import { User as AppUser } from "../store/authStore"; // Reutiliza o tipo do authStore
 
 // Tipos
-export interface User {
-  userId: string;
-  email: string;
-  name?: string;
-  role?: string;
-  coins?: number;
-  points?: number;
-  modulesCompleted?: string;
-  precision?: string;
-  correctAnswers?: number;
-  timeSpent?: string;
-}
+// (Movido para authStore.ts para ser o tipo central)
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (userData: User) => void;
+  login: (userData: AppUser) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
-  updateUser: (userData: Partial<User>) => void;
+  updateUser: (userData: Partial<AppUser>) => void;
 }
 
 // Criação do Context
@@ -43,14 +35,13 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const client = generateClient();
 
-  // Verificar se há usuário autenticado no início
   useEffect(() => {
-    console.log("🚀 AuthProvider inicializando...");
+    console.log("🚀 AuthProvider (NÃO USADO) inicializando...");
     checkAuthState();
   }, []);
 
@@ -58,22 +49,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       console.log("🔍 Verificando estado de autenticação...");
-
-      // Verificar se há usuário autenticado no Cognito
-      const currentUser = await getCurrentUser();
+      const cognitoUser = await getCurrentUser();
       const session = await fetchAuthSession();
 
-      if (currentUser && session.tokens) {
-        console.log("✅ Usuário autenticado encontrado:", currentUser.username);
-
-        // Buscar dados do usuário no DynamoDB
-        await fetchUserFromDB(currentUser.userId, currentUser.username);
+      if (cognitoUser && session.tokens) {
+        console.log("✅ Usuário autenticado:", cognitoUser.username);
+        await fetchUserFromDB(cognitoUser.userId, cognitoUser.username);
       } else {
-        console.log("❌ Nenhum usuário autenticado");
         setUser(null);
       }
     } catch (error) {
-      console.log("ℹ️ Usuário não autenticado:", error);
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -83,53 +68,65 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const fetchUserFromDB = async (userId: string, email: string) => {
     try {
       console.log("🔍 Buscando usuário no banco:", userId);
-
-      // Primeiro tenta buscar pelo ID
-      const result = await client.graphql({
+      const result: any = await client.graphql({
         query: getUser,
         variables: { id: userId },
+        authMode: "userPool", // Importante
       });
 
       if (result.data.getUser) {
         console.log("✅ Usuário encontrado no banco:", result.data.getUser);
+        const dbUser = result.data.getUser;
         setUser({
-          userId: result.data.getUser.id,
-          email: result.data.getUser.email,
-          name: result.data.getUser.name,
-          role: result.data.getUser.role,
-          
+          userId: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          username: dbUser.email,
+          isAdmin: dbUser.role === "Admins",
+          coins: dbUser.coins,
+          points: dbUser.points,
+          modulesCompleted: dbUser.modulesCompleted,
+          currentModule: dbUser.currentModule,
+          precision: dbUser.precision,
+          correctAnswers: dbUser.correctAnswers,
+          timeSpent: dbUser.timeSpent,
+          achievements: dbUser.achievements?.items ?? [],
         });
       } else {
-        console.log(
-          "⚠️ Usuário não encontrado no banco, buscando por email..."
-        );
+        console.log("⚠️ Usuário não encontrado, buscando por email...");
         await searchUserByEmail(email, userId);
       }
     } catch (error) {
-      console.log("❌ Erro ao buscar usuário no banco:", error);
-      // Se não encontrar no banco, criar um usuário básico
+      console.log("❌ Erro ao buscar usuário no banco, criando novo:", error);
       await createUserInDB(userId, email);
     }
   };
 
   const searchUserByEmail = async (email: string, userId: string) => {
     try {
-      const result = await client.graphql({
+      const result: any = await client.graphql({
         query: listUsers,
-        variables: {
-          filter: { email: { eq: email } },
-        },
+        variables: { filter: { email: { eq: email } } },
+        authMode: "userPool",
       });
 
       const users = result.data.listUsers?.items || [];
       if (users.length > 0 && users[0]) {
-        console.log("✅ Usuário encontrado por email:", users[0]);
+        const dbUser = users[0];
         setUser({
-          userId: users[0].id,
-          email: users[0].email,
-          name: users[0].name,
-          role: users[0].role,
-          
+          userId: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          username: dbUser.email,
+          isAdmin: dbUser.role === "Admins",
+          coins: dbUser.coins,
+          points: dbUser.points,
+          modulesCompleted: dbUser.modulesCompleted,
+          currentModule: dbUser.currentModule,
+          precision: dbUser.precision,
+          correctAnswers: dbUser.correctAnswers,
+          timeSpent: dbUser.timeSpent,
+          achievements: dbUser.achievements?.items ?? [],
         });
       } else {
         console.log("⚠️ Usuário não encontrado por email, criando novo...");
@@ -144,79 +141,68 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const createUserInDB = async (userId: string, email: string) => {
     try {
       console.log("🆕 Criando novo usuário no banco...");
-      const newUser = await client.graphql({
+      // ✅ CORREÇÃO COMPLETA: Todos os tipos corretos
+      const newUserInput = {
+        id: userId,
+        email: email,
+        name: email.split("@")[0],
+        role: "user",
+        coins: 0,
+        points: 0,
+        modulesCompleted: [], // ✅ Array vazio (tipo: [Int])
+        currentModule: 1,
+        precision: 0.0, // ✅ Number (tipo: Float)
+        correctAnswers: 0,
+        wrongAnswers: 0,
+        timeSpent: 0.0, // ✅ Number (tipo: Float)
+      };
+
+      const newUser: any = await client.graphql({
         query: createUser,
-        variables: {
-          input: {
-            id: userId,
-            email: email,
-            name: email.split("@")[0], // Nome baseado no email
-            role: "student",
-            coins: 0,
-            points: 0,
-            modulesCompleted: "0/3",
-            precision: "0%",
-            correctAnswers: 0,
-            timeSpent: "0min",
-          },
-        },
+        variables: { input: newUserInput },
+        authMode: "userPool",
       });
 
       if (newUser.data.createUser) {
-        console.log("✅ Usuário criado com sucesso:", newUser.data.createUser);
+        const dbUser = newUser.data.createUser;
         setUser({
-          userId: newUser.data.createUser.id,
-          email: newUser.data.createUser.email,
-          name: newUser.data.createUser.name,
-          role: newUser.data.createUser.role,
-          
+          userId: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          username: dbUser.email,
+          isAdmin: dbUser.role === "Admins",
+          coins: dbUser.coins,
+          points: dbUser.points,
+          modulesCompleted: dbUser.modulesCompleted,
+          currentModule: dbUser.currentModule,
+          precision: dbUser.precision,
+          correctAnswers: dbUser.correctAnswers,
+          timeSpent: dbUser.timeSpent,
+          achievements: dbUser.achievements?.items ?? [],
         });
       }
     } catch (error) {
       console.log("❌ Erro ao criar usuário:", error);
-      // Em caso de erro, criar um usuário temporário
-      setUser({
-        userId,
-        email,
-        name: email.split("@")[0],
-        role: "student",
-        coins: 0,
-        points: 0,
-        modulesCompleted: "0/3",
-        precision: "0%",
-        correctAnswers: 0,
-        timeSpent: "0min",
-      });
     }
   };
 
-  const login = (userData: User) => {
-    console.log("🔑 Login realizado via contexto:", userData);
+  const login = (userData: AppUser) => {
     setUser(userData);
   };
 
   const logout = async () => {
-    try {
-      console.log("🚪 Realizando logout...");
-      await signOut();
-      setUser(null);
-      console.log("✅ Logout realizado com sucesso");
-    } catch (error) {
-      console.log("❌ Erro no logout:", error);
-      setUser(null); // Limpar mesmo com erro
-    }
+    await signOut();
+    setUser(null);
   };
 
   const refreshUser = async () => {
     if (user) {
-      console.log("🔄 Atualizando dados do usuário...");
       await fetchUserFromDB(user.userId, user.email);
     }
   };
 
-  const updateUser = (userData: Partial<User>) => {
+  const updateUser = (userData: Partial<AppUser>) => {
     if (user) {
-      console.log("📝 Atualizando dados locais do usuário:", userData);
       setUser({ ...user, ...userData });
     }
   };

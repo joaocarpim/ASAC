@@ -1,5 +1,4 @@
-// src/screens/module/ModuleQuizScreen.tsx
-
+// src/screens/module/ModuleQuizScreen.tsx (Corrigido)
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -12,6 +11,7 @@ import {
   Dimensions,
   StatusBar,
   ColorValue,
+  Platform,
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { RootStackScreenProps } from "../../navigation/types";
@@ -21,8 +21,7 @@ import {
   ensureModuleProgress,
   registerCorrect,
   registerWrong,
-  finishModule,
-  ErrorDetail, // O tipo que está causando o erro
+  ErrorDetail,
 } from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
@@ -32,7 +31,10 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useAccessibility } from "../../context/AccessibilityProvider";
-import { getQuizByModuleId } from "../../navigation/moduleQuestionTypes";
+import {
+  getQuizByModuleId,
+  QuizQuestion,
+} from "../../navigation/moduleQuestionTypes"; // ✅ Importa QuizQuestion
 import { useSettings } from "../../hooks/useSettings";
 import { Audio } from "expo-av";
 
@@ -56,7 +58,7 @@ export default function ModuleQuizScreen({
   navigation,
 }: RootStackScreenProps<"ModuleQuiz">) {
   const { moduleId } = route.params;
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]); // ✅ Tipo corrigido
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
@@ -70,8 +72,7 @@ export default function ModuleQuizScreen({
   const [wrongSound, setWrongSound] = useState<Audio.Sound | null>(null);
 
   const { user } = useAuthStore();
-  const { activeProgressId, setActive, startTimer, stopTimer } =
-    useProgressStore();
+  const { activeProgressId, setActive, stopTimer } = useProgressStore();
   const { theme } = useContrast();
   const { speakText } = useAccessibility();
   const {
@@ -92,29 +93,27 @@ export default function ModuleQuizScreen({
   );
 
   useEffect(() => {
-    async function loadSounds() {
-      try {
-        const { sound: correct } = await Audio.Sound.createAsync(
-          require("../../../assets/som/correct.mp3")
-        );
-        setCorrectSound(correct);
-
-        const { sound: wrong } = await Audio.Sound.createAsync(
-          require("../../../assets/som/incorrect.mp3")
-        );
-        setWrongSound(wrong);
-      } catch (error) {
-        console.error("Erro ao carregar os sons", error);
+    if (Platform.OS !== "web") {
+      async function loadSounds() {
+        try {
+          const { sound: correct } = await Audio.Sound.createAsync(
+            require("../../../assets/som/correct.mp3")
+          );
+          setCorrectSound(correct);
+          const { sound: wrong } = await Audio.Sound.createAsync(
+            require("../../../assets/som/incorrect.mp3")
+          );
+          setWrongSound(wrong);
+        } catch (error) {
+          console.error("Erro ao carregar os sons", error);
+        }
       }
+      loadSounds();
     }
-
-    loadSounds();
-
     return () => {
       correctSound?.unloadAsync();
       wrongSound?.unloadAsync();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -127,16 +126,13 @@ export default function ModuleQuizScreen({
         if (mounted) navigation.goBack();
         return;
       }
-
       const qList = moduleObj.questions ?? [];
       if (!qList || qList.length === 0) {
         Alert.alert("Erro", "Nenhuma pergunta encontrada para este módulo.");
         if (mounted) navigation.goBack();
         return;
       }
-
       if (mounted) setQuestions(qList);
-
       if (user?.userId) {
         try {
           const progress = await ensureModuleProgress(
@@ -145,8 +141,8 @@ export default function ModuleQuizScreen({
             moduleObj.moduleId
           );
           if (progress?.id) {
+            console.log(`✅ Progress ID para o quiz: ${progress.id}`);
             setActive(progress.id);
-            startTimer && startTimer();
           }
         } catch (e) {
           console.warn("Erro ao garantir progresso:", e);
@@ -158,7 +154,7 @@ export default function ModuleQuizScreen({
     return () => {
       mounted = false;
     };
-  }, [moduleId, navigation, user, setActive, startTimer]);
+  }, [moduleId, navigation, user, setActive]);
 
   useEffect(() => {
     if (!isLoading && questions.length > 0 && speakText) {
@@ -173,40 +169,56 @@ export default function ModuleQuizScreen({
   };
 
   const handleConfirm = useCallback(async () => {
-    if (selectedAnswer === null || !user?.userId || !activeProgressId) return;
+    if (selectedAnswer === null || !user?.userId || !activeProgressId) {
+      console.warn("⚠️ Dados insuficientes para confirmar resposta");
+      return;
+    }
+
     setIsAnswerChecked(true);
     const q = questions[currentQuestionIndex];
 
+    console.log(`📝 Respondendo questão ${currentQuestionIndex + 1}`);
+    console.log(`   Resposta selecionada: ${selectedAnswer}`);
+    console.log(`   Resposta correta: ${q.correctAnswer}`);
+    console.log(`   Progress ID: ${activeProgressId}`);
+
     if (selectedAnswer === q.correctAnswer) {
-      correctSound?.replayAsync();
+      if (Platform.OS !== "web") correctSound?.replayAsync();
       setCorrectCount((prev) => prev + 1);
       Vibration.vibrate(80);
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 1500);
+
       try {
-        await registerCorrect(user.userId, activeProgressId);
+        console.log("✅ Registrando acerto...");
+        await registerCorrect(activeProgressId);
+        console.log("✅ Acerto registrado com sucesso!");
       } catch (e) {
-        console.warn("Erro registerCorrect:", e);
+        console.error("❌ Erro registerCorrect:", e);
       }
     } else {
-      wrongSound?.replayAsync();
+      if (Platform.OS !== "web") wrongSound?.replayAsync();
       setWrongCount((prev) => prev + 1);
       Vibration.vibrate([0, 100, 50, 100]);
 
-      // ✅ CORREÇÃO: Removida a propriedade 'questionNumber'
+      // ======================================================
+      // ✅ CORREÇÃO (Bug 3.1): Salva o objeto de erro completo
+      // ======================================================
       const err: ErrorDetail = {
-        // questionNumber: currentQuestionIndex + 1, // Esta linha causa o erro
-        questionId: q.id,
+        questionId: q.id, // ✅ Usa o ID real da questão (ex: "q1-1")
         questionText: q.question,
-        userAnswer: q.options?.[selectedAnswer] ?? null,
-        expectedAnswer: q.options?.[q.correctAnswer] ?? null,
+        userAnswer: q.options?.[selectedAnswer] ?? "Não respondida",
+        expectedAnswer: q.options?.[q.correctAnswer] ?? "N/A",
       };
 
+      console.log("❌ Registrando erro:", err);
       setErrorDetails((prev) => [...prev, err]);
+
       try {
         await registerWrong(activeProgressId, err);
+        console.log("✅ Erro registrado com sucesso!");
       } catch (e) {
-        console.warn("Erro registerWrong:", e);
+        console.error("❌ Erro registerWrong:", e);
       }
     }
   }, [
@@ -240,45 +252,23 @@ export default function ModuleQuizScreen({
         : 0;
       const pointsEarned = 12250;
 
-      console.log("🎯 Finalizando módulo:");
-      console.log("  Acertos:", correctCount);
-      console.log("  Erros:", wrongCount);
-      console.log("  Total questões:", questions.length);
-      console.log("  Tempo:", duration);
-      console.log("  Erros detalhados:", errorDetails);
-
-      // ❌ O ERRO EM MODULERESULT ESTÁ AQUI.
-      // A função finishModule que você está usando provavelmente só aceita 6 argumentos.
-      // Os argumentos 'correctCount' e 'wrongCount' são da versão nova.
-      if (user?.userId && activeProgressId) {
-        try {
-          // CHAMADA CORRIGIDA: remover string extra e passar apenas até 7 argumentos
-          await finishModule(
-            user.userId,
-            activeProgressId,
-            parseInt(String(moduleId), 10),
-            duration,
-            coinsEarned,
-            correctCount,
-            wrongCount
-          );
-          console.log("✅ Módulo finalizado com sucesso!");
-        } catch (e) {
-          console.warn("❌ Erro finishModule:", e);
-        }
-      }
+      console.log("🎯 Quiz finalizado!");
+      console.log(`   Acertos: ${correctCount}`);
+      console.log(`   Erros: ${wrongCount}`);
+      console.log(`   Erros detalhados:`, errorDetails);
 
       navigation.replace("ModuleResult", {
         moduleId,
         correctAnswers: correctCount,
-        wrongAnswers: wrongCount, // Passando o valor calculado
+        wrongAnswers: wrongCount,
         totalQuestions: questions.length,
         accuracy,
         timeSpent: duration,
         coinsEarned,
         pointsEarned,
         passed,
-        progressId: activeProgressId ?? undefined, // Passa o ID do progresso
+        progressId: activeProgressId ?? undefined,
+        errorDetails: JSON.stringify(errorDetails), // ✅ Passa os erros
       });
     }
   }, [
@@ -287,13 +277,13 @@ export default function ModuleQuizScreen({
     wrongCount,
     errorDetails,
     questions,
-    user,
     activeProgressId,
     moduleId,
     stopTimer,
     navigation,
   ]);
 
+  // ... (o resto do arquivo (return e styles) não muda) ...
   const current = questions[currentQuestionIndex];
   const statusBarStyle = isColorDark(theme.background)
     ? "light-content"
@@ -396,6 +386,7 @@ export default function ModuleQuizScreen({
   );
 }
 
+// ... (Estilos não mudam) ...
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -410,14 +401,14 @@ const getStyles = (
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: theme.background, // ✅ Adicionado
+      backgroundColor: theme.background,
     },
     loadingText: {
       color: theme.text,
       marginTop: 8,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-    scrollArea: { padding: 15, flex: 1 }, // ✅ Adicionado flex: 1
+    scrollArea: { padding: 15, flex: 1 },
     header: { alignItems: "center", paddingVertical: 10 },
     headerTitle: {
       color: theme.text,
@@ -437,22 +428,19 @@ const getStyles = (
       textAlign: "center",
       marginHorizontal: 10,
       marginBottom: 20,
-      lineHeight: 17 * fontMultiplier * lineHeightMultiplier, // ✅ Adicionado
-      letterSpacing: letterSpacing, // ✅ Adicionado
+      lineHeight: 17 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     option: {
-      padding: 15, // ✅ Aumentado
+      padding: 15,
       borderRadius: 10,
-      borderWidth: 2, // ✅ Aumentado
+      borderWidth: 2,
       borderColor: theme.text,
       marginVertical: 6,
       backgroundColor: theme.background,
     },
-    optionSelected: {
-      borderColor: "#007AFF", // ✅ Cor mais forte
-      backgroundColor: theme.card, // ✅ Fundo diferente
-    },
+    optionSelected: { borderColor: "#007AFF", backgroundColor: theme.card },
     optionCorrect: { borderColor: "green", backgroundColor: "#D4EDDA" },
     optionWrong: { borderColor: "red", backgroundColor: "#F8D7DA" },
     optionText: {
@@ -472,13 +460,13 @@ const getStyles = (
     },
     footer: {
       padding: 15,
-      paddingBottom: 30, // ✅ Aumentado para safe area
-      borderTopWidth: 1, // ✅ Adicionado
-      borderTopColor: theme.card, // ✅ Adicionado
+      paddingBottom: 30,
+      borderTopWidth: 1,
+      borderTopColor: theme.card,
     },
     button: {
       backgroundColor: theme.button,
-      padding: 15, // ✅ Aumentado
+      padding: 15,
       borderRadius: 10,
       alignItems: "center",
     },
@@ -497,4 +485,3 @@ const getStyles = (
       zIndex: 999,
     },
   });
-

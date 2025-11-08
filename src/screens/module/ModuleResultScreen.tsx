@@ -1,5 +1,4 @@
-// src/screens/module/ModuleResultScreen.tsx
-
+// src/screens/module/ModuleResultScreen.tsx (Corrigido)
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -10,8 +9,10 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import ConfettiCannon from "react-native-confetti-cannon";
 import { RootStackScreenProps } from "../../navigation/types";
 import { useSettings } from "../../hooks/useSettings";
 import { useContrast } from "../../hooks/useContrast";
@@ -23,7 +24,7 @@ import {
 } from "../../components/AccessibleComponents";
 import { Audio } from "expo-av";
 import { useAuthStore } from "../../store/authStore";
-import { finishModule } from "../../services/progressService";
+import { finishModule, ErrorDetail } from "../../services/progressService";
 
 const { width } = Dimensions.get("window");
 
@@ -41,7 +42,8 @@ export default function ModuleResultScreen({
     coinsEarned,
     pointsEarned,
     passed,
-    progressId, // Recebido do quiz
+    progressId,
+    errorDetails,
   } = route.params;
 
   const { user } = useAuthStore();
@@ -50,6 +52,8 @@ export default function ModuleResultScreen({
   const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const { theme } = useContrast();
   const {
@@ -69,55 +73,62 @@ export default function ModuleResultScreen({
     isDyslexiaFontEnabled
   );
 
-  // Carregar sons
   useEffect(() => {
-    async function loadSounds() {
-      try {
-        const { sound: success } = await Audio.Sound.createAsync(
-          require("../../../assets/som/correct.mp3")
-        );
-        setSuccessSound(success);
-
-        const { sound: fail } = await Audio.Sound.createAsync(
-          require("../../../assets/som/incorrect.mp3")
-        );
-        setFailureSound(fail);
-      } catch (error) {
-        console.error("Erro ao carregar os sons de resultado", error);
+    if (Platform.OS !== "web") {
+      async function loadSounds() {
+        try {
+          const { sound: success } = await Audio.Sound.createAsync(
+            require("../../../assets/som/correct.mp3")
+          );
+          setSuccessSound(success);
+          const { sound: fail } = await Audio.Sound.createAsync(
+            require("../../../assets/som/incorrect.mp3")
+          );
+          setFailureSound(fail);
+        } catch (error) {
+          console.error("Erro ao carregar os sons de resultado", error);
+        }
       }
+      loadSounds();
     }
-
-    loadSounds();
-
     return () => {
       successSound?.unloadAsync();
       failureSound?.unloadAsync();
     };
   }, []);
 
-  // Tocar som
+  // ✅ CORREÇÃO (Bug 2): Tocar som E mostrar confete (se passou)
   useEffect(() => {
-    if (successSound && failureSound) {
-      if (passed) {
+    if (Platform.OS !== "web") {
+      if (passed && successSound) {
         successSound.replayAsync();
-      } else {
+      } else if (!passed && failureSound) {
         failureSound.replayAsync();
       }
     }
+
+    if (passed) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2500);
+    }
   }, [passed, successSound, failureSound]);
 
-  // 🎯 SALVAR PROGRESSO AUTOMATICAMENTE (UMA VEZ!)
+  // ======================================================
+  // ✅ CORREÇÃO (Bug 1): Salvar o progresso SEMPRE
+  // ======================================================
   useEffect(() => {
-    if (user?.userId && passed && !saved && !saving) {
+    // Salva o progresso (se passou ou não)
+    if (user?.userId && !saved && !saving) {
       handleSaveProgress();
     }
-  }, [user?.userId, passed, saved, saving]);
+  }, [user?.userId, saved, saving]); // Remove 'passed'
 
   const handleSaveProgress = async () => {
-    if (!user?.userId || !passed) {
+    // ✅ CORREÇÃO: Remove a checagem de 'passed' daqui
+    if (!user?.userId || !progressId) {
       console.warn("⚠️ Dados insuficientes para salvar:", {
         userId: user?.userId,
-        passed,
+        progressId,
       });
       return;
     }
@@ -125,102 +136,80 @@ export default function ModuleResultScreen({
     setSaving(true);
     try {
       console.log("💾 Salvando progresso do módulo...");
-      console.log("📊 Dados recebidos:", {
-        moduleId,
-        correctAnswers,
-        wrongAnswers,
-        totalQuestions,
-        accuracy,
-        timeSpent,
-        coinsEarned,
-        progressId,
-      });
 
-      // Extrair número do módulo (ex: "1" de "module-1" ou 1)
-      const moduleNumber =
-        typeof moduleId === "number"
-          ? moduleId
-          : parseInt(String(moduleId).replace(/\D/g, "")) || 1;
-
-      console.log(`📊 Módulo identificado: ${moduleNumber}`);
-
-      // Títulos das conquistas
+      const moduleNumber = parseInt(String(moduleId).replace(/\D/g, "")) || 1;
       const achievementTitles = [
         "🎓 Completou o Módulo 1",
         "🏆 Completou o Módulo 2",
         "⭐ Completou o Módulo 3",
       ];
-
       const achievementTitle =
         achievementTitles[moduleNumber - 1] ||
         `Módulo ${moduleNumber} Concluído`;
 
-      // Usar progressId se foi passado, senão criar um baseado no padrão
-      const finalProgressId =
-        progressId || `progress-${user.userId}-${moduleNumber}`;
-
-      console.log(
-        `🎯 Chamando finishModule com progressId: ${finalProgressId}`
-      );
-
-      // Calcular wrongAnswers se não foi passado
       const errors = wrongAnswers ?? totalQuestions - correctAnswers;
 
-      console.log(
-        `📊 Acertos: ${correctAnswers}, Erros: ${errors}, Total: ${totalQuestions}`
+      let errorDetailsArray: ErrorDetail[] = [];
+      if (errorDetails) {
+        try {
+          errorDetailsArray = JSON.parse(errorDetails);
+        } catch (e) {
+          console.warn("Falha ao parsear errorDetails", e);
+        }
+      }
+
+      console.log(`🎯 Chamando finishModule com progressId: ${progressId}`);
+
+      // ✅ CORREÇÃO: A chamada `finishModule` agora é chamada mesmo se 'passed' for false,
+      //    mas a lógica *dentro* de 'finishModule' só dará a conquista se 'passed' for true.
+      const result = await finishModule(
+        user.userId,
+        progressId,
+        moduleNumber,
+        timeSpent,
+        achievementTitle,
+        passed ? coinsEarned || 150 : 0, // ✅ Só ganha moedas se passar
+        correctAnswers,
+        errors,
+        errorDetailsArray
       );
-
-      // ✅ Chamar finishModule
-     const result = await finishModule(
-  user.userId,
-  finalProgressId,
-  moduleNumber,
-  timeSpent,
-  coinsEarned || 150,
-  correctAnswers,
-  errors
-);
-
 
       if (result) {
         console.log("✅ Progresso salvo com sucesso!");
-        console.log("📊 Resultado:", result);
         setSaved(true);
       } else {
         console.warn("⚠️ finishModule retornou null");
-        setSaved(true); // Marcar como salvo mesmo assim
+        setSaved(true);
       }
     } catch (error) {
       console.error("❌ Erro ao salvar progresso:", error);
-      setSaved(true); // Marcar como salvo para não travar
+      setSaved(true);
     } finally {
       setSaving(false);
     }
   };
 
+  // ... (o resto do arquivo (return e styles) não muda) ...
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
     return `${remainingSeconds}s`;
   };
-
   const getPerformanceMessage = (): string => {
     if (accuracy >= 90)
-      return "Excelente! Você dominou completamente este módulo!";
+      return "Excelente! Você dominou completely este módulo!";
     if (accuracy >= 80)
       return "Muito bom! Você tem um ótimo entendimento do conteúdo!";
     if (accuracy >= 70) return "Bom trabalho! Você passou no módulo!";
     return "Continue praticando! A prática leva à perfeição!";
   };
-
   const getAccuracyColor = (): string => {
     if (accuracy >= 90) return "#4CAF50";
     if (accuracy >= 80) return "#8BC34A";
     if (accuracy >= 70) return "#FFC107";
     return "#F44336";
   };
-
   const errors = wrongAnswers ?? totalQuestions - correctAnswers;
 
   return (
@@ -247,7 +236,6 @@ export default function ModuleResultScreen({
           Módulo {moduleId} {passed ? "Concluído" : "Não Concluído"}
         </Text>
 
-        {/* Indicador de salvamento */}
         {saving && (
           <View style={styles.savingIndicator}>
             <ActivityIndicator size="small" color={theme.text} />
@@ -255,8 +243,7 @@ export default function ModuleResultScreen({
           </View>
         )}
         {saved &&
-          !saving &&
-          passed && ( // Só mostra "Salvo" se passou e não está salvando
+          !saving && ( // ✅ Mostra "Salvo" mesmo se não passou
             <View style={styles.savedIndicator}>
               <MaterialCommunityIcons
                 name="check-circle"
@@ -267,7 +254,6 @@ export default function ModuleResultScreen({
             </View>
           )}
       </AccessibleView>
-
       <ScrollView
         style={styles.contentArea}
         showsVerticalScrollIndicator={false}
@@ -286,7 +272,6 @@ export default function ModuleResultScreen({
             {getPerformanceMessage()}
           </Text>
         </AccessibleView>
-
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <MaterialCommunityIcons
@@ -326,7 +311,6 @@ export default function ModuleResultScreen({
           </View>
         </View>
       </ScrollView>
-
       <View style={styles.footer}>
         {!passed && (
           <AccessibleButton
@@ -358,10 +342,19 @@ export default function ModuleResultScreen({
           />
         </AccessibleButton>
       </View>
+      {showConfetti && (
+        <View style={styles.confettiContainer} pointerEvents="none">
+          <ConfettiCannon
+            count={120}
+            origin={{ x: width / 2, y: -20 }}
+            fadeOut
+          />
+        </View>
+      )}
     </View>
   );
 }
-
+// ... (Estilos não mudam) ...
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -466,11 +459,11 @@ const createStyles = (
       backgroundColor: theme.card,
       borderRadius: 12,
       padding: 20,
-      width: (width - 60) / 2, // 60 = 20 paddingHorizontal * 2 + 20 gap
+      width: (width - 60) / 2,
       marginBottom: 15,
       alignItems: "center",
-      minHeight: 140, // ✅ Adicionado para alinhamento
-      justifyContent: "center", // ✅ Adicionado
+      minHeight: 140,
+      justifyContent: "center",
     },
     statNumber: {
       color: theme.cardText,
@@ -503,9 +496,7 @@ const createStyles = (
       flex: 1,
       justifyContent: "center",
     },
-    buttonDisabled: {
-      opacity: 0.6,
-    },
+    buttonDisabled: { opacity: 0.6 },
     secondaryButton: {
       backgroundColor: "transparent",
       borderRadius: 12,
@@ -532,5 +523,13 @@ const createStyles = (
       fontWeight: "bold",
       marginRight: 8,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    confettiContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 999,
     },
   });

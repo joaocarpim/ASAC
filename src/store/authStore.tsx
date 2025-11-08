@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { fetchAuthSession, signOut as amplifySignOut } from "aws-amplify/auth";
-import { ensureUserExistsInDB, getUserById } from "../services/progressService";
+// ✅ Importa as funções corretas do progressService
+import { getUserById, ensureUserExistsInDB } from "../services/progressService";
 
 export type User = {
   userId: string;
@@ -14,7 +15,8 @@ export type User = {
   currentModule?: number | null;
   precision?: number | null;
   correctAnswers?: number | null;
-  timeSpent?: string | null;
+  wrongAnswers?: number | null;
+  timeSpent?: number | null;
   achievements?: { id: string; title: string; createdAt: string }[];
 };
 
@@ -35,11 +37,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const session = await fetchAuthSession();
 
-      // Normalize different Amplify session shapes
+      // Normalizar sessão
       let idPayload: any = {};
       let accessPayload: any = {};
-      
-      // Handling the session structure based on Amplify's response
+
       if ((session as any)?.tokens?.idToken?.payload) {
         idPayload = (session as any).tokens.idToken.payload;
         accessPayload = (session as any).tokens.accessToken?.payload ?? {};
@@ -53,50 +54,71 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         accessPayload = (session as any).accessToken ?? {};
       }
 
-      // Extracting necessary user information
       const sub = String(idPayload.sub ?? idPayload["cognito:username"] ?? "");
       const rawEmail = idPayload.email ?? "";
-      const emailStr = typeof rawEmail === "string" ? rawEmail : String(rawEmail ?? "");
-      const usernameFromEmail = emailStr.includes("@") ? emailStr.split("@")[0] : emailStr;
-      const username = String(idPayload["cognito:username"] ?? usernameFromEmail ?? "");
+      const emailStr =
+        typeof rawEmail === "string" ? rawEmail : String(rawEmail ?? "");
+      const usernameFromEmail = emailStr.includes("@")
+        ? emailStr.split("@")[0]
+        : emailStr;
+      const username = String(
+        idPayload["cognito:username"] ?? usernameFromEmail ?? ""
+      );
       const email = String(emailStr ?? "");
+      const name = String(idPayload.name ?? usernameFromEmail ?? "");
 
-      // Checking if the user is an admin based on groups
+      // Verificar admin
       const groups =
-        ((accessPayload["cognito:groups"] ?? idPayload["cognito:groups"] ?? []) as string[]) ?? [];
+        ((accessPayload["cognito:groups"] ??
+          idPayload["cognito:groups"] ??
+          []) as string[]) ?? [];
       const isAdmin = Array.isArray(groups) && groups.includes("Admins");
 
-      const baseUser: User = { userId: sub, username, email, isAdmin };
-
-      // If the user is an admin, set the user object and exit early
-      if (isAdmin) {
-        set({ user: baseUser, isLoading: false });
-        return;
-      }
+      const baseUser: User = {
+        userId: sub,
+        username,
+        email,
+        name,
+        isAdmin,
+      };
 
       if (!sub) {
         set({ user: null, isLoading: false });
         return;
       }
 
-      // ✅ CORREÇÃO: Tentar buscar/criar usuário, mas NÃO BLOQUEAR se falhar
-      let dbUser = null;
-      try {
-        dbUser = await ensureUserExistsInDB(sub);
-        console.log("✅ Usuário no banco:", dbUser);
-      } catch (dbError) {
-        console.warn("⚠️ Erro ao buscar/criar usuário no banco (continuando):", dbError);
-        // ✅ CONTINUAR mesmo com erro - usar apenas dados do Cognito
-      }
+      // ✅ CORREÇÃO: Usar ensureUserExistsInDB que cria se necessário
+      console.log(
+        `[authStore] Logado como ${email} (Admin: ${isAdmin}). Garantindo usuário no DB...`
+      );
 
-      // ✅ Se não conseguiu buscar do banco, usar só os dados do Cognito
-      if (!dbUser) {
-        console.log("⚠️ Usuário não encontrado no banco, usando dados do Cognito");
+      let dbUser: any = null;
+      try {
+        // ✅ Garante que o usuário existe, criando se necessário
+        dbUser = await ensureUserExistsInDB(sub, email, username, name);
+
+        if (!dbUser) {
+          console.error(
+            `❌ [authStore] Falha ao garantir usuário no DynamoDB (ID: ${sub})`
+          );
+          // Usar apenas dados do Cognito como fallback
+          set({ user: baseUser, isLoading: false });
+          return;
+        }
+
+        console.log("✅ [authStore] Usuário garantido no banco:", dbUser?.name);
+      } catch (dbError: any) {
+        console.warn(
+          "⚠️ [authStore] Erro ao garantir usuário no banco:",
+          dbError.message
+        );
+
+        // ✅ Fallback: usar dados do Cognito e tentar criar em background
         set({ user: baseUser, isLoading: false });
-        
-        // ✅ Tentar criar em background (não bloqueia)
-        ensureUserExistsInDB(sub).catch((e) => 
-          console.warn("⚠️ Erro ao criar usuário em background:", e)
+
+        // Tentar criar em background sem bloquear
+        ensureUserExistsInDB(sub, email, username, name).catch((e: Error) =>
+          console.warn("⚠️ [authStore] Erro ao criar usuário em background:", e)
         );
         return;
       }
@@ -106,12 +128,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: {
           ...baseUser,
           ...dbUser,
+          // Garantir que os dados do Cognito prevaleçam
+          userId: sub,
+          email: email,
+          username: username,
+          name: name,
+          isAdmin: isAdmin,
           achievements: dbUser?.achievements?.items ?? [],
         },
         isLoading: false,
       });
-    } catch (e) {
-      console.warn("⚠️ Erro ao verificar o usuário:", e);
+    } catch (e: any) {
+      console.warn(
+        "⚠️ [authStore] Erro ao verificar usuário (não logado):",
+        e.message
+      );
       set({ user: null, isLoading: false });
     }
   },
@@ -120,16 +151,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const u = get().user;
       if (!u) return;
+
       const dbUser = await getUserById(u.userId);
-      set({
-        user: {
-          ...u,
-          ...dbUser,
-          achievements: dbUser?.achievements?.items ?? [],
-        },
-      });
-    } catch (e) {
-      console.warn("⚠️ Erro ao atualizar dados do usuário:", e);
+
+      if (dbUser) {
+        set({
+          user: {
+            ...u,
+            ...dbUser,
+            achievements: dbUser?.achievements?.items ?? [],
+          },
+        });
+      }
+    } catch (e: any) {
+      console.warn("⚠️ Erro ao atualizar dados do usuário:", e.message);
     }
   },
 
@@ -142,8 +177,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null });
     try {
       await amplifySignOut({ global: true });
-    } catch (e) {
-      console.warn("⚠️ Erro ao fazer signOut no Amplify:", e);
+    } catch (e: any) {
+      console.warn("⚠️ Erro ao fazer signOut no Amplify:", e.message);
     }
   },
 }));
