@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { fetchAuthSession, signOut as amplifySignOut } from "aws-amplify/auth";
-// ✅ Importa as funções corretas do progressService
-import { getUserById, ensureUserExistsInDB } from "../services/progressService";
+import { getUserById } from "../services/progressService";
 
 export type User = {
   userId: string;
   username: string;
   email: string;
   name?: string;
+  role?: string;
   isAdmin?: boolean;
   coins?: number | null;
   points?: number | null;
@@ -37,18 +37,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const session = await fetchAuthSession();
 
-      // Normalizar sessão
       let idPayload: any = {};
       let accessPayload: any = {};
 
       if ((session as any)?.tokens?.idToken?.payload) {
         idPayload = (session as any).tokens.idToken.payload;
         accessPayload = (session as any).tokens.accessToken?.payload ?? {};
-      } else if (typeof (session as any).getIdToken === "function") {
-        const idToken = (session as any).getIdToken();
-        const accessToken = (session as any).getAccessToken?.();
-        idPayload = idToken?.payload ?? {};
-        accessPayload = accessToken?.payload ?? {};
       } else {
         idPayload = (session as any).idToken ?? {};
         accessPayload = (session as any).accessToken ?? {};
@@ -65,76 +59,126 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         idPayload["cognito:username"] ?? usernameFromEmail ?? ""
       );
       const email = String(emailStr ?? "");
-      const name = String(idPayload.name ?? usernameFromEmail ?? "");
 
-      // Verificar admin
       const groups =
         ((accessPayload["cognito:groups"] ??
           idPayload["cognito:groups"] ??
           []) as string[]) ?? [];
       const isAdmin = Array.isArray(groups) && groups.includes("Admins");
 
-      const baseUser: User = {
-        userId: sub,
-        username,
-        email,
-        name,
-        isAdmin,
-      };
-
       if (!sub) {
         set({ user: null, isLoading: false });
         return;
       }
 
-      // ✅ CORREÇÃO: Usar ensureUserExistsInDB que cria se necessário
       console.log(
-        `[authStore] Logado como ${email} (Admin: ${isAdmin}). Garantindo usuário no DB...`
+        `[authStore] Logado como ${email} (Admin: ${isAdmin}). Buscando no DB...`
       );
 
       let dbUser: any = null;
       try {
-        // ✅ Garante que o usuário existe, criando se necessário
-        dbUser = await ensureUserExistsInDB(sub, email, username, name);
+        // ✅ Simplesmente busca o usuário - não tenta criar automaticamente
+        dbUser = await getUserById(sub);
 
-        if (!dbUser) {
-          console.error(
-            `❌ [authStore] Falha ao garantir usuário no DynamoDB (ID: ${sub})`
+        if (dbUser) {
+          console.log(
+            "✅ [authStore] Usuário encontrado no banco:",
+            dbUser?.name
           );
-          // Usar apenas dados do Cognito como fallback
-          set({ user: baseUser, isLoading: false });
+        } else {
+          console.warn("⚠️ [authStore] Usuário não encontrado no DynamoDB.");
+          console.warn(
+            "💡 [authStore] Por favor, crie o usuário manualmente no DynamoDB ou use a tela de registro de admin."
+          );
+
+          // Define usuário com dados mínimos do Cognito
+          set({
+            user: {
+              userId: sub,
+              username,
+              email,
+              isAdmin,
+              name: usernameFromEmail,
+              role: isAdmin ? "Admins" : "user",
+              coins: 0,
+              points: 0,
+              modulesCompleted: [],
+              currentModule: 1,
+              precision: 0,
+              correctAnswers: 0,
+              wrongAnswers: 0,
+              timeSpent: 0,
+            },
+            isLoading: false,
+          });
           return;
         }
-
-        console.log("✅ [authStore] Usuário garantido no banco:", dbUser?.name);
       } catch (dbError: any) {
         console.warn(
-          "⚠️ [authStore] Erro ao garantir usuário no banco:",
+          "⚠️ [authStore] Erro ao buscar usuário no banco:",
           dbError.message
         );
 
-        // ✅ Fallback: usar dados do Cognito e tentar criar em background
-        set({ user: baseUser, isLoading: false });
-
-        // Tentar criar em background sem bloquear
-        ensureUserExistsInDB(sub, email, username, name).catch((e: Error) =>
-          console.warn("⚠️ [authStore] Erro ao criar usuário em background:", e)
-        );
+        // Se der erro, define com dados mínimos do Cognito
+        set({
+          user: {
+            userId: sub,
+            username,
+            email,
+            isAdmin,
+            name: usernameFromEmail,
+            role: isAdmin ? "Admins" : "user",
+            coins: 0,
+            points: 0,
+            modulesCompleted: [],
+            currentModule: 1,
+            precision: 0,
+            correctAnswers: 0,
+            wrongAnswers: 0,
+            timeSpent: 0,
+          },
+          isLoading: false,
+        });
         return;
       }
 
-      // ✅ Sucesso: combinar dados do Cognito + DynamoDB
+      // ✅ Parse modulesCompleted se vier como string
+      let parsedModules: number[] = [];
+      if (typeof dbUser.modulesCompleted === "string") {
+        try {
+          parsedModules = JSON.parse(dbUser.modulesCompleted);
+        } catch {
+          parsedModules = [];
+        }
+      } else if (Array.isArray(dbUser.modulesCompleted)) {
+        parsedModules = dbUser.modulesCompleted;
+      }
+
+      // ✅ Parse achievements se necessário
+      let parsedAchievements: any[] = [];
+      if (dbUser.achievements?.items) {
+        parsedAchievements = dbUser.achievements.items;
+      } else if (Array.isArray(dbUser.achievements)) {
+        parsedAchievements = dbUser.achievements;
+      }
+
       set({
         user: {
-          ...baseUser,
-          ...dbUser,
-          // Garantir que os dados do Cognito prevaleçam
           userId: sub,
           email: email,
           username: username,
-          name: name,
+          name: dbUser.name ?? usernameFromEmail,
+          role: dbUser.role ?? (isAdmin ? "Admins" : "user"),
           isAdmin: isAdmin,
-          achievements: dbUser?.achievements?.items ?? [],
+          coins: dbUser.coins ?? 0,
+          points: dbUser.points ?? 0,
+          modulesCompleted: parsedModules,
+          currentModule: dbUser.currentModule ?? 1,
+          precision: dbUser.precision ?? 0,
+          correctAnswers: dbUser.correctAnswers ?? 0,
+          wrongAnswers: dbUser.wrongAnswers ?? 0,
+          timeSpent: dbUser.timeSpent ?? 0,
+          achievements: parsedAchievements,
         },
         isLoading: false,
       });
@@ -153,18 +197,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!u) return;
 
       const dbUser = await getUserById(u.userId);
+      if (!dbUser) return;
 
-      if (dbUser) {
-        set({
-          user: {
-            ...u,
-            ...dbUser,
-            achievements: dbUser?.achievements?.items ?? [],
-          },
-        });
+      // ✅ Parse modulesCompleted
+      let parsedModules: number[] = [];
+      if (typeof dbUser.modulesCompleted === "string") {
+        try {
+          parsedModules = JSON.parse(dbUser.modulesCompleted);
+        } catch {
+          parsedModules = [];
+        }
+      } else if (Array.isArray(dbUser.modulesCompleted)) {
+        parsedModules = dbUser.modulesCompleted;
       }
+
+      // ✅ Parse achievements
+      let parsedAchievements: any[] = [];
+      if (dbUser.achievements?.items) {
+        parsedAchievements = dbUser.achievements.items;
+      } else if (Array.isArray(dbUser.achievements)) {
+        parsedAchievements = dbUser.achievements;
+      }
+
+      set((state) => ({
+        user: state.user
+          ? {
+              ...state.user,
+              ...dbUser,
+              modulesCompleted: parsedModules,
+              achievements: parsedAchievements,
+            }
+          : null,
+      }));
     } catch (e: any) {
-      console.warn("⚠️ Erro ao atualizar dados do usuário:", e.message);
+      console.warn("⚠️ Erro ao atualizar dados do usuário:", e);
     }
   },
 
@@ -178,7 +244,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await amplifySignOut({ global: true });
     } catch (e: any) {
-      console.warn("⚠️ Erro ao fazer signOut no Amplify:", e.message);
+      console.warn("⚠️ Erro ao fazer signOut no Amplify:", e);
     }
   },
 }));

@@ -31,7 +31,7 @@ import {
 } from "../../navigation/moduleQuestionTypes";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useAccessibility } from "../../context/AccessibilityProvider";
-import { useProgressStore } from "../../store/progressStore"; // ✅ Importa o store do timer
+import { useProgressStore } from "../../store/progressStore";
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string" || !color.startsWith("#"))
@@ -63,7 +63,6 @@ export default function ModulePreQuizScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  // ✅ Pega a função 'startTimer' do store
   const { startTimer } = useProgressStore();
 
   const { width } = useWindowDimensions();
@@ -86,6 +85,10 @@ export default function ModulePreQuizScreen({
     const data = getQuizByModuleId(numericModuleId);
 
     if (data) {
+      // ======================================================
+      // ✅ CORREÇÃO PONTOS: Define o total de pontos correto
+      // ======================================================
+      data.totalCoins = 12250; // Em vez de 150
       setQuizData(data);
     } else {
       console.error(`[PreQuiz] Quiz para módulo ${moduleId} não encontrado.`);
@@ -107,12 +110,7 @@ export default function ModulePreQuizScreen({
 
   const handleStartQuiz = async () => {
     setCheckingPermission(true);
-
-    // ======================================================
-    // ✅ CORREÇÃO (Bug 2): Inicia o timer ANTES de ir para o quiz
-    // ======================================================
     startTimer();
-
     setTimeout(() => {
       setCheckingPermission(false);
       navigation.navigate("ModuleQuiz", { moduleId });
@@ -158,6 +156,10 @@ export default function ModulePreQuizScreen({
           backgroundColor={theme.background}
         />
         <ScreenHeader title={quizData.title || "Questionário"} />
+
+        {/* ====================================================== */}
+        {/* ✅ CORREÇÃO LAYOUT: Alterado o View principal */}
+        {/* ====================================================== */}
         <View style={styles.centeredContent}>
           <View style={styles.contentContainer}>
             <AccessibleHeader level={1} style={styles.title}>
@@ -201,8 +203,8 @@ export default function ModulePreQuizScreen({
                 style={styles.infoText}
                 accessibilityLabel={`Pontuação Total Possível: ${quizData.totalCoins}.`}
               >
-                {" "}
-                🏆 Pontuação Total: {quizData.totalCoins}{" "}
+                {/* O valor aqui agora será 12250 */} 🏆 Pontuação Total:{" "}
+                {quizData.totalCoins.toLocaleString("pt-BR")}{" "}
               </AccessibleText>
             </AccessibleView>
             <AccessibleView
@@ -226,13 +228,16 @@ export default function ModulePreQuizScreen({
               </AccessibleView>
             )}
           </View>
+          <View style={{ padding: 140 }} />
         </View>
       </AccessibleView>
     </GestureDetector>
   );
 }
 
-// ... (Estilos não mudam) ...
+// ======================================================
+// ✅ CORREÇÃO LAYOUT: Estilos ajustados
+// ======================================================
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -248,10 +253,18 @@ const getStyles = (
     container: {
       flex: 1,
       backgroundColor: theme.background,
-      justifyContent: "center",
+      // justifyContent: "center", // ❌ REMOVIDO
     },
-    centeredContent: { flex: 1, justifyContent: "center" },
-    contentContainer: { padding: 20 },
+    // ✅ centeredContent modificado
+    centeredContent: {
+      flexGrow: 1, // ✅ ALTERADO de flex: 1 (usa flexGrow para preencher)
+      justifyContent: "space-between", // ✅ ALTERADO de 'center' (empurra para topo/baixo)
+      padding: 20, // ✅ ADICIONADO padding
+    },
+    // ❌ contentContainer não precisa mais de padding ou flex
+    contentContainer: {
+      // padding: 20 (REMOVIDO)
+    },
     title: {
       fontSize: responsiveFontSize(22) * fontMultiplier,
       fontWeight: isBold ? "bold" : "bold",

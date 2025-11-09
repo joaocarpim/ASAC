@@ -1,3 +1,4 @@
+// src/screens/admin/AdminUserDetailScreen.tsx (Corrigido)
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -7,14 +8,18 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useFocusEffect } from "@react-navigation/native";
-import { getUserById } from "../../services/progressService";
+import {
+  getUserById,
+  getModuleProgressByUser,
+} from "../../services/progressService";
 import { generateClient } from "aws-amplify/api";
-import { listProgresses } from "../../graphql/queries";
+import { listProgresses as listProgressesQuery } from "../../graphql/queries";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 type StatGridItemProps = {
@@ -38,37 +43,69 @@ export default function AdminUserDetailScreen({
   const { userId, userName } = route.params;
   const [userData, setUserData] = useState<any>(null);
   const [moduleProgress, setModuleProgress] = useState<any[]>([]);
-  const [selectedModule, setSelectedModule] = useState<number | null>(null);
+  const [selectedModule, setSelectedModule] = useState<number>(1);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Estados para os totais (Declarados APENAS AQUI)
+  const [totalCorrect, setTotalCorrect] = useState(0);
+  const [totalWrong, setTotalWrong] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
+  const [totalPrecision, setTotalPrecision] = useState(0);
 
   const fetchUserData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Busca o usuário
+      // 1. Busca os dados estáticos do usuário
       const user = await getUserById(userId);
       console.log("📊 Usuário completo:", user);
       setUserData(user);
 
-      // 2. Busca o progresso
+      // 2. Busca TODOS os registros de progresso
       const client = generateClient();
-      const result: any = await client.graphql({
-        query: listProgresses,
-        variables: {
-          filter: {
-            userId: { eq: userId },
-          },
-        },
-        authMode: "userPool",
-      });
+      let allProgress: any[] = [];
+      let nextToken: string | null = null;
 
-      const progressList = result?.data?.listProgresses?.items || [];
+      do {
+        const result: any = await client.graphql({
+          query: listProgressesQuery,
+          variables: {
+            filter: { userId: { eq: userId } },
+            limit: 1000,
+            nextToken: nextToken,
+          },
+          authMode: "userPool",
+        });
+        const items = result?.data?.listProgresses?.items || [];
+        allProgress.push(...items);
+        nextToken = result?.data?.listProgresses?.nextToken || null;
+      } while (nextToken);
+
       console.log(
-        "📊 Admin Detail - Progresso RAW:",
-        JSON.stringify(progressList, null, 2)
+        "📊 Admin Detail - Progresso RAW (Todas as Tentativas):",
+        allProgress.length
       );
 
-      // ✅ CORREÇÃO: Normalizar com valores REAIS do banco
-      const normalized = progressList.map((p: any) => ({
+      const attemptedProgress = allProgress.filter(
+        (p) => (p.timeSpent ?? 0) > 0
+      );
+
+      // 4. Encontra a tentativa MAIS RECENTE de cada módulo
+      const latestByModule: Record<number, any> = {};
+      attemptedProgress.forEach((p: any) => {
+        const moduleNum = Number(p.moduleNumber ?? 0);
+        if (moduleNum === 0) return;
+        const timestamp = p?.updatedAt || p?.createdAt || 0;
+        const currentTime = new Date(timestamp).getTime();
+        if (
+          !latestByModule[moduleNum] ||
+          currentTime >
+            new Date(latestByModule[moduleNum].updatedAt || 0).getTime()
+        ) {
+          latestByModule[moduleNum] = p;
+        }
+      });
+
+      const latestProgress = Object.values(latestByModule).map((p: any) => ({
         ...p,
         moduleNumber: Number(p.moduleNumber ?? 0),
         correctAnswers: Number(p.correctAnswers ?? 0),
@@ -77,14 +114,42 @@ export default function AdminUserDetailScreen({
         accuracy: Number(p.accuracy ?? 0),
       }));
 
-      console.log("📊 Admin Detail - Progresso normalizado:", normalized);
-      setModuleProgress(normalized);
+      console.log(
+        "📊 Admin Detail - Progresso (Últimas Tentativas):",
+        latestProgress
+      );
+      setModuleProgress(latestProgress);
 
-      if (normalized.length > 0) {
-        setSelectedModule(normalized[0].moduleNumber);
-      } else {
-        setSelectedModule(1);
-      }
+      // 5. Calcula os totais GERAIS com base nessas últimas tentativas
+      const totals = latestProgress.reduce(
+        (acc, p) => {
+          acc.sumCorrect += p.correctAnswers;
+          acc.sumWrong += p.wrongAnswers;
+          acc.sumTime += p.timeSpent;
+          acc.sumAccuracy += p.accuracy;
+          return acc;
+        },
+        { sumCorrect: 0, sumWrong: 0, sumTime: 0, sumAccuracy: 0 }
+      );
+
+      const count = latestProgress.length;
+      const avgAccuracy =
+        count > 0 ? Math.round(totals.sumAccuracy / count) : 0;
+
+      // 6. Define os estados para o "Resumo Geral"
+      setTotalCorrect(totals.sumCorrect);
+      setTotalWrong(totals.sumWrong);
+      setTotalTime(totals.sumTime);
+      setTotalPrecision(avgAccuracy);
+
+      console.log("📊 Estatísticas Gerais (Calculadas):", {
+        totalCorrect: totals.sumCorrect,
+        totalWrong: totals.sumWrong,
+        totalTime: totals.sumTime,
+        avgAccuracy,
+      });
+
+      setSelectedModule(1);
     } catch (error) {
       console.error("❌ Erro ao buscar dados do usuário:", error);
       setModuleProgress([]);
@@ -105,14 +170,27 @@ export default function AdminUserDetailScreen({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleResetPassword = () => {
+    Alert.alert(
+      "Redefinir Senha",
+      `Isso enviará um email de redefinição de senha para ${userData.email}. Você tem certeza?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sim, redefinir",
+          onPress: () =>
+            console.log("Lógica de redefinir senha ainda não implementada"),
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
         <ScreenHeader title={userName} />
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#191970" />
         </View>
       </View>
@@ -124,9 +202,7 @@ export default function AdminUserDetailScreen({
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
         <ScreenHeader title={userName} />
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View style={styles.loadingContainer}>
           <Text style={{ color: "#191970", fontSize: 16 }}>
             Usuário não encontrado
           </Text>
@@ -135,40 +211,27 @@ export default function AdminUserDetailScreen({
     );
   }
 
-  // ✅ CORREÇÃO: Lê os tipos corretos
   const modulesCompleted = Array.isArray(userData.modulesCompleted)
     ? userData.modulesCompleted
     : [];
 
-  // ✅ CORREÇÃO: Pega os dados DO MÓDULO SELECIONADO
   const selectedModuleData = moduleProgress.find(
     (m) => m.moduleNumber === selectedModule
   );
 
-  console.log(`📊 Dados do módulo ${selectedModule}:`, selectedModuleData);
-
-  // ✅ CORREÇÃO: Se não houver dados, mostrar 0
   const moduleCorrect = selectedModuleData?.correctAnswers ?? 0;
   const moduleWrong = selectedModuleData?.wrongAnswers ?? 0;
   const moduleTime = selectedModuleData?.timeSpent ?? 0;
-  const moduleTotalAnswers = moduleCorrect + moduleWrong;
-  const modulePrecision =
-    moduleTotalAnswers > 0
-      ? Math.round((moduleCorrect / moduleTotalAnswers) * 100)
-      : 0;
+  const modulePrecision = selectedModuleData?.accuracy ?? 0;
 
-  // ✅ CORREÇÃO: Estatísticas GERAIS vêm da tabela User
-  const totalCorrect = Number(userData.correctAnswers ?? 0);
-  const totalWrong = Number(userData.wrongAnswers ?? 0);
-  const totalTime = Number(userData.timeSpent ?? 0);
-  const totalPrecision = Number(userData.precision ?? 0);
-
-  console.log("📊 Estatísticas Gerais:", {
-    totalCorrect,
-    totalWrong,
-    totalTime,
-    totalPrecision,
-  });
+  // ======================================================
+  // ✅ CORREÇÃO: As 4 linhas abaixo foram REMOVIDAS
+  // não precisamos redeclará-las, pois elas já existem como 'useState'
+  // ======================================================
+  // const totalCorrect = ... (REMOVIDO)
+  // const totalWrong = ... (REMOVIDO)
+  // const totalTime = ... (REMOVIDO)
+  // const totalPrecision = ... (REMOVIDO)
 
   return (
     <View style={styles.container}>
@@ -178,18 +241,24 @@ export default function AdminUserDetailScreen({
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Email</Text>
-              <Text style={styles.cardValue}>{userData.email || "N/A"}</Text>
+            <View style={[styles.cardColumn, { flex: 2 }]}>
+              <Text style={styles.cardLabel}>Nome</Text>
+              <Text style={styles.cardValue}>{userData.name || "N/A"}</Text>
             </View>
             <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>ID</Text>
+              <Text style={styles.cardLabel}>Role</Text>
+              <Text style={styles.cardValue}>{userData.role || "user"}</Text>
+            </View>
+          </View>
+          <View style={[styles.cardRow, { marginBottom: 0 }]}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Email</Text>
               <Text
                 style={styles.cardValue}
                 numberOfLines={1}
                 ellipsizeMode="middle"
               >
-                {userData.id?.substring(0, 8) || "N/A"}
+                {userData.email || "N/A"}
               </Text>
             </View>
           </View>
@@ -258,25 +327,29 @@ export default function AdminUserDetailScreen({
 
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>
-            Estatísticas Gerais (Todos os Módulos)
+            Estatísticas Gerais (Baseado na última tentativa)
           </Text>
           <View style={styles.cardRow}>
             <View style={styles.cardColumn}>
               <Text style={styles.cardLabel}>Total Acertos</Text>
+              {/* ✅ CORREÇÃO: Usa a variável de estado */}
               <Text style={styles.cardValue}>{totalCorrect}</Text>
             </View>
             <View style={styles.cardColumn}>
               <Text style={styles.cardLabel}>Total Erros</Text>
+              {/* ✅ CORREÇÃO: Usa a variável de estado */}
               <Text style={styles.cardValue}>{totalWrong}</Text>
             </View>
           </View>
           <View style={styles.cardRow}>
             <View style={styles.cardColumn}>
               <Text style={styles.cardLabel}>Tempo Total</Text>
+              {/* ✅ CORREÇÃO: Usa a variável de estado */}
               <Text style={styles.cardValue}>{formatTime(totalTime)}</Text>
             </View>
             <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Precisão Total</Text>
+              <Text style={styles.cardLabel}>Precisão Média</Text>
+              {/* ✅ CORREÇÃO: Usa a variável de estado */}
               <Text style={styles.cardValue}>{totalPrecision}%</Text>
             </View>
           </View>
@@ -292,7 +365,7 @@ export default function AdminUserDetailScreen({
               </Text>
             </View>
           </View>
-          <View style={styles.cardRow}>
+          <View style={[styles.cardRow, { marginBottom: 0 }]}>
             <View style={styles.cardColumn}>
               <Text style={styles.cardLabel}>Módulos Concluídos</Text>
               <Text style={styles.cardValue}>{modulesCompleted.length}/3</Text>
@@ -306,7 +379,10 @@ export default function AdminUserDetailScreen({
           <TouchableOpacity
             style={styles.errorButton}
             onPress={() =>
-              navigation.navigate("AdminIncorrectAnswers", { userId })
+              navigation.navigate("AdminIncorrectAnswers", {
+                userId,
+                moduleNumber: selectedModule,
+              })
             }
           >
             <MaterialCommunityIcons
@@ -314,8 +390,23 @@ export default function AdminUserDetailScreen({
               size={28}
               color="#FFFFFF"
             />
-            <Text style={styles.statValue}>Ver Erros</Text>
+            <Text style={styles.statValue}>
+              Ver Erros (Módulo {selectedModule})
+            </Text>
             <Text style={styles.statLabel}>Detalhes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.passwordButton}
+            onPress={handleResetPassword}
+          >
+            <MaterialCommunityIcons
+              name="lock-reset"
+              size={28}
+              color="#FFFFFF"
+            />
+            <Text style={styles.statValue}>Redefinir Senha</Text>
+            <Text style={styles.statLabel}>Enviar email de redefinição</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -323,8 +414,10 @@ export default function AdminUserDetailScreen({
   );
 }
 
+// ... Estilos (não mudam) ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0EFEA" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
   card: {
     backgroundColor: "#191970",
@@ -337,7 +430,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 15,
   },
-  cardColumn: { flex: 1 },
+  cardColumn: { flex: 1, paddingRight: 10 },
   cardLabel: { color: "#CCCCCC", fontSize: 14, marginBottom: 4 },
   cardValue: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
   cardSectionTitle: {
@@ -405,5 +498,13 @@ const styles = StyleSheet.create({
     width: "100%",
     padding: 15,
     alignItems: "center",
+  },
+  passwordButton: {
+    backgroundColor: "#007AFF",
+    borderRadius: 12,
+    width: "100%",
+    padding: 15,
+    alignItems: "center",
+    marginTop: 10,
   },
 });

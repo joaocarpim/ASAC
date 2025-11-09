@@ -1,4 +1,4 @@
-// src/screens/main/IncorrectAnswersScreen.tsx (MELHORADO)
+// src/screens/main/IncorrectAnswersScreen.tsx (CORRIGIDO)
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
@@ -22,7 +22,7 @@ import { Theme } from "../../types/contrast";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useSettings } from "../../hooks/useSettings";
 import { useAuthStore } from "../../store/authStore";
-import { getModuleProgressByUser } from "../../services/progressService";
+import progressService from "../../services/progressService"; // Corrigido para import default
 import { RootStackParamList } from "../../navigation/types";
 import {
   Gesture,
@@ -105,7 +105,7 @@ const IncorrectAnswerCard = ({
         }),
       ])
     ).start();
-  }, []);
+  }, [slideAnim, fadeAnim, index, pulseAnim]); // Adicionadas dependências
 
   const questionNum = item.questionNumber.toString().split("-").pop() || "?";
 
@@ -142,7 +142,7 @@ const IncorrectAnswerCard = ({
             <MaterialCommunityIcons
               name="help-circle-outline"
               size={20}
-              color={theme.text}
+              color={theme.text} // Ajustado para theme.text
               style={styles.sectionIcon}
             />
             <Text style={styles.questionText}>{item.questionText}</Text>
@@ -232,7 +232,11 @@ export default function IncorrectAnswersScreen({
     }
     setLoading(true);
     try {
-      const progress = await getModuleProgressByUser(user.userId, moduleNumber);
+      // Corrigido para usar a importação default
+      const progress = await progressService.getModuleProgressByUser(
+        user.userId,
+        moduleNumber
+      );
 
       if (progress && progress.errorDetails) {
         const errors = (
@@ -275,7 +279,7 @@ export default function IncorrectAnswersScreen({
     } finally {
       setLoading(false);
     }
-  }, [user?.userId, moduleNumber]);
+  }, [user?.userId, moduleNumber, headerFadeAnim, headerScaleAnim]); // Adicionadas dependências
 
   useFocusEffect(
     useCallback(() => {
@@ -442,7 +446,8 @@ const createStyles = (
       shadowRadius: 5,
     },
     cardHeader: {
-      backgroundColor: "#FFEBEE",
+      // ✅ CORREÇÃO AQUI
+      backgroundColor: theme.background, // Trocado de "#FFEBEE" para theme.background
       padding: 16,
       flexDirection: "row",
       alignItems: "center",
@@ -458,7 +463,7 @@ const createStyles = (
       elevation: 2,
     },
     questionNumber: {
-      color: "#FFFFFF",
+      color: "#FFFFFF", // Mantido como branco para contrastar com o badge vermelho
       fontSize: 20 * fontMultiplier,
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -500,11 +505,13 @@ const createStyles = (
       borderWidth: 2,
     },
     wrongAnswerBox: {
-      backgroundColor: "#FFEBEE",
+      // ✅ CORREÇÃO AQUI
+      backgroundColor: theme.background, // Trocado de "#FFEBEE" para theme.background
       borderColor: "#F44336",
     },
     correctAnswerBox: {
-      backgroundColor: "#E8F5E9",
+      // ✅ CORREÇÃO AQUI
+      backgroundColor: theme.background, // Trocado de "#E8F5E9" para theme.background
       borderColor: "#4CAF50",
     },
     answerHeader: {
@@ -516,19 +523,19 @@ const createStyles = (
     answerLabel: {
       fontSize: 12 * fontMultiplier,
       fontWeight: "bold",
-      color: theme.text,
+      color: theme.text, // Corrigido para theme.text para garantir visibilidade
       opacity: 0.7,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     userAnswer: {
       fontSize: 15 * fontMultiplier,
-      color: "#C62828",
+      color: "#C62828", // Mantido como cor semântica de erro
       fontWeight: "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     correctAnswer: {
       fontSize: 15 * fontMultiplier,
-      color: "#2E7D32",
+      color: "#2E7D32", // Mantido como cor semântica de acerto
       fontWeight: "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },

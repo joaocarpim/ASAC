@@ -1,10 +1,9 @@
 /* progressService.ts
-   VERSÃO 4.1 (Com ensureUserExistsInDB, registerCorrect/Wrong e finishModule corrigidos)
+   VERSÃO 6.0 - Mutation Customizada para Criar Progress
 */
 import { generateClient } from "aws-amplify/api";
 import { Amplify } from "aws-amplify";
 import awsconfig from "../aws-exports";
-// Importa as queries GERADAS
 import {
   getUser,
   listUsers,
@@ -14,13 +13,33 @@ import {
 import {
   updateUser as updateUserMutation,
   updateProgress as updateProgressMutation,
-  createProgress as createProgressMutation,
   createAchievement as createAchievementMutation,
-  createUser as createUserMutation, // ✅ ADICIONADO
+  createUser as createUserMutation,
 } from "../graphql/mutations";
 
 Amplify.configure(awsconfig);
 const client = generateClient();
+
+// ✅ MUTATION CUSTOMIZADA - NÃO RETORNA USER E MODULE
+const CREATE_PROGRESS_SIMPLE = /* GraphQL */ `
+  mutation CreateProgressSimple($input: CreateProgressInput!) {
+    createProgress(input: $input) {
+      id
+      userId
+      moduleId
+      moduleNumber
+      accuracy
+      correctAnswers
+      wrongAnswers
+      timeSpent
+      completed
+      completedAt
+      errorDetails
+      createdAt
+      updatedAt
+    }
+  }
+`;
 
 export type ErrorDetail = {
   questionId: string;
@@ -30,7 +49,7 @@ export type ErrorDetail = {
 };
 
 // =========================================
-// === Funções de Ajuda (Helpers) ===
+// === Funções de Ajuda ===
 // =========================================
 
 function normalizeErrorDetails(value: any): ErrorDetail[] {
@@ -58,7 +77,7 @@ function stringifyErrorDetails(value: any): string {
 }
 
 // =========================================
-// === Funções de Serviço (Exportadas) ===
+// === Funções de Serviço ===
 // =========================================
 
 export const getUserById = async (userId: string) => {
@@ -127,7 +146,6 @@ export const getUserById = async (userId: string) => {
   }
 };
 
-// ✅ NOVA FUNÇÃO: Cria usuário no DynamoDB
 export const createUserInDB = async (
   userId: string,
   email: string,
@@ -142,11 +160,11 @@ export const createUserInDB = async (
 
   try {
     const input = {
-      id: userId, // ✅ Campo 'id' (não 'userId')
+      id: userId,
       email,
       username: username || email.split("@")[0],
       name: name || username || email.split("@")[0],
-      role: "user", // ✅ ADICIONADO: Campo obrigatório
+      role: "user",
       coins: 0,
       points: 0,
       precision: 0,
@@ -177,7 +195,6 @@ export const createUserInDB = async (
   }
 };
 
-// ✅ NOVA FUNÇÃO: Garante que usuário existe no DynamoDB
 export const ensureUserExistsInDB = async (
   userId: string,
   email?: string,
@@ -187,21 +204,16 @@ export const ensureUserExistsInDB = async (
   console.log(`[progressService] 🔍 ensureUserExistsInDB para: ${userId}`);
 
   try {
-    // 1. Tentar buscar usuário existente
     const existingUser = await getUserById(userId);
-
     if (existingUser) {
       console.log(`[progressService] ✅ Usuário já existe no banco`);
       return existingUser;
     }
 
-    // 2. Se não existe, criar
     console.log(`[progressService] 🆕 Usuário não existe, criando...`);
-
     if (!email) {
       throw new Error("Email é necessário para criar um novo usuário");
     }
-
     const newUser = await createUserInDB(userId, email, username, name);
     return newUser;
   } catch (error: any) {
@@ -226,23 +238,26 @@ export const getModuleProgressByUser = async (
       authMode: "userPool",
     });
     const progressList = result?.data?.listProgresses?.items || [];
-    const remoteProgress = progressList[0];
-    if (remoteProgress) {
-      remoteProgress.errorDetails = normalizeErrorDetails(
-        remoteProgress.errorDetails
-      );
-      return remoteProgress;
+
+    if (progressList.length === 0) {
+      return null;
     }
-    return null;
+
+    const sorted = progressList.sort((a: any, b: any) => {
+      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    const mostRecent = sorted[0];
+    mostRecent.errorDetails = normalizeErrorDetails(mostRecent.errorDetails);
+    return mostRecent;
   } catch (error) {
     console.error("❌ Erro ao buscar getModuleProgressByUser:", error);
     return null;
   }
 };
 
-/**
- * Busca um ÚNICO registro de progresso pelo seu ID
- */
 export const getProgressById = async (progressId: string) => {
   try {
     const result: any = await client.graphql({
@@ -261,20 +276,17 @@ export const getProgressById = async (progressId: string) => {
   }
 };
 
+// ✅ FUNÇÃO PRINCIPAL CORRIGIDA
 export const ensureModuleProgress = async (
   userId: string,
   moduleId: string | number,
   moduleNumber?: number
 ) => {
-  const existing = await getModuleProgressByUser(userId, moduleId);
-  if (existing) {
-    console.log("✅ Progresso encontrado no GraphQL");
-    return existing;
-  }
-  console.log("⚠️ Progresso não encontrado, criando...");
+  console.log("⚠️ Criando novo registro de progresso para esta tentativa...");
   const mid = String(moduleId);
   const computedModuleNumber = (moduleNumber ?? Number(mid)) || 0;
-  const input = {
+
+  const input: any = {
     userId,
     moduleId: mid,
     moduleNumber: computedModuleNumber,
@@ -283,26 +295,44 @@ export const ensureModuleProgress = async (
     wrongAnswers: 0,
     timeSpent: 0,
     completed: false,
-    completedAt: null,
-    errorDetails: "[]",
   };
+
   try {
+    console.log(
+      "🔍 Criando progresso (mutation customizada):",
+      JSON.stringify(input, null, 2)
+    );
+
+    // ✅ USA A MUTATION CUSTOMIZADA
     const result: any = await client.graphql({
-      query: createProgressMutation,
+      query: CREATE_PROGRESS_SIMPLE,
       variables: { input },
       authMode: "userPool",
     });
+
     const newProgress = result.data?.createProgress;
+
     if (newProgress) {
-      console.log("✅ Progresso criado no GraphQL");
+      console.log("✅ Progresso criado com sucesso:", newProgress.id);
       newProgress.errorDetails = normalizeErrorDetails(
         newProgress.errorDetails
       );
       return newProgress;
     }
+
+    console.error("❌ createProgress retornou null");
     return null;
-  } catch (error) {
-    console.error("❌ Erro ao criar createModuleProgress:", error);
+  } catch (error: any) {
+    console.error("❌ ERRO FATAL ao criar progresso:", error);
+
+    if (error.errors) {
+      console.error("📋 Detalhes dos erros GraphQL:");
+      error.errors.forEach((err: any, idx: number) => {
+        console.error(`  ${idx + 1}. ${err.message}`);
+        if (err.path) console.error(`     Path: ${err.path.join(".")}`);
+      });
+    }
+
     return null;
   }
 };
@@ -318,9 +348,16 @@ export const updateModuleProgress = async (input: {
   errorDetails?: ErrorDetail[] | string;
 }) => {
   const gqlInput: any = { ...input };
-  if (gqlInput.errorDetails) {
-    gqlInput.errorDetails = stringifyErrorDetails(gqlInput.errorDetails);
+
+  if (gqlInput.errorDetails !== undefined) {
+    if (
+      Array.isArray(gqlInput.errorDetails) ||
+      typeof gqlInput.errorDetails === "object"
+    ) {
+      gqlInput.errorDetails = stringifyErrorDetails(gqlInput.errorDetails);
+    }
   }
+
   try {
     const result: any = await client.graphql({
       query: updateProgressMutation,
@@ -329,8 +366,12 @@ export const updateModuleProgress = async (input: {
     });
     console.log("✅ Progress atualizado no GraphQL");
     return result.data?.updateProgress;
-  } catch (error) {
+  } catch (error: any) {
     console.warn("⚠️ Falha ao atualizar progress:", error);
+    if (error.errors) {
+      console.error("📋 Erros de atualização:");
+      error.errors.forEach((err: any) => console.error(`  - ${err.message}`));
+    }
     return null;
   }
 };
@@ -392,7 +433,13 @@ export const registerWrong = async (
 
     const newWrongCount = (progress.wrongAnswers ?? 0) + 1;
     const existingErrors = normalizeErrorDetails(progress.errorDetails);
-    const newErrorDetails = [...existingErrors, errorDetail];
+
+    const hasError = existingErrors.some(
+      (e) => e.questionId === errorDetail.questionId
+    );
+    const newErrorDetails = hasError
+      ? existingErrors
+      : [...existingErrors, errorDetail];
 
     await updateModuleProgress({
       id: progressId,
@@ -425,45 +472,83 @@ export const finishModule = async (
     if (!user) throw new Error("Usuário não encontrado");
     console.log("👤 Dados atuais do usuário:", user);
 
+    const oldProgress = await getModuleProgressByUser(
+      userId,
+      String(moduleNumber)
+    );
+
+    let oldCorrect = 0;
+    let oldWrong = 0;
+    let oldTime = 0;
+
+    if (oldProgress && oldProgress.id !== progressId) {
+      oldCorrect = oldProgress.correctAnswers ?? 0;
+      oldWrong = oldProgress.wrongAnswers ?? 0;
+      oldTime = oldProgress.timeSpent ?? 0;
+      console.log(
+        `📊 Dados Antigos Módulo ${moduleNumber} (ID: ${oldProgress.id}): ${oldCorrect} acertos, ${oldWrong} erros, ${oldTime}s`
+      );
+    } else {
+      console.log(
+        `📊 Esta é a primeira tentativa registrada para o Módulo ${moduleNumber}`
+      );
+    }
+
     const totalAnswered = correctCount + wrongCount;
     const accuracyNow =
       totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+    const isCompleted = accuracyNow >= 70;
 
-    console.log("📊 Atualizando progresso final do módulo...");
+    console.log(
+      `📊 Atualizando progresso final do módulo (ID: ${progressId})...`
+    );
     await updateModuleProgress({
       id: progressId,
-      completed: true,
-      timeSpent,
+      completed: isCompleted,
+      timeSpent: timeSpent,
       correctAnswers: correctCount,
       wrongAnswers: wrongCount,
-      accuracy: accuracyNow, // ✅ Salva a precisão DESTE módulo
+      accuracy: accuracyNow,
       completedAt: new Date().toISOString(),
       errorDetails: errorDetails,
     });
 
-    // Calcula os totais GERAIS (acumulados)
-    const totalCorrect = (user.correctAnswers ?? 0) + correctCount;
-    const totalWrong = (user.wrongAnswers ?? 0) + wrongCount;
+    const totalCorrect = (user.correctAnswers ?? 0) - oldCorrect + correctCount;
+    const totalWrong = (user.wrongAnswers ?? 0) - oldWrong + wrongCount;
+    const totalTimeSpent = (user.timeSpent ?? 0) - oldTime + timeSpent;
+
     const totalAnswers = totalCorrect + totalWrong;
-    const newPrecision = // Precisão GERAL
+    const newPrecision =
       totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0;
-    const totalTimeSpent = (user.timeSpent ?? 0) + timeSpent;
 
-    const updatedModules = Array.from(
-      new Set([...(user.modulesCompleted ?? []), moduleNumber])
-    ).sort((a: number, b: number) => a - b);
+    let updatedModules: number[] = Array.isArray(user.modulesCompleted)
+      ? user.modulesCompleted.filter(
+          (n: number | null): n is number => typeof n === "number"
+        )
+      : [];
 
-    const newPoints = (user.points ?? 0) + 12250;
-    const newCoins = (user.coins ?? 0) + coinsEarned;
+    if (isCompleted && !updatedModules.includes(moduleNumber)) {
+      updatedModules.push(moduleNumber);
+    }
+    updatedModules = [...new Set(updatedModules)].sort(
+      (a: number, b: number) => a - b
+    );
+
+    const newPoints = isCompleted
+      ? (user.points ?? 0) + 12250
+      : (user.points ?? 0);
+    const newCoins = isCompleted
+      ? (user.coins ?? 0) + coinsEarned
+      : (user.coins ?? 0);
 
     console.log("📊 Novos valores GERAIS:", {
       newPoints,
       newCoins,
       totalCorrect,
       totalWrong,
+      totalTimeSpent,
     });
 
-    // ✅ Envia todos os totais para a tabela User
     const updatePayload = {
       id: userId,
       modulesCompleted: updatedModules,
@@ -473,13 +558,15 @@ export const finishModule = async (
       timeSpent: totalTimeSpent,
       coins: newCoins,
       points: newPoints,
-      currentModule: Math.min(moduleNumber + 1, 99),
+      currentModule: Math.max(
+        user.currentModule ?? 1,
+        updatedModules.length + 1
+      ),
     };
 
     const updateResult = await updateUser(updatePayload);
 
-    // ✅ Cria a conquista se passou (70%+)
-    if (accuracyNow >= 70) {
+    if (isCompleted) {
       try {
         await createAchievement(userId, achievementTitle, moduleNumber);
       } catch (err) {
@@ -531,7 +618,7 @@ export const getAllUsers = async () => {
     console.log(`✅ ${users.length} usuários encontrados.`);
     return users;
   } catch (error) {
-    console.error("❌ Erro ao buscar getAllUsers:", error);
+    console.error("❌ Erro ao buscar usuários:", error);
     return [];
   }
 };

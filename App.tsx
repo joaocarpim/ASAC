@@ -1,5 +1,4 @@
 // App.tsx (Corrigido)
-
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
 import awsmobile from "./src/aws-exports";
@@ -15,7 +14,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
 import {
   NavigationContainer,
-  DefaultTheme,
   useNavigationContainerRef,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -65,12 +63,17 @@ import ModuleContentScreen from "./src/screens/module/ModuleContentScreen";
 import ModulePreQuizScreen from "./src/screens/module/ModulePreQuizScreen";
 import ModuleQuizScreen from "./src/screens/module/ModuleQuizScreen";
 import ModuleResultScreen from "./src/screens/module/ModuleResultScreen";
-import BrailleScreen from "./src/screens/module/BrailleScreen";
-import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen";
 import LearningPathScreen from "./src/screens/session/LearningPathScreen";
 import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
-// ✅ ADICIONE ESTA LINHA:
 import IncorrectAnswersScreen from "./src/screens/main/IncorrectAnswersScreen";
+
+// ✅ 1. IMPORTAR AS NOVAS TELAS
+import AlphabetSectionsScreen from "./src/screens/session/AlphabetSectionsScreen";
+import AlphabetLessonScreen from "./src/screens/session/AlphabetLessonScreen";
+
+// ❌ REMOVA OS IMPORTS ANTIGOS
+// import BrailleScreen from "./src/screens/module/BrailleScreen";
+// import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen";
 
 // Telas Admin
 import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
@@ -81,23 +84,17 @@ import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen
 function AppNavigation() {
   const { theme } = useContrastTheme();
   const { user, isLoading, checkUser, signOut } = useAuthStore();
-  const { panResponder, magnifier, magnifierPanResponder, clearAllElements } =
-    useAccessibility();
+  const { panResponder, magnifier, magnifierPanResponder } = useAccessibility();
   const viewShotRef = useRef<ViewShot>(null);
   const navigationRef = useNavigationContainerRef();
-  const [currentRouteName, setCurrentRouteName] = useState<
-    string | undefined
-  >();
 
   useEffect(() => {
     checkUser();
-
     const sub = Hub.listen("auth", ({ payload }: { payload: any }) => {
       if (payload.event === "signedIn" || payload.event === "tokenRefresh")
         checkUser();
       if (payload.event === "signedOut") signOut();
     });
-
     return () => sub();
   }, [checkUser, signOut]);
 
@@ -114,7 +111,6 @@ function AppNavigation() {
   return (
     <View style={[styles.fullscreen, { backgroundColor: theme.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={theme.background} />
-
       <ViewShot
         ref={viewShotRef}
         style={{ flex: 1 }}
@@ -126,12 +122,7 @@ function AppNavigation() {
             ? magnifierPanResponder.panHandlers
             : panResponder.panHandlers)}
         >
-          <NavigationContainer
-            ref={navigationRef}
-            onReady={() =>
-              setCurrentRouteName(navigationRef.getCurrentRoute()?.name)
-            }
-          >
+          <NavigationContainer ref={navigationRef}>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               {!user ? (
                 <>
@@ -212,14 +203,9 @@ function AppNavigation() {
                     component={ModuleResultScreen}
                   />
                   <Stack.Screen
-                    name="Alphabet"
-                    component={BrailleAlphabetScreen}
-                  />
-                  <Stack.Screen
                     name="Contrast"
                     component={SelectedContrastScreen}
                   />
-                  <Stack.Screen name="Braille" component={BrailleScreen} />
                   <Stack.Screen
                     name="LearningPath"
                     component={LearningPathScreen}
@@ -228,11 +214,23 @@ function AppNavigation() {
                     name="BraillePractice"
                     component={BraillePracticeScreen}
                   />
-
-                  {/* ✅ ADICIONE ESTA LINHA: */}
                   <Stack.Screen
                     name="IncorrectAnswers"
                     component={IncorrectAnswersScreen}
+                  />
+
+                  {/* ❌ 2. REMOVA AS TELAS ANTIGAS DAQUI */}
+                  {/* <Stack.Screen name="Alphabet" component={BrailleAlphabetScreen}/> */}
+                  {/* <Stack.Screen name="Braille" component={BrailleScreen} /> */}
+
+                  {/* ✅✅✅ 3. ADICIONE AS NOVAS TELAS AQUI ✅✅✅ */}
+                  <Stack.Screen
+                    name="AlphabetSections"
+                    component={AlphabetSectionsScreen}
+                  />
+                  <Stack.Screen
+                    name="AlphabetLesson"
+                    component={AlphabetLessonScreen}
                   />
                 </>
               )}

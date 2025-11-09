@@ -1,3 +1,4 @@
+// src/screens/admin/AdminIncorrectAnswersScreen.tsx (Corrigido)
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -6,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
   ActivityIndicator,
+  ColorValue,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
@@ -13,11 +15,14 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useFocusEffect } from "@react-navigation/native";
 import { generateClient } from "aws-amplify/api";
 import { listProgresses } from "../../graphql/queries";
+import { useContrast } from "../../hooks/useContrast"; // ✅ Importa o hook de contraste
+import { Theme } from "../../types/contrast";
+import { useSettings } from "../../hooks/useSettings"; // ✅ Importa o hook de acessibilidade
 
 type IncorrectAnswer = {
   id: string;
   moduleNumber?: number;
-  questionNumber: number;
+  questionNumber: string;
   questionText: string;
   userAnswer: string;
   correctAnswer: string;
@@ -25,19 +30,35 @@ type IncorrectAnswer = {
 
 type IncorrectAnswerCardProps = {
   item: IncorrectAnswer;
+  styles: ReturnType<typeof createStyles>; // ✅ Passa os estilos
 };
 
-const IncorrectAnswerCard = ({ item }: IncorrectAnswerCardProps) => (
+// ✅ Função helper para o StatusBar
+function isColorDark(color: ColorValue | undefined): boolean {
+  if (!color || typeof color !== "string" || !color.startsWith("#"))
+    return false;
+  const hex = color.replace("#", "");
+  if (hex.length !== 6) return false;
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance < 149;
+}
+
+const IncorrectAnswerCard = ({ item, styles }: IncorrectAnswerCardProps) => (
   <View style={styles.card}>
     <View style={styles.cardHeader}>
-      <Text style={styles.questionNumber}>{item.questionNumber}</Text>
+      <Text style={styles.questionNumber}>
+        {item.questionNumber.toString().split("-").pop() || "?"}
+      </Text>
       <Text style={styles.questionText}>
         {item.moduleNumber ? `(Mód ${item.moduleNumber}) ` : ""}
         {item.questionText}
       </Text>
     </View>
     <View style={styles.answerContainer}>
-      <Text style={styles.label}>Sua resposta:</Text>
+      <Text style={styles.label}>Resposta do usuário:</Text>
       <Text style={styles.userAnswer}>{item.userAnswer}</Text>
       <Text style={styles.label}>Resposta correta:</Text>
       <Text style={styles.correctAnswer}>{item.correctAnswer}</Text>
@@ -48,71 +69,88 @@ const IncorrectAnswerCard = ({ item }: IncorrectAnswerCardProps) => (
 export default function AdminIncorrectAnswersScreen({
   route,
 }: RootStackScreenProps<"AdminIncorrectAnswers">) {
-  const { userId } = route.params;
+  // ======================================================
+  // ✅ CORREÇÃO (Bug 1): Recebe o moduleNumber
+  // ======================================================
+  const { userId, moduleNumber } = route.params;
   const [incorrectAnswers, setIncorrectAnswers] = useState<IncorrectAnswer[]>(
     []
   );
   const [loading, setLoading] = useState(true);
+
+  // ======================================================
+  // ✅ Hooks de Acessibilidade e Tema Adicionados
+  // ======================================================
+  const { theme } = useContrast();
+  const {
+    fontSizeMultiplier,
+    isBoldTextEnabled,
+    lineHeightMultiplier,
+    letterSpacing,
+    isDyslexiaFontEnabled,
+  } = useSettings();
+
+  const styles = createStyles(
+    theme,
+    fontSizeMultiplier,
+    isBoldTextEnabled,
+    lineHeightMultiplier,
+    letterSpacing,
+    isDyslexiaFontEnabled
+  );
+
+  const statusBarStyle = isColorDark(theme.background)
+    ? "light-content"
+    : "dark-content";
+  // ======================================================
 
   const fetchIncorrectAnswers = useCallback(async () => {
     setLoading(true);
     try {
       const client = generateClient();
 
+      // ======================================================
+      // ✅ CORREÇÃO (Bug 1): Busca apenas o módulo selecionado
+      // ======================================================
       const result: any = await client.graphql({
         query: listProgresses,
         variables: {
           filter: {
             userId: { eq: userId },
+            moduleNumber: { eq: moduleNumber }, // Filtra pelo módulo
           },
         },
         authMode: "userPool",
       });
 
       const progressList = result?.data?.listProgresses?.items || [];
-
       console.log(
-        "📊 Admin Errors: Raw progress list:",
+        `📊 Admin Errors: Raw progress list (Módulo ${moduleNumber}):`,
         JSON.stringify(progressList, null, 2)
       );
 
       const aggregatedErrors: IncorrectAnswer[] = [];
 
       progressList.forEach((progress: any) => {
-        const moduleNumber = Number(progress.moduleNumber ?? 0);
         const errorData = progress.errorDetails;
-
-        console.log(`🔍 Processando Módulo ${moduleNumber}:`);
-        console.log(
-          `  📦 errorDetails (tipo: ${typeof errorData}):`,
-          errorData
-        );
 
         if (!errorData) {
           console.log(
-            `  ⚠️ Módulo ${moduleNumber}: errorDetails é null/undefined`
+            `  ⚠️ Módulo ${moduleNumber}: errorDetails é null/undefined`
           );
           return;
         }
 
         let errors: any[] = [];
-
-        // ✅ CORREÇÃO: Parse mais robusto
         if (typeof errorData === "string") {
-          // Pode ser string JSON ou string vazia
           if (errorData.trim() === "" || errorData === "[]") {
-            console.log(`  ⚠️ Módulo ${moduleNumber}: errorDetails vazio`);
             return;
           }
           try {
             const parsed = JSON.parse(errorData);
-            if (Array.isArray(parsed)) {
-              errors = parsed;
-            } else if (parsed && typeof parsed === "object") {
-              errors = [parsed];
-            }
+            errors = Array.isArray(parsed) ? parsed : [parsed];
           } catch (e) {
-            console.warn(`  ⚠️ errorDetails não é JSON válido:`, e);
+            console.warn(`  ⚠️ errorDetails não é JSON válido:`, e);
             return;
           }
         } else if (Array.isArray(errorData)) {
@@ -121,11 +159,9 @@ export default function AdminIncorrectAnswersScreen({
           errors = [errorData];
         }
 
-        // ✅ Filtra erros vazios
         errors = errors.filter((err) => err && typeof err === "object");
-
         console.log(
-          `  ✅ Módulo ${moduleNumber}: ${errors.length} erros encontrados`,
+          `  ✅ Módulo ${moduleNumber}: ${errors.length} erros encontrados`,
           errors
         );
 
@@ -133,7 +169,7 @@ export default function AdminIncorrectAnswersScreen({
           aggregatedErrors.push({
             id: `${progress.id}-${idx}`,
             moduleNumber,
-            questionNumber: err.questionNumber ?? err.questionId ?? idx + 1,
+            questionNumber: err.questionId ?? `${idx + 1}`, // ✅ Usa o ID da questão
             questionText:
               err.questionText ?? err.question ?? "Pergunta não disponível",
             userAnswer:
@@ -144,12 +180,15 @@ export default function AdminIncorrectAnswersScreen({
         });
       });
 
-      // Ordenar por módulo e questão
+      // Ordena pelos números das questões
       aggregatedErrors.sort((a, b) => {
-        const ma = a.moduleNumber ?? 0;
-        const mb = b.moduleNumber ?? 0;
-        if (ma !== mb) return ma - mb;
-        return a.questionNumber - b.questionNumber;
+        const numA = parseInt(
+          a.questionNumber.toString().split("-").pop() || "0"
+        );
+        const numB = parseInt(
+          b.questionNumber.toString().split("-").pop() || "0"
+        );
+        return numA - numB;
       });
 
       console.log(`🎯 Total de erros agregados: ${aggregatedErrors.length}`);
@@ -160,7 +199,7 @@ export default function AdminIncorrectAnswersScreen({
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, moduleNumber]); // ✅ Adiciona moduleNumber como dependência
 
   useFocusEffect(
     useCallback(() => {
@@ -170,11 +209,9 @@ export default function AdminIncorrectAnswersScreen({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
-      <ScreenHeader title="Erros do Usuário" />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
+      <ScreenHeader title={`Erros - Módulo ${moduleNumber}`} />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.sectionTitle}>Erros encontrados</Text>
-
         <View style={styles.listHeader}>
           <MaterialCommunityIcons
             name="close-circle-outline"
@@ -182,17 +219,17 @@ export default function AdminIncorrectAnswersScreen({
             color="#D32F2F"
           />
           <Text style={styles.listTitle}>
-            Todas as respostas incorretas ({incorrectAnswers.length} erros)
+            Respostas incorretas ({incorrectAnswers.length} erros)
           </Text>
         </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#191970" />
+            <ActivityIndicator size="large" color={theme.text} />
           </View>
         ) : incorrectAnswers.length > 0 ? (
           incorrectAnswers.map((item) => (
-            <IncorrectAnswerCard key={item.id} item={item} />
+            <IncorrectAnswerCard key={item.id} item={item} styles={styles} />
           ))
         ) : (
           <View style={styles.emptyContainer}>
@@ -203,7 +240,7 @@ export default function AdminIncorrectAnswersScreen({
             />
             <Text style={styles.emptyText}>Nenhum erro encontrado</Text>
             <Text style={styles.emptySubtext}>
-              O usuário não errou questões ou ainda não fez módulos.
+              O usuário não errou questões neste módulo.
             </Text>
           </View>
         )}
@@ -212,76 +249,107 @@ export default function AdminIncorrectAnswersScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0EFEA" },
-  scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#191970",
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  listHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  listTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#191970",
-    marginLeft: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyContainer: { alignItems: "center", paddingVertical: 40 },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#191970",
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  card: {
-    backgroundColor: "#191970",
-    borderRadius: 12,
-    marginBottom: 10,
-    overflow: "hidden",
-  },
-  cardHeader: { padding: 15, flexDirection: "row", alignItems: "center" },
-  questionNumber: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginRight: 10,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    textAlign: "center",
-    lineHeight: 36,
-  },
-  questionText: { color: "#FFFFFF", fontSize: 16, flex: 1 },
-  answerContainer: { backgroundColor: "#F5F5F5", padding: 15 },
-  label: {
-    fontSize: 12,
-    color: "#666",
-    fontWeight: "bold",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  userAnswer: {
-    color: "#D32F2F",
-    fontSize: 14,
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  correctAnswer: { color: "#4CAF50", fontSize: 14, fontWeight: "500" },
-});
+// ======================================================
+// ✅ Estilos agora são dinâmicos (Bug 3)
+// ======================================================
+const createStyles = (
+  theme: Theme,
+  fontMultiplier: number,
+  isBold: boolean,
+  lineHeight: number,
+  letterSpacing: number,
+  isDyslexiaFont: boolean
+) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.background },
+    scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
+    listHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+      marginTop: 10,
+    },
+    listTitle: {
+      fontSize: 16 * fontMultiplier,
+      fontWeight: "bold",
+      color: theme.text,
+      marginLeft: 8,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 40,
+    },
+    emptyContainer: { alignItems: "center", paddingVertical: 40 },
+    emptyText: {
+      fontSize: 18 * fontMultiplier,
+      fontWeight: "bold",
+      color: theme.text,
+      marginTop: 16,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    emptySubtext: {
+      fontSize: 14 * fontMultiplier,
+      color: theme.text,
+      opacity: 0.7,
+      marginTop: 8,
+      textAlign: "center",
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    card: {
+      backgroundColor: theme.card, // ✅ CORRIGIDO
+      borderRadius: 12,
+      marginBottom: 10,
+      overflow: "hidden",
+    },
+    cardHeader: { padding: 15, flexDirection: "row", alignItems: "center" },
+    questionNumber: {
+      fontSize: 22 * fontMultiplier,
+      fontWeight: "bold",
+      color: theme.cardText, // ✅ CORRIGIDO
+      marginRight: 10,
+      borderWidth: 2,
+      borderColor: theme.cardText, // ✅ CORRIGIDO
+      borderRadius: 20,
+      width: 40,
+      height: 40,
+      textAlign: "center",
+      lineHeight: 36,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    questionText: {
+      color: theme.cardText, // ✅ CORRIGIDO
+      fontSize: 16 * fontMultiplier,
+      flex: 1,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      lineHeight: 16 * fontMultiplier * lineHeight,
+    },
+    answerContainer: {
+      backgroundColor: theme.background, // ✅ CORRIGIDO
+      padding: 15,
+    },
+    label: {
+      fontSize: 12 * fontMultiplier,
+      color: theme.text, // ✅ CORRIGIDO
+      opacity: 0.7,
+      fontWeight: "bold",
+      marginTop: 8,
+      marginBottom: 4,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    userAnswer: {
+      color: "#D32F2F",
+      fontSize: 14 * fontMultiplier,
+      fontWeight: "500",
+      marginBottom: 8,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    correctAnswer: {
+      color: "#4CAF50",
+      fontSize: 14 * fontMultiplier,
+      fontWeight: "500",
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+  });

@@ -1,4 +1,4 @@
-// src/screens/session/BraillePracticeScreen.tsx
+// src/screens/session/BraillePracticeScreen.tsx (Estilos da Cela Diminuídos)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -116,11 +116,16 @@ export default function BraillePracticeScreen() {
     setActiveDots([]);
     setFeedback("");
     setIsCorrect(null);
-  }, [currentIndex, initialShuffledChars.length, playSound]);
+  }, [
+    currentIndex,
+    initialShuffledChars.length,
+    playSound,
+    initialShuffledChars,
+  ]);
 
   useEffect(() => {
     setupNewChallenge();
-  }, [currentIndex]);
+  }, [currentIndex, setupNewChallenge]);
 
   const handleNext = () => {
     setCurrentIndex((prevIndex) => prevIndex + 1);
@@ -233,8 +238,6 @@ export default function BraillePracticeScreen() {
           style={styles.brailleCell}
           accessibilityLabel="Cela Braille com 6 pontos interativos"
         >
-          {/* ✅ CORREÇÃO APLICADA AQUI */}
-          {/* A lógica que desenha os botões foi colocada de volta dentro do .map() */}
           {[1, 2, 3, 4, 5, 6].map((dotNumber) => {
             const isActive = activeDots.includes(dotNumber);
             return (
@@ -357,8 +360,9 @@ const createStyles = (
     },
     letter: { color: theme.button ?? "#005a9c", fontSize: 28 * fontMultiplier },
     brailleCell: {
-      width: width * 0.45,
-      height: width * 0.45 * 1.6,
+      // ✅ DIMINUÍDO
+      width: width * 0.4,
+      height: width * 0.4 * 1.6,
       backgroundColor: theme.card,
       borderRadius: 25,
       flexDirection: "column",
@@ -379,9 +383,10 @@ const createStyles = (
       alignItems: "center",
     },
     dot: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+      // ✅ DIMINUÍDO
+      width: 45,
+      height: 45,
+      borderRadius: 22.5, // Metade do width/height
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 2,

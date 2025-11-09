@@ -1,5 +1,5 @@
-// src/screens/module/ModuleResultScreen.tsx (Corrigido)
-import React, { useState, useEffect } from "react";
+// src/screens/module/ModuleResultScreen.tsx (CORRIGIDO)
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -24,9 +24,21 @@ import {
 } from "../../components/AccessibleComponents";
 import { Audio } from "expo-av";
 import { useAuthStore } from "../../store/authStore";
-import { finishModule, ErrorDetail } from "../../services/progressService";
+// ✅ Importa o 'progressService' como default e o TIPO 'ErrorDetail'
+import progressService, { ErrorDetail } from "../../services/progressService";
 
 const { width } = Dimensions.get("window");
+
+const playSound = async (sound: Audio.Sound | null) => {
+  if (!sound) return;
+  try {
+    await sound.setPositionAsync(0);
+    await sound.playAsync();
+  } catch (e: any) {
+    if (e.message?.includes("interrupted")) return;
+    console.warn("Erro ao tocar som:", e);
+  }
+};
 
 export default function ModuleResultScreen({
   route,
@@ -74,69 +86,56 @@ export default function ModuleResultScreen({
   );
 
   useEffect(() => {
-    if (Platform.OS !== "web") {
-      async function loadSounds() {
-        try {
-          const { sound: success } = await Audio.Sound.createAsync(
-            require("../../../assets/som/correct.mp3")
-          );
-          setSuccessSound(success);
-          const { sound: fail } = await Audio.Sound.createAsync(
-            require("../../../assets/som/incorrect.mp3")
-          );
-          setFailureSound(fail);
-        } catch (error) {
-          console.error("Erro ao carregar os sons de resultado", error);
-        }
+    async function loadSounds() {
+      try {
+        const { sound: success } = await Audio.Sound.createAsync(
+          require("../../../assets/som/happy.mp3")
+        );
+        setSuccessSound(success);
+        const { sound: fail } = await Audio.Sound.createAsync(
+          require("../../../assets/som/incorrect.mp3")
+        );
+        setFailureSound(fail);
+      } catch (error) {
+        console.error("Erro ao carregar os sons de resultado", error);
       }
-      loadSounds();
     }
+    loadSounds();
     return () => {
       successSound?.unloadAsync();
       failureSound?.unloadAsync();
     };
   }, []);
 
-  // ✅ CORREÇÃO (Bug 2): Tocar som E mostrar confete (se passou)
   useEffect(() => {
-    if (Platform.OS !== "web") {
-      if (passed && successSound) {
-        successSound.replayAsync();
-      } else if (!passed && failureSound) {
-        failureSound.replayAsync();
-      }
-    }
-
     if (passed) {
+      playSound(successSound);
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2500);
+    } else {
+      playSound(failureSound);
     }
   }, [passed, successSound, failureSound]);
 
-  // ======================================================
-  // ✅ CORREÇÃO (Bug 1): Salvar o progresso SEMPRE
-  // ======================================================
-  useEffect(() => {
-    // Salva o progresso (se passou ou não)
-    if (user?.userId && !saved && !saving) {
-      handleSaveProgress();
-    }
-  }, [user?.userId, saved, saving]); // Remove 'passed'
-
-  const handleSaveProgress = async () => {
-    // ✅ CORREÇÃO: Remove a checagem de 'passed' daqui
+  const handleSaveProgress = useCallback(async () => {
+    // ✅ BUG 1 CORRIGIDO
+    // Removemos '|| !passed'. O progresso será salvo
+    // independente da nota (passou ou não).
     if (!user?.userId || !progressId) {
-      console.warn("⚠️ Dados insuficientes para salvar:", {
-        userId: user?.userId,
-        progressId,
-      });
+      console.warn(
+        "⚠️ Dados insuficientes para salvar (usuário ou ID do progresso faltando):",
+        {
+          userId: user?.userId,
+          progressId,
+        }
+      );
+      setSaved(true); // Marca como 'salvo' para não tentar de novo
       return;
     }
 
     setSaving(true);
     try {
       console.log("💾 Salvando progresso do módulo...");
-
       const moduleNumber = parseInt(String(moduleId).replace(/\D/g, "")) || 1;
       const achievementTitles = [
         "🎓 Completou o Módulo 1",
@@ -146,9 +145,7 @@ export default function ModuleResultScreen({
       const achievementTitle =
         achievementTitles[moduleNumber - 1] ||
         `Módulo ${moduleNumber} Concluído`;
-
       const errors = wrongAnswers ?? totalQuestions - correctAnswers;
-
       let errorDetailsArray: ErrorDetail[] = [];
       if (errorDetails) {
         try {
@@ -157,18 +154,15 @@ export default function ModuleResultScreen({
           console.warn("Falha ao parsear errorDetails", e);
         }
       }
-
       console.log(`🎯 Chamando finishModule com progressId: ${progressId}`);
 
-      // ✅ CORREÇÃO: A chamada `finishModule` agora é chamada mesmo se 'passed' for false,
-      //    mas a lógica *dentro* de 'finishModule' só dará a conquista se 'passed' for true.
-      const result = await finishModule(
+      const result = await progressService.finishModule(
         user.userId,
         progressId,
         moduleNumber,
         timeSpent,
         achievementTitle,
-        passed ? coinsEarned || 150 : 0, // ✅ Só ganha moedas se passar
+        coinsEarned || 150,
         correctAnswers,
         errors,
         errorDetailsArray
@@ -187,9 +181,27 @@ export default function ModuleResultScreen({
     } finally {
       setSaving(false);
     }
-  };
+  }, [
+    user?.userId,
+    progressId,
+    moduleId,
+    timeSpent,
+    coinsEarned,
+    correctAnswers,
+    wrongAnswers,
+    errorDetails,
+    totalQuestions,
+  ]); // Dependências atualizadas
 
-  // ... (o resto do arquivo (return e styles) não muda) ...
+  // ✅ BUG 2 CORRIGIDO
+  // Este useEffect agora chama 'handleSaveProgress' SEMPRE,
+  // não apenas se 'passed' for true.
+  useEffect(() => {
+    if (user?.userId && !saved && !saving) {
+      handleSaveProgress();
+    }
+  }, [user?.userId, saved, saving, handleSaveProgress]);
+
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -198,7 +210,7 @@ export default function ModuleResultScreen({
   };
   const getPerformanceMessage = (): string => {
     if (accuracy >= 90)
-      return "Excelente! Você dominou completely este módulo!";
+      return "Excelente! Você dominou completamente este módulo!";
     if (accuracy >= 80)
       return "Muito bom! Você tem um ótimo entendimento do conteúdo!";
     if (accuracy >= 70) return "Bom trabalho! Você passou no módulo!";
@@ -242,18 +254,18 @@ export default function ModuleResultScreen({
             <Text style={styles.savingText}>Salvando progresso...</Text>
           </View>
         )}
-        {saved &&
-          !saving && ( // ✅ Mostra "Salvo" mesmo se não passou
-            <View style={styles.savedIndicator}>
-              <MaterialCommunityIcons
-                name="check-circle"
-                size={16}
-                color="#4CAF50"
-              />
-              <Text style={styles.savedText}>✅ Progresso salvo!</Text>
-            </View>
-          )}
+        {saved && !saving && (
+          <View style={styles.savedIndicator}>
+            <MaterialCommunityIcons
+              name="check-circle"
+              size={16}
+              color="#4CAF50"
+            />
+            <Text style={styles.savedText}>✅ Progresso salvo!</Text>
+          </View>
+        )}
       </AccessibleView>
+
       <ScrollView
         style={styles.contentArea}
         showsVerticalScrollIndicator={false}
@@ -272,6 +284,7 @@ export default function ModuleResultScreen({
             {getPerformanceMessage()}
           </Text>
         </AccessibleView>
+
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <MaterialCommunityIcons
@@ -311,6 +324,7 @@ export default function ModuleResultScreen({
           </View>
         </View>
       </ScrollView>
+
       <View style={styles.footer}>
         {!passed && (
           <AccessibleButton
@@ -342,6 +356,7 @@ export default function ModuleResultScreen({
           />
         </AccessibleButton>
       </View>
+
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
           <ConfettiCannon
@@ -354,7 +369,7 @@ export default function ModuleResultScreen({
     </View>
   );
 }
-// ... (Estilos não mudam) ...
+
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,

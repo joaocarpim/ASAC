@@ -1,4 +1,4 @@
-// src/navigation/types.ts (Corrigido)
+// src/navigation/types.ts (Atualizado)
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ErrorDetail } from "../services/progressService";
 
@@ -21,46 +21,43 @@ export type RootStackParamList = {
   Ranking: undefined;
   Achievements: undefined;
   Progress: undefined;
-  Braille: undefined;
-  // ======================================================
-  // ✅ NOVA TELA DE ERROS DO USUÁRIO
-  // ======================================================
   IncorrectAnswers: { moduleNumber: number };
-
-  // Sessões e Prática
   LearningPath: undefined;
   BraillePractice: {
     title: string;
     characters: string[];
   };
-
-  // Settings & Accessibility
+  AlphabetSections: undefined;
+  AlphabetLesson: {
+    title: string;
+    characters: string[];
+  };
   Settings: undefined;
   Contrast: undefined;
-
-  // Modules
-  Alphabet: undefined;
   ModuleContent: { moduleId: string };
   ModulePreQuiz: { moduleId: string };
   ModuleQuiz: { moduleId: string };
   ModuleResult: {
     moduleId: string;
     correctAnswers: number;
-    wrongAnswers?: number; 
+    wrongAnswers?: number;
     totalQuestions: number;
     accuracy: number;
     timeSpent: number;
     coinsEarned: number;
     passed: boolean;
     progressId?: string;
-    errorDetails?: string; // (JSON string)
+    errorDetails?: string;
     pointsEarned: number;
   };
 
   // Admin
   AdminDashboard: undefined;
   AdminUserDetail: { userId: string; userName: string };
-  AdminIncorrectAnswers: { userId: string };
+  // ======================================================
+  // ✅ CORREÇÃO: Rota atualizada para receber moduleNumber
+  // ======================================================
+  AdminIncorrectAnswers: { userId: string; moduleNumber: number };
   AdminRegisterUser: undefined;
 };
 

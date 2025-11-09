@@ -1,5 +1,5 @@
-// src/screens/module/ModuleQuizScreen.tsx (Corrigido)
-import React, { useState, useEffect, useCallback } from "react";
+// src/screens/module/ModuleQuizScreen.tsx
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -17,12 +17,10 @@ import ConfettiCannon from "react-native-confetti-cannon";
 import { RootStackScreenProps } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
 import { useProgressStore } from "../../store/progressStore";
-import {
-  ensureModuleProgress,
-  registerCorrect,
-  registerWrong,
-  ErrorDetail,
-} from "../../services/progressService";
+
+// ✅ Importa o 'progressService' como default e o TIPO 'ErrorDetail'
+import progressService, { ErrorDetail } from "../../services/progressService";
+
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
 import {
@@ -34,11 +32,22 @@ import { useAccessibility } from "../../context/AccessibilityProvider";
 import {
   getQuizByModuleId,
   QuizQuestion,
-} from "../../navigation/moduleQuestionTypes"; // ✅ Importa QuizQuestion
+} from "../../navigation/moduleQuestionTypes";
 import { useSettings } from "../../hooks/useSettings";
 import { Audio } from "expo-av";
 
 const { width } = Dimensions.get("window");
+
+const playSound = async (sound: Audio.Sound | null) => {
+  if (!sound) return;
+  try {
+    await sound.setPositionAsync(0); // Reinicia o som
+    await sound.playAsync(); // Toca
+  } catch (e: any) {
+    if (e.message?.includes("interrupted")) return;
+    console.warn("Erro ao tocar som:", e);
+  }
+};
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (typeof color === "string" && color.startsWith("#")) {
@@ -58,7 +67,7 @@ export default function ModuleQuizScreen({
   navigation,
 }: RootStackScreenProps<"ModuleQuiz">) {
   const { moduleId } = route.params;
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]); // ✅ Tipo corrigido
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
@@ -93,23 +102,21 @@ export default function ModuleQuizScreen({
   );
 
   useEffect(() => {
-    if (Platform.OS !== "web") {
-      async function loadSounds() {
-        try {
-          const { sound: correct } = await Audio.Sound.createAsync(
-            require("../../../assets/som/correct.mp3")
-          );
-          setCorrectSound(correct);
-          const { sound: wrong } = await Audio.Sound.createAsync(
-            require("../../../assets/som/incorrect.mp3")
-          );
-          setWrongSound(wrong);
-        } catch (error) {
-          console.error("Erro ao carregar os sons", error);
-        }
+    async function loadSounds() {
+      try {
+        const { sound: correct } = await Audio.Sound.createAsync(
+          require("../../../assets/som/correct.mp3")
+        );
+        setCorrectSound(correct);
+        const { sound: wrong } = await Audio.Sound.createAsync(
+          require("../../../assets/som/incorrect.mp3")
+        );
+        setWrongSound(wrong);
+      } catch (error) {
+        console.error("Erro ao carregar os sons", error);
       }
-      loadSounds();
     }
+    loadSounds();
     return () => {
       correctSound?.unloadAsync();
       wrongSound?.unloadAsync();
@@ -135,7 +142,7 @@ export default function ModuleQuizScreen({
       if (mounted) setQuestions(qList);
       if (user?.userId) {
         try {
-          const progress = await ensureModuleProgress(
+          const progress = await progressService.ensureModuleProgress(
             user.userId,
             String(moduleId),
             moduleObj.moduleId
@@ -173,53 +180,31 @@ export default function ModuleQuizScreen({
       console.warn("⚠️ Dados insuficientes para confirmar resposta");
       return;
     }
-
     setIsAnswerChecked(true);
     const q = questions[currentQuestionIndex];
 
-    console.log(`📝 Respondendo questão ${currentQuestionIndex + 1}`);
-    console.log(`   Resposta selecionada: ${selectedAnswer}`);
-    console.log(`   Resposta correta: ${q.correctAnswer}`);
-    console.log(`   Progress ID: ${activeProgressId}`);
-
     if (selectedAnswer === q.correctAnswer) {
-      if (Platform.OS !== "web") correctSound?.replayAsync();
+      playSound(correctSound);
       setCorrectCount((prev) => prev + 1);
       Vibration.vibrate(80);
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 1500);
 
-      try {
-        console.log("✅ Registrando acerto...");
-        await registerCorrect(activeProgressId);
-        console.log("✅ Acerto registrado com sucesso!");
-      } catch (e) {
-        console.error("❌ Erro registerCorrect:", e);
-      }
+      // Lógica de 'registerCorrect' removida (não existe mais)
     } else {
-      if (Platform.OS !== "web") wrongSound?.replayAsync();
+      playSound(wrongSound);
       setWrongCount((prev) => prev + 1);
       Vibration.vibrate([0, 100, 50, 100]);
 
-      // ======================================================
-      // ✅ CORREÇÃO (Bug 3.1): Salva o objeto de erro completo
-      // ======================================================
       const err: ErrorDetail = {
-        questionId: q.id, // ✅ Usa o ID real da questão (ex: "q1-1")
+        questionId: q.id,
         questionText: q.question,
         userAnswer: q.options?.[selectedAnswer] ?? "Não respondida",
         expectedAnswer: q.options?.[q.correctAnswer] ?? "N/A",
       };
-
-      console.log("❌ Registrando erro:", err);
       setErrorDetails((prev) => [...prev, err]);
 
-      try {
-        await registerWrong(activeProgressId, err);
-        console.log("✅ Erro registrado com sucesso!");
-      } catch (e) {
-        console.error("❌ Erro registerWrong:", e);
-      }
+      // Lógica de 'registerWrong' removida (não existe mais)
     }
   }, [
     selectedAnswer,
@@ -252,11 +237,7 @@ export default function ModuleQuizScreen({
         : 0;
       const pointsEarned = 12250;
 
-      console.log("🎯 Quiz finalizado!");
-      console.log(`   Acertos: ${correctCount}`);
-      console.log(`   Erros: ${wrongCount}`);
-      console.log(`   Erros detalhados:`, errorDetails);
-
+      console.log("🎯 Quiz finalizado! Navegando para ModuleResult...");
       navigation.replace("ModuleResult", {
         moduleId,
         correctAnswers: correctCount,
@@ -267,8 +248,8 @@ export default function ModuleQuizScreen({
         coinsEarned,
         pointsEarned,
         passed,
-        progressId: activeProgressId ?? undefined,
-        errorDetails: JSON.stringify(errorDetails), // ✅ Passa os erros
+        progressId: activeProgressId ?? undefined, // Passa o ID da tentativa atual
+        errorDetails: JSON.stringify(errorDetails),
       });
     }
   }, [
@@ -283,12 +264,10 @@ export default function ModuleQuizScreen({
     navigation,
   ]);
 
-  // ... (o resto do arquivo (return e styles) não muda) ...
   const current = questions[currentQuestionIndex];
   const statusBarStyle = isColorDark(theme.background)
     ? "light-content"
     : "dark-content";
-
   if (isLoading)
     return (
       <View style={styles.loadingContainer}>
@@ -296,14 +275,12 @@ export default function ModuleQuizScreen({
         <Text style={styles.loadingText}>Carregando...</Text>
       </View>
     );
-
   if (!current)
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Nenhuma pergunta disponível.</Text>
       </View>
     );
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
@@ -386,7 +363,6 @@ export default function ModuleQuizScreen({
   );
 }
 
-// ... (Estilos não mudam) ...
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,

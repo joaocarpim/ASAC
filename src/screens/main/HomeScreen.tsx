@@ -1,4 +1,4 @@
-// src/screens/main/HomeScreen.tsx (Corrigido com todos os botões)
+// src/screens/main/HomeScreen.tsx (Corrigido)
 import React, { useState, useCallback } from "react";
 import {
   StyleSheet,
@@ -17,7 +17,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import * as APIt from "../../API";
 import { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
-import { getUserById } from "../../services/progressService";
+import progressService from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
@@ -28,12 +28,14 @@ import {
   AccessibleButton,
 } from "../../components/AccessibleComponents";
 import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
+import { LEARNING_PATH_SESSIONS } from "../../navigation/learningPathData";
 
 /* ===========================
     Estilos
-    =========================== */
+   =========================== */
 
-const BOX_SIZE = 90;
+// ✅ 1. TAMANHO DIMINUÍDO
+const BOX_SIZE = 85;
 
 const createStyles = (
   theme: Theme,
@@ -97,12 +99,14 @@ const createStyles = (
       padding: 6,
     },
     statIcon: {
-      fontSize: 28 * fontMultiplier,
+      // ✅ 2. ÍCONE UM POUCO MENOR
+      fontSize: 26 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
     statValue: {
       color: theme.cardText,
-      fontSize: 18 * fontMultiplier,
+      // ✅ 3. VALOR UM POUCO MENOR
+      fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginTop: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
@@ -162,7 +166,7 @@ const createStyles = (
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
-      flexWrap: "wrap", // ✅ ADICIONADO PARA OS 6 BOTÕES CABEREM
+      flexWrap: "wrap",
       gap: 8,
       margin: 5,
       alignSelf: "center",
@@ -179,7 +183,8 @@ const createStyles = (
       padding: 6,
     },
     actionIcon: {
-      fontSize: 28 * fontMultiplier,
+      // ✅ 4. ÍCONE UM POUCO MENOR
+      fontSize: 26 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
     actionLabel: {
@@ -192,9 +197,9 @@ const createStyles = (
   });
 
 /* ===========================
-    Tipagens
+    Tipagens e Subcomponentes
+    (Mantidos como estão)
     =========================== */
-
 type HomeScreenStyles = ReturnType<typeof createStyles>;
 
 interface StatCardProps {
@@ -203,14 +208,12 @@ interface StatCardProps {
   label: string;
   styles: HomeScreenStyles;
 }
-
 interface ActionButtonProps {
   iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   label: string;
   onPress: () => void;
   styles: HomeScreenStyles;
 }
-
 interface ModuleItemProps {
   module: { id: string; moduleId: number; title: string; description?: string };
   completed: boolean;
@@ -218,9 +221,6 @@ interface ModuleItemProps {
   onPress: () => void;
   styles: HomeScreenStyles;
 }
-
-/* ---------- SUBCOMPONENTES ---------- */
-
 const StatCard: React.FC<StatCardProps> = ({
   iconName,
   value,
@@ -350,7 +350,7 @@ const HomeScreen: React.FC<
     }
     setLoadingUser(true);
     try {
-      const uResult = await getUserById(user.userId);
+      const uResult = await progressService.getUserById(user.userId);
       setDbUser(uResult as APIt.User | null);
     } catch (err) {
       console.error("Erro ao buscar usuário:", err);
@@ -485,9 +485,6 @@ const HomeScreen: React.FC<
         contentContainerStyle={styles.modulesList}
       />
 
-      {/* ====================================================== */}
-      {/* ✅ INÍCIO DA CORREÇÃO (Botões Adicionados) */}
-      {/* ====================================================== */}
       <View style={styles.actionsContainer}>
         <ActionButton
           iconName="podium-gold"
@@ -513,11 +510,10 @@ const HomeScreen: React.FC<
           onPress={() => navigation.navigate("Progress")}
           styles={styles}
         />
-        {/* 🔽 BOTÕES ADICIONADOS AQUI 🔽 */}
         <ActionButton
           iconName="alphabetical"
           label="Alfabeto"
-          onPress={() => navigation.navigate("Alphabet")}
+          onPress={() => navigation.navigate("AlphabetSections")}
           styles={styles}
         />
         <ActionButton
@@ -526,11 +522,7 @@ const HomeScreen: React.FC<
           onPress={() => navigation.navigate("Settings")}
           styles={styles}
         />
-        {/* 🔼 BOTÕES ADICIONADOS AQUI 🔼 */}
       </View>
-      {/* ====================================================== */}
-      {/* FIM DA CORREÇÃO */}
-      {/* ====================================================== */}
     </View>
   );
 };
