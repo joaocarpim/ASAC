@@ -1,22 +1,23 @@
-// src/navigation/types.ts (Atualizado)
+// src/navigation/types.ts
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ErrorDetail } from "../services/progressService";
+import { ErrorDetail } from "../services/progressService"; // Mantenha este import
 
 export type RootStackParamList = {
   // Onboarding
   Welcome: undefined;
   TutorialStep1: undefined;
   TutorialStep2: undefined;
-  TutorialStep3: undefined;
+  TutorialStep3: undefined; // Auth
 
-  // Auth
   Login: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email: string };
   ConfirmSignUp: { email: string; password?: string };
   NewPassword: { username: string };
 
-  // Main App
+  // ✅ ADICIONE ESTA LINHA:
+  Loading: undefined; // Main App
+
   Home: undefined;
   Ranking: undefined;
   Achievements: undefined;
@@ -49,14 +50,10 @@ export type RootStackParamList = {
     progressId?: string;
     errorDetails?: string;
     pointsEarned: number;
-  };
+  }; // Admin
 
-  // Admin
   AdminDashboard: undefined;
   AdminUserDetail: { userId: string; userName: string };
-  // ======================================================
-  // ✅ CORREÇÃO: Rota atualizada para receber moduleNumber
-  // ======================================================
   AdminIncorrectAnswers: { userId: string; moduleNumber: number };
   AdminRegisterUser: undefined;
 };

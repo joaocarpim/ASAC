@@ -1,4 +1,3 @@
-// src/screens/main/AchievementsScreen.tsx (Corrigido)
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -25,12 +24,10 @@ import {
   Directions,
 } from "react-native-gesture-handler";
 import { useAuthStore } from "../../store/authStore";
-import { getUserById } from "../../services/progressService";
 import { generateClient } from "aws-amplify/api";
-import { listProgresses } from "../../graphql/queries"; // ✅ Importa a query
+import { listProgresses, getUser } from "../../graphql/queries";
 
 const MODULE_EMOJIS = ["🎓", "🏆", "⭐"];
-// ✅ Emojis e Cores Evolutivas (da sua outra sugestão)
 const ACHIEVEMENT_EMOJIS = ["🥉", "🥈", "🥇", "🏆", "💎"];
 const CARD_COLORS = ["#CD7F32", "#C0C0C0", "#DAA520", "#4CAF50", "#8A2BE2"];
 
@@ -47,6 +44,9 @@ export default function AchievementsScreen() {
   } = useSettings();
 
   const [progressoAtual, setProgressoAtual] = useState(0);
+  const [completedModulesList, setCompletedModulesList] = useState<number[]>(
+    []
+  );
   const [achievements, setAchievements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [emblemsByPerformance, setEmblemsByPerformance] = useState<
@@ -74,21 +74,37 @@ export default function AchievementsScreen() {
     }
 
     setLoading(true);
+    const client = generateClient();
+
     try {
       console.log("🏆 Buscando conquistas do usuário:", user.userId);
 
-      const dbUser = await getUserById(user.userId);
-      console.log("👤 Dados do usuário:", dbUser);
+      // Cache Buster para 'getUser'
+      console.log("👤 Buscando dados frescos do usuário...");
+      const userQueryWithBuster = `
+        # CacheBuster: ${Date.now()}-${Math.random()}
+        ${getUser}
+      `;
+      const userResult: any = await client.graphql({
+        query: userQueryWithBuster,
+        variables: { id: user.userId },
+        authMode: "userPool",
+      });
+
+      const dbUser = userResult.data?.getUser;
+      console.log("👤 Dados frescos do usuário:", dbUser);
 
       if (dbUser) {
         const completedModules = Array.isArray(dbUser.modulesCompleted)
-          ? dbUser.modulesCompleted.filter(Boolean).map((m: any) => Number(m))
+          ? [...new Set(dbUser.modulesCompleted)]
+              .filter(Boolean)
+              .map((m: any) => Number(m))
           : [];
 
-        console.log("📚 Módulos completados:", completedModules);
+        console.log("📚 Módulos completados (frescos):", completedModules);
         setProgressoAtual(completedModules.length);
+        setCompletedModulesList(completedModules); // Salva a lista
 
-        // Lógica para conquistas (achievements)
         const dbAchievements = dbUser.achievements?.items || [];
         const newAchievements: any[] = [];
         for (let moduleNum of completedModules) {
@@ -105,15 +121,18 @@ export default function AchievementsScreen() {
           }
         }
         const allAchievements = [...dbAchievements, ...newAchievements];
-        console.log("🎖️ Conquistas totais:", allAchievements);
+        console.log("🎖️ Conquistas totais (frescas):", allAchievements);
         setAchievements(allAchievements);
       }
 
-      // Lógica para Emblemas de Desempenho (lendo a tabela Progress)
-      const client = generateClient();
+      // Cache Buster para 'listProgresses'
       console.log("📊 Buscando dados de progresso para emblemas...");
+      const progressQueryWithBuster = `
+        # CacheBuster: ${Date.now()}-${Math.random()}
+        ${listProgresses}
+      `;
       const result: any = await client.graphql({
-        query: listProgresses,
+        query: progressQueryWithBuster,
         variables: { filter: { userId: { eq: user.userId } } },
         authMode: "userPool",
       });
@@ -121,49 +140,60 @@ export default function AchievementsScreen() {
       const rawList = result?.data?.listProgresses?.items || [];
       console.log("📊 Raw progress data:", rawList);
 
-      // ✅ CORREÇÃO: Normaliza os dados, pegando 'accuracy'
-      const normalized = (Array.isArray(rawList) ? rawList : []).map(
-        (p: any) => ({
-          moduleNumber:
-            typeof p.moduleNumber === "string"
-              ? parseInt(p.moduleNumber, 10)
-              : p.moduleNumber || 0,
-          completed: p.completed === true,
-          accuracy: Number(p.accuracy ?? 0), // <-- Pega a precisão salva
-        })
-      );
+      // Lógica para pegar a ÚLTIMA tentativa com timeSpent > 0
+      const latestProgressByModule = new Map<number, any>();
 
-      console.log("📊 Normalized progress:", normalized);
+      (Array.isArray(rawList) ? rawList : []).forEach((p: any) => {
+        if (!p) return;
+        const moduleNumber = parseInt(p.moduleNumber, 10);
+
+        if (isNaN(moduleNumber) || !(p.timeSpent > 0)) {
+          return;
+        }
+
+        const timestamp = p?.updatedAt || p?.completedAt || p?.createdAt;
+        const currentTime = timestamp ? new Date(timestamp).getTime() : 0;
+
+        const existing = latestProgressByModule.get(moduleNumber);
+
+        if (!existing) {
+          latestProgressByModule.set(moduleNumber, p);
+        } else {
+          const existingTimestamp =
+            existing.updatedAt || existing.completedAt || existing.createdAt;
+          const existingTime = existingTimestamp
+            ? new Date(existingTimestamp).getTime()
+            : 0;
+
+          if (currentTime > existingTime) {
+            latestProgressByModule.set(moduleNumber, p);
+          }
+        }
+      });
+
+      const latestProgressRecords = Array.from(latestProgressByModule.values());
+      console.log(
+        "🏆 Últimos progressos (latest timestamp com timeSpent > 0):",
+        latestProgressRecords
+      );
 
       const modulePerformance: { moduleNumber: number; accuracy: number }[] =
         [];
 
-      for (let i = 1; i <= modulosTotais; i++) {
-        const p = normalized.find((x) => x.moduleNumber === i);
+      for (const p of latestProgressRecords) {
+        const acc = Number(p.accuracy ?? 0);
+        const modNum = Number(p.moduleNumber);
 
-        if (!p || !p.completed) {
-          console.log(`⚠️ Módulo ${i}: Não concluído ou sem dados`);
-          continue;
-        }
+        console.log(`📊 Módulo ${modNum}: Última precisão registrada: ${acc}%`);
 
-        // ======================================================
-        // ✅ CORREÇÃO (Bug 1): Usa a 'accuracy' salva em vez de recalcular
-        // ======================================================
-        const acc = p.accuracy; // Usa o valor que foi salvo no DB
-        console.log(`📊 Módulo ${i}: Precisão lida do DB: ${acc}%`);
-
-        if (acc >= 70) {
-          modulePerformance.push({ moduleNumber: i, accuracy: acc });
-          console.log(`✅ Módulo ${i}: Emblema desbloqueado com ${acc}%`);
-        } else {
-          console.log(
-            `❌ Módulo ${i}: ${acc}% não é suficiente para emblema (precisa 70%+)`
-          );
-        }
+        modulePerformance.push({
+          moduleNumber: modNum,
+          accuracy: acc,
+        });
       }
 
       setEmblemsByPerformance(modulePerformance);
-      console.log("🏆 Emblemas finais desbloqueados:", modulePerformance);
+      console.log("🏆 Emblemas/Últimas Pontuações:", modulePerformance);
     } catch (error) {
       console.error("❌ Erro ao buscar conquistas:", error);
       setEmblemsByPerformance([]);
@@ -179,40 +209,73 @@ export default function AchievementsScreen() {
     }, [fetchAchievements])
   );
 
-  // ... (O resto do arquivo (render) não muda) ...
   const handleGoBack = () => navigation.goBack();
   const flingRight = Gesture.Fling()
     .direction(Directions.RIGHT)
     .onEnd(handleGoBack);
 
+  // =================================================================
+  // ✅ CORREÇÃO: Lógica de renderização dos ícones atualizada
+  // =================================================================
   const renderModuleIcons = () => {
     return Array.from({ length: modulosTotais }, (_, i) => {
-      const isCompleted = i + 1 <= progressoAtual;
+      const moduleNum = i + 1;
+
+      // 1. Está na lista de 'concluídos' (do dbUser)?
+      const isCompleted = completedModulesList.includes(moduleNum);
+
+      // 2. Qual é a pontuação da *última* tentativa?
+      const progressData = emblemsByPerformance.find(
+        (p) => p.moduleNumber === moduleNum
+      );
+      const accuracy = progressData ? progressData.accuracy : 0;
+      const hasHighAccuracy = accuracy >= 70;
+
+      // Animação (só para alta performance)
       const scaleAnim = new Animated.Value(1);
-      if (isCompleted) {
+      if (isCompleted && hasHighAccuracy) {
         Animated.sequence([
           Animated.spring(scaleAnim, { toValue: 1.3, useNativeDriver: true }),
           Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }),
         ]).start();
       }
+
       return (
         <Animated.View
           key={i}
           style={[
             styles.moduloIconContainer,
-            isCompleted && styles.moduloIconCompleted,
+
+            // ✅ Se 70%+, aplica o estilo completo (borda verde + opacidade 1)
+            isCompleted && hasHighAccuracy && styles.moduloIconCompleted,
+
+            // ✅ Se < 70%, aplica o estilo de baixa precisão (só opacidade 1)
+            isCompleted && !hasHighAccuracy && styles.moduloIconLowAccuracy,
+
             { transform: [{ scale: scaleAnim }] },
           ]}
         >
-          {isCompleted ? (
+          {!isCompleted ? (
+            // 1. Não concluído -> Cadeado
+            <MaterialCommunityIcons name="lock" size={28} color={theme.text} />
+          ) : hasHighAccuracy ? (
+            // 2. Concluído E 70%+ -> Emoji
             <Text style={styles.moduloEmoji}>{MODULE_EMOJIS[i]}</Text>
           ) : (
-            <MaterialCommunityIcons name="lock" size={28} color={theme.text} />
+            // 3. Concluído MAS < 70% -> Check (cor do texto do card)
+            <MaterialCommunityIcons
+              name="check"
+              size={28}
+              color={theme.cardText}
+            />
           )}
         </Animated.View>
       );
     });
   };
+  // =================================================================
+  // FIM DA CORREÇÃO
+  // =================================================================
 
   const renderAchievementCard = (achievement: any, index: number) => {
     const scaleAnim = new Animated.Value(0.8);
@@ -313,11 +376,9 @@ export default function AchievementsScreen() {
           </View>
 
           <View style={styles.achievementsContainer}>
-            <Text style={styles.sectionTitle}>
-              🌟 Emblemas de Alto Desempenho
-            </Text>
+            <Text style={styles.sectionTitle}>🌟 Últimas Pontuações</Text>
             <Text style={styles.performanceSubtitle}>
-              (Módulos com 70% ou mais de aproveitamento)
+              (Última pontuação registrada em cada módulo)
             </Text>
 
             {emblemsByPerformance.length > 0 ? (
@@ -343,8 +404,7 @@ export default function AchievementsScreen() {
                   style={{ opacity: 0.8 }}
                 />
                 <Text style={styles.performanceInfo}>
-                  Emblemas serão desbloqueados quando você tiver 70% ou mais de
-                  aproveitamento em um módulo.
+                  Suas pontuações aparecerão aqui após você finalizar um módulo.
                 </Text>
               </View>
             )}
@@ -377,7 +437,6 @@ export default function AchievementsScreen() {
   );
 }
 
-// ... (Estilos não mudam) ...
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -463,7 +522,12 @@ const createStyles = (
       borderWidth: 2,
       borderColor: theme.cardText,
     },
+    // Estilo para 70%+ (borda verde, opacidade 1)
     moduloIconCompleted: { opacity: 1, borderColor: "#4CD964" },
+
+    // ✅ NOVO ESTILO: Estilo para < 70% (borda normal, opacidade 1)
+    moduloIconLowAccuracy: { opacity: 1, borderColor: theme.cardText },
+
     moduloEmoji: { fontSize: 32 },
     progressText: {
       fontSize: 14 * fontMultiplier,

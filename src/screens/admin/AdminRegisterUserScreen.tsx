@@ -1,4 +1,3 @@
-// src/screens/admin/AdminRegisterUserScreen.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,7 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
+  // Alert, // MODIFICADO: Não precisamos mais do Alert
   StatusBar,
   ActivityIndicator,
 } from "react-native";
@@ -14,8 +13,18 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { generateClient } from "aws-amplify/api";
-// Importa a mutação gerada pelo 'amplify codegen' (Passo 1)
 import { adminRegisterUser } from "../../graphql/mutations";
+
+// NOVO: Importa o componente de modal
+import AppModal from "../../components/layout/AppModal";
+
+// NOVO: Define um tipo para o estado do modal
+interface ModalInfo {
+  visible: boolean;
+  type: "success" | "error" | null;
+  title: string;
+  message: string;
+}
 
 export default function AdminRegisterUserScreen({
   navigation,
@@ -25,13 +34,42 @@ export default function AdminRegisterUserScreen({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // NOVO: Estado unificado para o modal
+  const [modalInfo, setModalInfo] = useState<ModalInfo>({
+    visible: false,
+    type: null,
+    title: "",
+    message: "",
+  });
+
+  // NOVO: Função para fechar o modal
+  const handleCloseModal = () => {
+    setModalInfo({ visible: false, type: null, title: "", message: "" });
+    // Se o modal era de sucesso, navega de volta APÓS fechar
+    if (modalInfo.type === "success") {
+      navigation.goBack();
+    }
+  };
+
   const handleRegister = async () => {
+    // MODIFICADO: Substitui Alert.alert por setModalInfo
     if (!name.trim() || !email.trim() || !password.trim()) {
-      Alert.alert("Erro", "Preencha todos os campos.");
+      setModalInfo({
+        visible: true,
+        type: "error",
+        title: "Campos Vazios",
+        message: "Por favor, preencha todos os campos.",
+      });
       return;
     }
+    // MODIFICADO: Substitui Alert.alert por setModalInfo
     if (password.length < 8) {
-      Alert.alert("Erro", "A senha deve ter no mínimo 8 caracteres.");
+      setModalInfo({
+        visible: true,
+        type: "error",
+        title: "Senha Inválida",
+        message: "A senha deve ter no mínimo 8 caracteres.",
+      });
       return;
     }
     setLoading(true);
@@ -41,7 +79,7 @@ export default function AdminRegisterUserScreen({
       console.log("📤 Enviando requisição GraphQL...");
 
       const result: any = await client.graphql({
-        query: adminRegisterUser, // Usa a mutação importada
+        query: adminRegisterUser,
         variables: {
           name: name.trim(),
           email: email.trim().toLowerCase(),
@@ -79,17 +117,20 @@ export default function AdminRegisterUserScreen({
           setEmail("");
           setPassword("");
 
-          navigation.goBack();
-
-          setTimeout(() => {
-            Alert.alert(
-              "✅ Sucesso",
-              `Usuário cadastrado!\n\n${userName}\n${userEmail}`
-            );
-          }, 300);
+          // MODIFICADO: Mostra o modal de sucesso
+          // A navegação foi movida para o 'handleCloseModal'
+          setModalInfo({
+            visible: true,
+            type: "success",
+            title: "✅ Sucesso",
+            message: `Assistido cadastrado!\n\n${userName}\n${userEmail}`,
+          });
         } else {
+          // MODIFICADO: Lança o erro com a mensagem específica
           throw new Error(
-            lambdaResponse.error || "Falha ao cadastrar usuário."
+            lambdaResponse.error === "UsernameExistsException"
+              ? "Este email já está cadastrado."
+              : lambdaResponse.error || "Falha ao cadastrar usuário."
           );
         }
       } else {
@@ -98,12 +139,28 @@ export default function AdminRegisterUserScreen({
     } catch (error: any) {
       console.error("❌ Erro ao registrar usuário:", error);
       let errorMessage = error.message || "Erro desconhecido.";
+
+      // MODIFICADO: Ajusta as mensagens de erro para o modal
       if (errorMessage.includes("UsernameExistsException")) {
         errorMessage = "Este email já está cadastrado.";
       } else if (errorMessage.includes("Unauthorized")) {
         errorMessage = "Você não tem permissão para cadastrar usuários.";
+      } else if (errorMessage.includes("password")) {
+        // Captura o erro da senha que movemos da validação inicial
+        errorMessage = "A senha deve ter no mínimo 8 caracteres.";
+      } else if (!errorMessage.includes("email")) {
+        // Mensagem genérica solicitada
+        errorMessage =
+          "Não foi possível registrar o assistido.\nVerifique os dados e tente novamente.";
       }
-      Alert.alert("Erro no Cadastro", errorMessage);
+
+      // MODIFICADO: Substitui Alert.alert por setModalInfo
+      setModalInfo({
+        visible: true,
+        type: "error",
+        title: "Erro no Cadastro",
+        message: errorMessage,
+      });
     } finally {
       setLoading(false);
     }
@@ -111,7 +168,11 @@ export default function AdminRegisterUserScreen({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
+      {/* MODIFICADO: O modal controlará o StatusBar quando estiver visível */}
+      <StatusBar
+        barStyle={modalInfo.visible ? "dark-content" : "dark-content"}
+        backgroundColor={modalInfo.visible ? "rgba(0, 0, 0, 0.5)" : "#F0EFEA"}
+      />
       <ScreenHeader title="Cadastrar Assistido" />
       <View style={styles.content}>
         <View style={styles.iconContainer}>
@@ -197,6 +258,15 @@ export default function AdminRegisterUserScreen({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* NOVO: Renderiza o modal */}
+      <AppModal
+        visible={modalInfo.visible}
+        type={modalInfo.type}
+        title={modalInfo.title}
+        message={modalInfo.message}
+        onClose={handleCloseModal}
+      />
     </View>
   );
 }

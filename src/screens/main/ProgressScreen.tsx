@@ -1,10 +1,9 @@
-// src/screens/main/ProgressScreen.tsx
 import React, {
   useState,
   useCallback,
   useEffect,
   useRef,
-  useLayoutEffect,
+  useLayoutEffect, // Este será removido
 } from "react";
 import {
   View,
@@ -20,14 +19,29 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "../../store/authStore";
 import { generateClient } from "aws-amplify/api";
-import { listProgresses } from "../../graphql/queries";
+import { listProgresses, getUser } from "../../graphql/queries";
 import { useContrast } from "../../hooks/useContrast";
 import { AccessibleText } from "../../components/AccessibleComponents";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+// ✅ ADICIONA OS IMPORTS DE GESTO
+import {
+  GestureHandlerRootView,
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 
-// ✅ Importando os componentes otimizados
 import { StatItem } from "../../components/progress/StatItem";
 import { ModuleCard } from "../../components/progress/ModuleCard";
+
+type ProgressItem = {
+  id: string;
+  moduleNumber: number;
+  accuracy: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  timeSpent: number;
+  updatedAt: string;
+};
 
 // Componente principal da tela
 const ProgressScreenComponent = ({
@@ -35,7 +49,7 @@ const ProgressScreenComponent = ({
 }: RootStackScreenProps<"Progress">) => {
   const user = useAuthStore((state) => state.user);
   const { theme } = useContrast();
-  const [moduleProgress, setModuleProgress] = useState<any[]>([]);
+  const [moduleProgress, setModuleProgress] = useState<ProgressItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Estados para o resumo
@@ -43,15 +57,17 @@ const ProgressScreenComponent = ({
   const [totalWrong, setTotalWrong] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
   const [avgAccuracy, setAvgAccuracy] = useState(0);
+  const [userPoints, setUserPoints] = useState(user?.points ?? 0);
 
   const headerFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Habilita o gesto de voltar
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      gestureEnabled: true,
-    });
-  }, [navigation]);
+  // ❌ REMOVIDO: Este hook ativava o gesto nativo da borda,
+  // mas queremos um gesto "fling" na tela inteira.
+  // useLayoutEffect(() => {
+  //   navigation.setOptions({
+  //     gestureEnabled: true,
+  //   });
+  // }, [navigation]);
 
   const fetchProgressData = useCallback(async () => {
     if (!user?.userId) {
@@ -61,13 +77,36 @@ const ProgressScreenComponent = ({
 
     setLoading(true);
     try {
-      let allProgress: any[] = [];
-      let nextToken: string | null = null;
       const client = generateClient();
-
       console.log("--- INICIANDO BUSCA DE PROGRESSO ---");
 
+      // Buscando dados frescos do usuário (pontos)
+      console.log("👤 Buscando dados frescos do usuário (pontos)...");
+      try {
+        const userQueryWithBuster = `
+          # CacheBuster: ${Date.now()}-${Math.random()}
+          ${getUser}
+        `;
+        const userResult: any = await client.graphql({
+          query: userQueryWithBuster,
+          variables: { id: user.userId },
+          authMode: "userPool",
+        });
+
+        const freshUser = userResult.data?.getUser;
+        if (freshUser) {
+          console.log(`[LOG] Pontos atualizados: ${freshUser.points}`);
+          setUserPoints(freshUser.points ?? 0);
+        }
+      } catch (userError) {
+        console.error("❌ Erro ao buscar dados frescos do usuário:", userError);
+      }
+
+      let allProgress: any[] = [];
+      let nextToken: string | null = null;
+
       do {
+        // Busca dados de progresso frescos
         const queryWithCacheBuster = `
           # CacheBuster: ${Date.now()}-${Math.random()}
           ${listProgresses}
@@ -92,16 +131,6 @@ const ProgressScreenComponent = ({
         `[LOG] Total de registros encontrados: ${allProgress.length}`
       );
 
-      // ✅✅✅ ESTA É A CORREÇÃO DO BUG ✅✅✅
-      //
-      // O bug: Estávamos filtrando por `p.completed === true`.
-      // A correção: Vamos filtrar por `p.timeSpent > 0`.
-      //
-      // Por quê? Um registro "zerado" (que queremos ignorar) tem `timeSpent: 0`.
-      // Qualquer tentativa real, mesmo uma falha com 20% que não foi marcada
-      // como 'completed', terá `timeSpent > 0`. Isso garante que *todas*
-      // as tentativas reais sejam consideradas.
-      //
       const attemptedProgress = allProgress.filter(
         (p) => p.timeSpent && p.timeSpent > 0
       );
@@ -115,7 +144,6 @@ const ProgressScreenComponent = ({
 
       const latestByModule: Record<number, any> = {};
 
-      // 2. Fazer o loop APENAS na lista filtrada (attemptedProgress)
       attemptedProgress.forEach((p: any) => {
         const moduleNum = Number(p.moduleNumber ?? 0);
         if (moduleNum === 0) return;
@@ -139,29 +167,28 @@ const ProgressScreenComponent = ({
           }
         }
       });
-      // ✅✅✅ FIM DA CORREÇÃO ✅✅✅
 
-      const latestProgress = Object.values(latestByModule)
+      const latestProgress: ProgressItem[] = Object.values(latestByModule)
         .map((p: any) => ({
-          ...p,
+          id: p.id,
           moduleNumber: Number(p.moduleNumber ?? 0),
           correctAnswers: Number(p.correctAnswers ?? 0),
           wrongAnswers: Number(p.wrongAnswers ?? 0),
           timeSpent: Number(p.timeSpent ?? 0),
           accuracy: Number(p.accuracy ?? 0),
+          updatedAt: p.updatedAt ?? p.createdAt ?? new Date().toISOString(),
         }))
         .sort((a, b) => a.moduleNumber - b.moduleNumber);
 
       console.log("--- DADOS FINAIS QUE SERÃO MOSTRADOS NA TELA ---");
       latestProgress.forEach((p) => {
         console.log(
-          `  -> Módulo ${p.moduleNumber}: Nota ${p.accuracy}% (ID: ${p.id})`
+          ` -> Módulo ${p.moduleNumber}: Nota ${p.accuracy}% (ID: ${p.id})`
         );
       });
 
       setModuleProgress(latestProgress);
 
-      // Otimizado: Usando .reduce()
       const totals = latestProgress.reduce(
         (acc, p) => {
           acc.sumCorrect += p.correctAnswers;
@@ -178,10 +205,10 @@ const ProgressScreenComponent = ({
         count > 0 ? Math.round(totals.sumAccuracy / count) : 0;
 
       console.log("--- RESUMO GERAL ---");
-      console.log(`   Precisão Média: ${avgAccuracy}%`);
+      console.log(` Precisão Média: ${avgAccuracy}%`);
 
       setTotalCorrect(totals.sumCorrect);
-      setTotalWrong(totals.sumWrong);
+      setTotalWrong(totals.sumWrong); // Corrigido (era wrongAnswers)
       setTotalTime(totals.sumTime);
       setAvgAccuracy(avgAccuracy);
 
@@ -216,149 +243,164 @@ const ProgressScreenComponent = ({
     return `${secs}s`;
   };
 
+  // ✅ ADICIONA A LÓGICA DO GESTO
+  const handleGoBack = () => {
+    navigation.goBack();
+  };
+
+  const flingRight = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(handleGoBack);
+
   if (loading) {
     return (
+      // ✅ ENVOLVE A TELA DE LOADING COM O GESTO
+      <GestureDetector gesture={flingRight}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+          <StatusBar
+            barStyle={theme.statusBarStyle}
+            backgroundColor={theme.background}
+          />
+          <ScreenHeader title="Progresso" />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.text} />
+          </View>
+        </View>
+      </GestureDetector>
+    );
+  }
+
+  return (
+    // ✅ ENVOLVE A TELA PRINCIPAL COM O GESTO
+    <GestureDetector gesture={flingRight}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <StatusBar
           barStyle={theme.statusBarStyle}
           backgroundColor={theme.background}
         />
         <ScreenHeader title="Progresso" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.text} />
-        </View>
-      </View>
-    );
-  }
 
-  return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar
-        barStyle={theme.statusBarStyle}
-        backgroundColor={theme.background}
-      />
-      <ScreenHeader title="Progresso" />
-
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Animated.View
-          style={[
-            styles.summaryCard,
-            {
-              opacity: headerFadeAnim,
-              backgroundColor: theme.card,
-            },
-          ]}
-        >
-          <AccessibleText
-            baseSize={20}
-            style={[styles.sectionTitle, { color: theme.text }]}
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <Animated.View
+            style={[
+              styles.summaryCard,
+              {
+                opacity: headerFadeAnim,
+                backgroundColor: theme.card,
+              },
+            ]}
           >
-            📊 Resumo Geral
-          </AccessibleText>
-          <AccessibleText
-            baseSize={12}
-            style={[styles.sectionSubtitle, { color: theme.text }]}
-          >
-            Baseado nas últimas tentativas de cada módulo
-          </AccessibleText>
+            <AccessibleText
+              baseSize={20}
+              style={[styles.sectionTitle, { color: theme.text }]}
+            >
+              📊 Resumo Geral
+            </AccessibleText>
+            <AccessibleText
+              baseSize={12}
+              style={[styles.sectionSubtitle, { color: theme.text }]}
+            >
+              Baseado nas últimas tentativas de cada módulo
+            </AccessibleText>
 
-          <View style={styles.statsGrid}>
-            <StatItem
-              icon="target"
-              value={`${avgAccuracy}%`}
-              label="Precisão Média"
-              color="#FFC107"
-              delay={0}
-            />
-            <StatItem
-              icon="check-all"
-              value={totalCorrect.toString()}
-              label="Total Acertos"
-              color="#4CAF50"
-              delay={100}
-            />
-            <StatItem
-              icon="close-circle"
-              value={totalWrong.toString()}
-              label="Total Erros"
-              color="#F44336"
-              delay={200}
-            />
-            <StatItem
-              icon="clock-time-eight-outline"
-              value={formatTime(totalTime)}
-              label="Tempo Total"
-              color="#2196F3"
-              delay={300}
-            />
-            <StatItem
-              icon="book-open-variant"
-              value={moduleProgress.length.toString()}
-              label="Módulos Feitos"
-              color="#9C27B0"
-              delay={400}
-            />
-            <StatItem
-              icon="trophy"
-              value={(user?.points ?? 0).toLocaleString("pt-BR")}
-              label="Pontos"
-              color="#FF9800"
-              delay={500}
-            />
-          </View>
-        </Animated.View>
-
-        <View style={styles.section}>
-          <AccessibleText
-            baseSize={20}
-            style={[styles.sectionTitleDark, { color: theme.text }]}
-          >
-            📚 Desempenho por Módulo
-          </AccessibleText>
-          <AccessibleText
-            baseSize={12}
-            style={[styles.sectionSubtitleDark, { color: theme.text }]}
-          >
-            Última tentativa de cada módulo - Arraste para ver mais detalhes
-          </AccessibleText>
-
-          {moduleProgress.length > 0 ? (
-            moduleProgress.map((p, index) => (
-              <ModuleCard
-                key={`${p.moduleNumber}-${p.id}`}
-                moduleNumber={p.moduleNumber}
-                accuracy={p.accuracy}
-                correctAnswers={p.correctAnswers}
-                wrongAnswers={p.wrongAnswers}
-                timeSpent={p.timeSpent}
-                updatedAt={p.updatedAt}
-                index={index}
-                theme={theme}
-                onPress={() =>
-                  navigation.navigate("IncorrectAnswers", {
-                    moduleNumber: p.moduleNumber,
-                  })
-                }
+            <View style={styles.statsGrid}>
+              <StatItem
+                icon="target"
+                value={`${avgAccuracy}%`}
+                label="Precisão Média"
+                color="#FFC107"
+                delay={0}
               />
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons
-                name="book-outline"
-                size={64}
-                color={theme.text}
+              <StatItem
+                icon="check-all"
+                value={totalCorrect.toString()}
+                label="Total Acertos"
+                color="#4CAF50"
+                delay={100}
               />
-              <AccessibleText
-                baseSize={16}
-                style={[styles.emptyText, { color: theme.text }]}
-              >
-                Você ainda não completou nenhum módulo
-              </AccessibleText>
+              <StatItem
+                icon="close-circle"
+                value={totalWrong.toString()}
+                label="Total Erros"
+                color="#F44336"
+                delay={200}
+              />
+              <StatItem
+                icon="clock-time-eight-outline"
+                value={formatTime(totalTime)}
+                label="Tempo Total"
+                color="#2196F3"
+                delay={300}
+              />
+              <StatItem
+                icon="book-open-variant"
+                value={moduleProgress.length.toString()}
+                label="Módulos Feitos"
+                color="#9C27B0"
+                delay={400}
+              />
+              <StatItem
+                icon="trophy"
+                value={userPoints.toLocaleString("pt-BR")}
+                label="Pontos"
+                color="#FF9800"
+                delay={500}
+              />
             </View>
-          )}
-        </View>
-      </ScrollView>
-    </View>
+          </Animated.View>
+
+          <View style={styles.section}>
+            <AccessibleText
+              baseSize={20}
+              style={[styles.sectionTitleDark, { color: theme.text }]}
+            >
+              📚 Desempenho por Módulo
+            </AccessibleText>
+            <AccessibleText
+              baseSize={12}
+              style={[styles.sectionSubtitleDark, { color: theme.text }]}
+            >
+              Última tentativa de cada módulo - Arraste para ver mais detalhes
+            </AccessibleText>
+
+            {moduleProgress.length > 0 ? (
+              moduleProgress.map((p, index) => (
+                <ModuleCard
+                  key={`${p.moduleNumber}-${p.id}`}
+                  moduleNumber={p.moduleNumber}
+                  accuracy={p.accuracy}
+                  correctAnswers={p.correctAnswers}
+                  wrongAnswers={p.wrongAnswers}
+                  timeSpent={p.timeSpent}
+                  updatedAt={p.updatedAt}
+                  index={index}
+                  theme={theme}
+                  onPress={() =>
+                    navigation.navigate("IncorrectAnswers", {
+                      moduleNumber: p.moduleNumber,
+                    })
+                  }
+                />
+              ))
+            ) : (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons
+                  name="book-outline"
+                  size={64}
+                  color={theme.text}
+                />
+                <AccessibleText
+                  baseSize={16}
+                  style={[styles.emptyText, { color: theme.text }]}
+                >
+                  Você ainda não completou nenhum módulo
+                </AccessibleText>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+    </GestureDetector>
   );
 };
 
@@ -373,7 +415,7 @@ export default function ProgressScreen(
   );
 }
 
-// Estilos restantes (agora muito menores)
+// Estilos
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },

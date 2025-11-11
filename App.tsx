@@ -1,4 +1,3 @@
-// App.tsx (Corrigido)
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
 import awsmobile from "./src/aws-exports";
@@ -14,6 +13,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
 import {
   NavigationContainer,
+  DefaultTheme,
   useNavigationContainerRef,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -33,15 +33,18 @@ import {
 } from "./src/context/AccessibilityProvider";
 import { SettingsProvider as AccessibilitySettingsProvider } from "./src/context/SettingsProvider";
 
-// Componentes Acessibilidade
-import MagnifierLens from "./src/components/MagnifierLens";
-import AccessibilityHub from "./src/components/AccessibilityHub";
+// ✅ 1. IMPORTAR O SUJEITO E O OBSERVADOR
+import { moduleCompletionSubject } from "./src/services/ModuleCompletionSubject";
+import { notificationObserver } from "./src/observers/NotificationObserver";
+
+// ✅ 2. IMPORTAR O MODAL VISUAL
+import { CompletionModal } from "./src/components/modal/CompletionModal";
 
 // Rotas
 import { RootStackParamList } from "./src/navigation/types";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Telas Onboarding/Auth
+// Telas (importações)
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStep1Screen";
 import TutorialStep2Screen from "./src/screens/onboarding/TutorialStep2Screen";
@@ -51,8 +54,6 @@ import ForgotPasswordScreen from "./src/screens/auth/ForgotPasswordScreen";
 import ResetPasswordScreen from "./src/screens/auth/ResetPasswordScreen";
 import ConfirmSignUpScreen from "./src/screens/auth/ConfirmSignUpScreen";
 import NewPasswordScreen from "./src/screens/auth/NewPasswordScreen";
-
-// Telas Usuário
 import HomeScreen from "./src/screens/main/HomeScreen";
 import RankingScreen from "./src/screens/main/RankingScreen";
 import AchievementsScreen from "./src/screens/main/AchievementsScreen";
@@ -66,16 +67,8 @@ import ModuleResultScreen from "./src/screens/module/ModuleResultScreen";
 import LearningPathScreen from "./src/screens/session/LearningPathScreen";
 import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
 import IncorrectAnswersScreen from "./src/screens/main/IncorrectAnswersScreen";
-
-// ✅ 1. IMPORTAR AS NOVAS TELAS
 import AlphabetSectionsScreen from "./src/screens/session/AlphabetSectionsScreen";
 import AlphabetLessonScreen from "./src/screens/session/AlphabetLessonScreen";
-
-// ❌ REMOVA OS IMPORTS ANTIGOS
-// import BrailleScreen from "./src/screens/module/BrailleScreen";
-// import BrailleAlphabetScreen from "./src/screens/module/BrailleAlphabetScreen";
-
-// Telas Admin
 import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
 import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
@@ -98,15 +91,15 @@ function AppNavigation() {
     return () => sub();
   }, [checkUser, signOut]);
 
-  if (isLoading) {
-    return (
-      <View
-        style={[styles.loadingContainer, { backgroundColor: theme.background }]}
-      >
-        <ActivityIndicator size="large" color={theme.text} />
-      </View>
-    );
-  }
+  // Efeito para registrar o observador
+  useEffect(() => {
+    console.log("[App] Registrando NotificationObserver...");
+    moduleCompletionSubject.subscribe(notificationObserver);
+    return () => {
+      console.log("[App] Desregistrando NotificationObserver...");
+      moduleCompletionSubject.unsubscribe(notificationObserver);
+    };
+  }, []);
 
   return (
     <View style={[styles.fullscreen, { backgroundColor: theme.background }]}>
@@ -124,7 +117,20 @@ function AppNavigation() {
         >
           <NavigationContainer ref={navigationRef}>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
-              {!user ? (
+              {isLoading ? (
+                <Stack.Screen name="Loading">
+                  {() => (
+                    <View
+                      style={[
+                        styles.loadingContainer,
+                        { backgroundColor: theme.background },
+                      ]}
+                    >
+                      <ActivityIndicator size="large" color={theme.text} />
+                    </View>
+                  )}
+                </Stack.Screen>
+              ) : !user ? (
                 <>
                   <Stack.Screen name="Welcome" component={WelcomeScreen} />
                   <Stack.Screen
@@ -218,12 +224,6 @@ function AppNavigation() {
                     name="IncorrectAnswers"
                     component={IncorrectAnswersScreen}
                   />
-
-                  {/* ❌ 2. REMOVA AS TELAS ANTIGAS DAQUI */}
-                  {/* <Stack.Screen name="Alphabet" component={BrailleAlphabetScreen}/> */}
-                  {/* <Stack.Screen name="Braille" component={BrailleScreen} /> */}
-
-                  {/* ✅✅✅ 3. ADICIONE AS NOVAS TELAS AQUI ✅✅✅ */}
                   <Stack.Screen
                     name="AlphabetSections"
                     component={AlphabetSectionsScreen}
@@ -236,9 +236,6 @@ function AppNavigation() {
               )}
             </Stack.Navigator>
           </NavigationContainer>
-
-          {magnifier.isActive && <MagnifierLens viewShotRef={viewShotRef} />}
-          <AccessibilityHub />
         </View>
       </ViewShot>
     </View>
@@ -253,11 +250,16 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   return (
-    <AccessibilityProvider>
+    <AccessibilityProvider
+      speechConfig={{ lang: "pt-BR", rate: 0.9, volume: 1.0 }}
+    >
       <ContrastProvider>
         <AccessibilitySettingsProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <AppNavigation />
+
+            {/* ✅ 3. RENDERIZAR O MODAL AQUI (FORA DA NAVEGAÇÃO) */}
+            <CompletionModal />
           </GestureHandlerRootView>
         </AccessibilitySettingsProvider>
       </ContrastProvider>

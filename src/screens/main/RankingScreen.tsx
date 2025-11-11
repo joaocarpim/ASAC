@@ -124,21 +124,23 @@ export default function RankingScreen() {
       console.log("📊 Buscando ranking de usuários...");
       const users = await getAllUsers();
       console.log("👥 Usuários encontrados:", users);
-      
+
       if (!users || users.length === 0) {
         console.warn("⚠️ Nenhum usuário encontrado no ranking");
         setRankingData([]);
         return;
       }
-      
+
       const ranked = users
         .map((user: any) => {
-          const modulesCompleted = Array.isArray(user.modulesCompleted) 
-            ? user.modulesCompleted.filter(Boolean).length 
+          const modulesCompleted = Array.isArray(user.modulesCompleted)
+            ? user.modulesCompleted.filter(Boolean).length
             : 0;
-          
-          console.log(`👤 ${user.name}: ${user.points} pontos, ${user.coins} moedas, ${modulesCompleted} módulos`);
-          
+
+          console.log(
+            `👤 ${user.name}: ${user.points} pontos, ${user.coins} moedas, ${modulesCompleted} módulos`
+          );
+
           return {
             id: user.id,
             name: user.name || "Usuário",
@@ -149,7 +151,7 @@ export default function RankingScreen() {
           };
         })
         .sort((a: RankingItemData, b: RankingItemData) => b.points - a.points);
-      
+
       console.log("🏆 Ranking ordenado:", ranked);
       setRankingData(ranked);
     } catch (error) {
@@ -197,9 +199,13 @@ export default function RankingScreen() {
           </AccessibleHeader>
           <View style={styles.headerIconPlaceholder} />
         </View>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator size="large" color={theme.text} />
-          <Text style={{ color: theme.text, marginTop: 10 }}>Carregando ranking...</Text>
+          <Text style={{ color: theme.text, marginTop: 10 }}>
+            Carregando ranking...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -207,54 +213,68 @@ export default function RankingScreen() {
 
   return (
     <GestureDetector gesture={flingRight}>
-      <SafeAreaView style={styles.pageContainer}>
-        <StatusBar
-          barStyle={theme.statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <View style={styles.header}>
-          <AccessibleButton
-            onPress={handleGoBack}
-            accessibilityText="Voltar para a tela anterior"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={28}
-              color={styles.headerTitle.color}
-            />
-          </AccessibleButton>
-          <AccessibleHeader level={1} style={styles.headerTitle}>
-            Classificação Geral
-          </AccessibleHeader>
-          <View style={styles.headerIconPlaceholder} />
-        </View>
-        <View style={styles.topSection}>
-          <AccessibleView accessibilityText="Troféu, representando o topo da classificação">
-            <Text selectable={false} style={styles.mainEmoji}>
-              🏆
-            </Text>
-          </AccessibleView>
-          
-          {rankingData.length > 0 ? (
-            <ScrollView
-              style={styles.carouselContainer}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.carouselContent}
+      {/* ✅ CORREÇÃO: <SafeAreaView> envolvida por uma <View> para o gesture handler */}
+      <View style={{ flex: 1 }}>
+        <SafeAreaView style={styles.pageContainer}>
+          <StatusBar
+            barStyle={theme.statusBarStyle}
+            backgroundColor={theme.background}
+          />
+          <View style={styles.header}>
+            <AccessibleButton
+              onPress={handleGoBack}
+              accessibilityText="Voltar para a tela anterior"
             >
-              {rankingData.map((item, index) => (
-                <View key={item.id} style={styles.carouselItem}>
-                  <RankingListItem data={item} rank={index + 1} styles={styles} />
-                </View>
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="account-group" size={60} color={theme.text} style={{ opacity: 0.3 }} />
-              <Text style={styles.emptyText}>Nenhum usuário no ranking ainda</Text>
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
+              <MaterialCommunityIcons
+                name="arrow-left"
+                size={28}
+                color={styles.headerTitle.color}
+              />
+            </AccessibleButton>
+            <AccessibleHeader level={1} style={styles.headerTitle}>
+              Classificação Geral
+            </AccessibleHeader>
+            <View style={styles.headerIconPlaceholder} />
+          </View>
+          <View style={styles.topSection}>
+            <AccessibleView accessibilityText="Troféu, representando o topo da classificação">
+              <Text selectable={false} style={styles.mainEmoji}>
+                🏆
+              </Text>
+            </AccessibleView>
+
+            {rankingData.length > 0 ? (
+              <ScrollView
+                style={styles.carouselContainer}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.carouselContent}
+              >
+                {rankingData.map((item, index) => (
+                  <View key={item.id} style={styles.carouselItem}>
+                    <RankingListItem
+                      data={item}
+                      rank={index + 1}
+                      styles={styles}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons
+                  name="account-group"
+                  size={60}
+                  color={theme.text}
+                  style={{ opacity: 0.3 }}
+                />
+                <Text style={styles.emptyText}>
+                  Nenhum usuário no ranking ainda
+                </Text>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </View>
     </GestureDetector>
   );
 }

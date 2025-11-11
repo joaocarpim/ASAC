@@ -1,5 +1,5 @@
 /* progressService.ts
-   VERSÃO 6.0 - Mutation Customizada para Criar Progress
+    VERSÃO 7.0 - Com Padrão Observer
 */
 import { generateClient } from "aws-amplify/api";
 import { Amplify } from "aws-amplify";
@@ -17,10 +17,12 @@ import {
   createUser as createUserMutation,
 } from "../graphql/mutations";
 
+// ✅ 1. IMPORTAR O SUJEITO
+import { moduleCompletionSubject } from "./ModuleCompletionSubject";
+
 Amplify.configure(awsconfig);
 const client = generateClient();
 
-// ✅ MUTATION CUSTOMIZADA - NÃO RETORNA USER E MODULE
 const CREATE_PROGRESS_SIMPLE = /* GraphQL */ `
   mutation CreateProgressSimple($input: CreateProgressInput!) {
     createProgress(input: $input) {
@@ -77,9 +79,8 @@ function stringifyErrorDetails(value: any): string {
 }
 
 // =========================================
-// === Funções de Serviço ===
+// === Funções de Serviço (sem alterações) ===
 // =========================================
-
 export const getUserById = async (userId: string) => {
   if (!userId) throw new Error("ID do usuário é obrigatório");
   console.log(`[progressService] 🔍 getUserById chamado para: ${userId}`);
@@ -99,7 +100,6 @@ export const getUserById = async (userId: string) => {
       );
       return user;
     }
-
     console.warn(
       "[progressService] ⚠️ userPool retornou null, tentando apiKey..."
     );
@@ -145,7 +145,6 @@ export const getUserById = async (userId: string) => {
     return null;
   }
 };
-
 export const createUserInDB = async (
   userId: string,
   email: string,
@@ -157,7 +156,6 @@ export const createUserInDB = async (
     email,
     username,
   });
-
   try {
     const input = {
       id: userId,
@@ -174,13 +172,11 @@ export const createUserInDB = async (
       currentModule: 1,
       timeSpent: 0,
     };
-
     const result: any = await client.graphql({
       query: createUserMutation,
       variables: { input },
       authMode: "userPool",
     });
-
     console.log(
       `[progressService] ✅ Usuário criado com sucesso:`,
       result.data.createUser
@@ -194,7 +190,6 @@ export const createUserInDB = async (
     throw error;
   }
 };
-
 export const ensureUserExistsInDB = async (
   userId: string,
   email?: string,
@@ -202,14 +197,12 @@ export const ensureUserExistsInDB = async (
   name?: string
 ) => {
   console.log(`[progressService] 🔍 ensureUserExistsInDB para: ${userId}`);
-
   try {
     const existingUser = await getUserById(userId);
     if (existingUser) {
       console.log(`[progressService] ✅ Usuário já existe no banco`);
       return existingUser;
     }
-
     console.log(`[progressService] 🆕 Usuário não existe, criando...`);
     if (!email) {
       throw new Error("Email é necessário para criar um novo usuário");
@@ -224,7 +217,6 @@ export const ensureUserExistsInDB = async (
     throw error;
   }
 };
-
 export const getModuleProgressByUser = async (
   userId: string,
   moduleId: string | number
@@ -238,17 +230,14 @@ export const getModuleProgressByUser = async (
       authMode: "userPool",
     });
     const progressList = result?.data?.listProgresses?.items || [];
-
     if (progressList.length === 0) {
       return null;
     }
-
     const sorted = progressList.sort((a: any, b: any) => {
       const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
       const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
       return bTime - aTime;
     });
-
     const mostRecent = sorted[0];
     mostRecent.errorDetails = normalizeErrorDetails(mostRecent.errorDetails);
     return mostRecent;
@@ -257,7 +246,6 @@ export const getModuleProgressByUser = async (
     return null;
   }
 };
-
 export const getProgressById = async (progressId: string) => {
   try {
     const result: any = await client.graphql({
@@ -275,8 +263,6 @@ export const getProgressById = async (progressId: string) => {
     return null;
   }
 };
-
-// ✅ FUNÇÃO PRINCIPAL CORRIGIDA
 export const ensureModuleProgress = async (
   userId: string,
   moduleId: string | number,
@@ -285,7 +271,6 @@ export const ensureModuleProgress = async (
   console.log("⚠️ Criando novo registro de progresso para esta tentativa...");
   const mid = String(moduleId);
   const computedModuleNumber = (moduleNumber ?? Number(mid)) || 0;
-
   const input: any = {
     userId,
     moduleId: mid,
@@ -296,22 +281,17 @@ export const ensureModuleProgress = async (
     timeSpent: 0,
     completed: false,
   };
-
   try {
     console.log(
       "🔍 Criando progresso (mutation customizada):",
       JSON.stringify(input, null, 2)
     );
-
-    // ✅ USA A MUTATION CUSTOMIZADA
     const result: any = await client.graphql({
       query: CREATE_PROGRESS_SIMPLE,
       variables: { input },
       authMode: "userPool",
     });
-
     const newProgress = result.data?.createProgress;
-
     if (newProgress) {
       console.log("✅ Progresso criado com sucesso:", newProgress.id);
       newProgress.errorDetails = normalizeErrorDetails(
@@ -319,24 +299,20 @@ export const ensureModuleProgress = async (
       );
       return newProgress;
     }
-
     console.error("❌ createProgress retornou null");
     return null;
   } catch (error: any) {
     console.error("❌ ERRO FATAL ao criar progresso:", error);
-
     if (error.errors) {
       console.error("📋 Detalhes dos erros GraphQL:");
       error.errors.forEach((err: any, idx: number) => {
         console.error(`  ${idx + 1}. ${err.message}`);
-        if (err.path) console.error(`     Path: ${err.path.join(".")}`);
+        if (err.path) console.error(`    Path: ${err.path.join(".")}`);
       });
     }
-
     return null;
   }
 };
-
 export const updateModuleProgress = async (input: {
   id: string;
   accuracy?: number;
@@ -348,7 +324,6 @@ export const updateModuleProgress = async (input: {
   errorDetails?: ErrorDetail[] | string;
 }) => {
   const gqlInput: any = { ...input };
-
   if (gqlInput.errorDetails !== undefined) {
     if (
       Array.isArray(gqlInput.errorDetails) ||
@@ -357,7 +332,6 @@ export const updateModuleProgress = async (input: {
       gqlInput.errorDetails = stringifyErrorDetails(gqlInput.errorDetails);
     }
   }
-
   try {
     const result: any = await client.graphql({
       query: updateProgressMutation,
@@ -375,7 +349,6 @@ export const updateModuleProgress = async (input: {
     return null;
   }
 };
-
 export const updateUser = async (input: {
   id: string;
   coins?: number;
@@ -401,15 +374,12 @@ export const updateUser = async (input: {
     return null;
   }
 };
-
 export const registerCorrect = async (progressId: string) => {
   try {
     const progress = await getProgressById(progressId);
     if (!progress)
       throw new Error("Progresso não encontrado para registrar acerto");
-
     const newCorrectCount = (progress.correctAnswers ?? 0) + 1;
-
     await updateModuleProgress({
       id: progressId,
       correctAnswers: newCorrectCount,
@@ -421,7 +391,6 @@ export const registerCorrect = async (progressId: string) => {
     console.warn("⚠️ Falha ao registrar acerto:", error);
   }
 };
-
 export const registerWrong = async (
   progressId: string,
   errorDetail: ErrorDetail
@@ -430,17 +399,14 @@ export const registerWrong = async (
     const progress = await getProgressById(progressId);
     if (!progress)
       throw new Error("Progresso não encontrado para registrar erro");
-
     const newWrongCount = (progress.wrongAnswers ?? 0) + 1;
     const existingErrors = normalizeErrorDetails(progress.errorDetails);
-
     const hasError = existingErrors.some(
       (e) => e.questionId === errorDetail.questionId
     );
     const newErrorDetails = hasError
       ? existingErrors
       : [...existingErrors, errorDetail];
-
     await updateModuleProgress({
       id: progressId,
       wrongAnswers: newWrongCount,
@@ -453,7 +419,48 @@ export const registerWrong = async (
     console.warn("⚠️ Falha ao registrar erro:", error);
   }
 };
-
+export const createAchievement = async (
+  userId: string,
+  title: string,
+  moduleNumber?: number
+) => {
+  const input = {
+    userId,
+    title,
+    moduleNumber: moduleNumber ?? null,
+    description: title,
+  };
+  try {
+    const result: any = await client.graphql({
+      query: createAchievementMutation,
+      variables: { input },
+      authMode: "userPool",
+    });
+    console.log("🏅 Achievement criado");
+    return result.data?.createAchievement;
+  } catch (error) {
+    console.error("❌ Erro ao criar createAchievement:", error);
+    return null;
+  }
+};
+export const getAllUsers = async () => {
+  console.log("📊 Buscando todos os usuários...");
+  try {
+    const result: any = await client.graphql({
+      query: listUsers,
+      authMode: "userPool",
+    });
+    const users = result.data?.listUsers?.items || [];
+    console.log(`✅ ${users.length} usuários encontrados.`);
+    return users;
+  } catch (error) {
+    console.error("❌ Erro ao buscar usuários:", error);
+    return [];
+  }
+};
+// =========================================
+// === FUNÇÃO finishModule (MODIFICADA) ===
+// =========================================
 export const finishModule = async (
   userId: string,
   progressId: string,
@@ -467,7 +474,6 @@ export const finishModule = async (
 ) => {
   try {
     console.log("🎯 finishModule chamado");
-
     const user = await getUserById(userId);
     if (!user) throw new Error("Usuário não encontrado");
     console.log("👤 Dados atuais do usuário:", user);
@@ -476,7 +482,6 @@ export const finishModule = async (
       userId,
       String(moduleNumber)
     );
-
     let oldCorrect = 0;
     let oldWrong = 0;
     let oldTime = 0;
@@ -497,7 +502,7 @@ export const finishModule = async (
     const totalAnswered = correctCount + wrongCount;
     const accuracyNow =
       totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
-    const isCompleted = accuracyNow >= 70;
+    const isCompleted = accuracyNow >= 70; // Sua lógica de 70%
 
     console.log(
       `📊 Atualizando progresso final do módulo (ID: ${progressId})...`
@@ -513,27 +518,32 @@ export const finishModule = async (
       errorDetails: errorDetails,
     });
 
+    // ✅ 2. DISPARAR O EVENTO DO OBSERVER
+    // Notifica os ouvintes (como o NotificationObserver) sobre o resultado.
+    moduleCompletionSubject.notify({
+      moduleId: progressId, // Você pode usar o ID do progresso ou o ID do módulo
+      moduleNumber: moduleNumber,
+      accuracy: accuracyNow,
+      passed: isCompleted, // 'passed' é true se accuracy >= 70
+    });
+
     const totalCorrect = (user.correctAnswers ?? 0) - oldCorrect + correctCount;
     const totalWrong = (user.wrongAnswers ?? 0) - oldWrong + wrongCount;
     const totalTimeSpent = (user.timeSpent ?? 0) - oldTime + timeSpent;
-
     const totalAnswers = totalCorrect + totalWrong;
     const newPrecision =
       totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0;
-
     let updatedModules: number[] = Array.isArray(user.modulesCompleted)
       ? user.modulesCompleted.filter(
           (n: number | null): n is number => typeof n === "number"
         )
       : [];
-
     if (isCompleted && !updatedModules.includes(moduleNumber)) {
       updatedModules.push(moduleNumber);
     }
     updatedModules = [...new Set(updatedModules)].sort(
       (a: number, b: number) => a - b
     );
-
     const newPoints = isCompleted
       ? (user.points ?? 0) + 12250
       : (user.points ?? 0);
@@ -565,7 +575,6 @@ export const finishModule = async (
     };
 
     const updateResult = await updateUser(updatePayload);
-
     if (isCompleted) {
       try {
         await createAchievement(userId, achievementTitle, moduleNumber);
@@ -573,53 +582,11 @@ export const finishModule = async (
         console.warn("⚠️ Erro ao criar achievement:", err);
       }
     }
-
     console.log("✅ Módulo finalizado com sucesso!");
     return { accuracy: accuracyNow, updateResult, newPoints, newCoins };
   } catch (err) {
     console.error("❌ Erro em finishModule:", err);
     throw err;
-  }
-};
-
-export const createAchievement = async (
-  userId: string,
-  title: string,
-  moduleNumber?: number
-) => {
-  const input = {
-    userId,
-    title,
-    moduleNumber: moduleNumber ?? null,
-    description: title,
-  };
-  try {
-    const result: any = await client.graphql({
-      query: createAchievementMutation,
-      variables: { input },
-      authMode: "userPool",
-    });
-    console.log("🏅 Achievement criado");
-    return result.data?.createAchievement;
-  } catch (error) {
-    console.error("❌ Erro ao criar createAchievement:", error);
-    return null;
-  }
-};
-
-export const getAllUsers = async () => {
-  console.log("📊 Buscando todos os usuários...");
-  try {
-    const result: any = await client.graphql({
-      query: listUsers,
-      authMode: "userPool",
-    });
-    const users = result.data?.listUsers?.items || [];
-    console.log(`✅ ${users.length} usuários encontrados.`);
-    return users;
-  } catch (error) {
-    console.error("❌ Erro ao buscar usuários:", error);
-    return [];
   }
 };
 

@@ -1,4 +1,4 @@
-// src/screens/module/ModuleResultScreen.tsx (CORRIGIDO)
+// src/screens/module/ModuleResultScreen.tsx (Atualizado)
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -24,8 +24,13 @@ import {
 } from "../../components/AccessibleComponents";
 import { Audio } from "expo-av";
 import { useAuthStore } from "../../store/authStore";
-// ✅ Importa o 'progressService' como default e o TIPO 'ErrorDetail'
 import progressService, { ErrorDetail } from "../../services/progressService";
+
+// ✅ 1. IMPORTAR O STORE DO MODAL
+import { useModalStore } from "../../store/useModalStore";
+
+// ❌ A importação local do modal foi removida, pois ele é global no App.tsx
+// import { CompletionModal } from "../../components/modal/CompletionModal";
 
 const { width } = Dimensions.get("window");
 
@@ -59,14 +64,11 @@ export default function ModuleResultScreen({
   } = route.params;
 
   const { user } = useAuthStore();
-
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
   const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
   const [showConfetti, setShowConfetti] = useState(false);
-
   const { theme } = useContrast();
   const {
     fontSizeMultiplier,
@@ -75,6 +77,9 @@ export default function ModuleResultScreen({
     letterSpacing,
     isDyslexiaFontEnabled,
   } = useSettings();
+
+  // ✅ 2. OBTER A AÇÃO 'showModal' DO STORE
+  const { showModal } = useModalStore();
 
   const styles = createStyles(
     theme,
@@ -111,28 +116,37 @@ export default function ModuleResultScreen({
     if (passed) {
       playSound(successSound);
       setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2500);
+
+      // ✅ 3. CHAMAR O MODAL DIRETAMENTE DAQUI
+      const title = "🎉 Módulo Concluído!";
+      const body = `Parabéns! Você completou o Módulo ${moduleId} com ${accuracy}% de acerto!`;
+
+      // Adiciona um pequeno atraso para o usuário ver a tela de resultado antes do modal
+      const timer = setTimeout(() => {
+        showModal(title, body);
+      }, 750); // 0.75 segundos de atraso
+
+      const confettiTimer = setTimeout(() => setShowConfetti(false), 2500);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(confettiTimer);
+      };
     } else {
       playSound(failureSound);
     }
-  }, [passed, successSound, failureSound]);
+  }, [passed, successSound, failureSound, showModal, moduleId, accuracy]); // Adicionadas dependências
 
+  // ... (o resto do seu arquivo: handleSaveProgress, useEffect de salvar, formatTime, etc. continua igual)
   const handleSaveProgress = useCallback(async () => {
-    // ✅ BUG 1 CORRIGIDO
-    // Removemos '|| !passed'. O progresso será salvo
-    // independente da nota (passou ou não).
     if (!user?.userId || !progressId) {
-      console.warn(
-        "⚠️ Dados insuficientes para salvar (usuário ou ID do progresso faltando):",
-        {
-          userId: user?.userId,
-          progressId,
-        }
-      );
-      setSaved(true); // Marca como 'salvo' para não tentar de novo
+      console.warn("⚠️ Dados insuficientes para salvar:", {
+        userId: user?.userId,
+        progressId,
+      });
+      setSaved(true);
       return;
     }
-
     setSaving(true);
     try {
       console.log("💾 Salvando progresso do módulo...");
@@ -191,17 +205,12 @@ export default function ModuleResultScreen({
     wrongAnswers,
     errorDetails,
     totalQuestions,
-  ]); // Dependências atualizadas
-
-  // ✅ BUG 2 CORRIGIDO
-  // Este useEffect agora chama 'handleSaveProgress' SEMPRE,
-  // não apenas se 'passed' for true.
+  ]);
   useEffect(() => {
     if (user?.userId && !saved && !saving) {
       handleSaveProgress();
     }
   }, [user?.userId, saved, saving, handleSaveProgress]);
-
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -224,6 +233,7 @@ export default function ModuleResultScreen({
   };
   const errors = wrongAnswers ?? totalQuestions - correctAnswers;
 
+  // ... (o seu JSX de retorno permanece igual, ele NÃO precisa renderizar o <CompletionModal /> aqui)
   return (
     <View style={styles.container}>
       <StatusBar
@@ -247,7 +257,6 @@ export default function ModuleResultScreen({
         <Text style={styles.headerSubtitle}>
           Módulo {moduleId} {passed ? "Concluído" : "Não Concluído"}
         </Text>
-
         {saving && (
           <View style={styles.savingIndicator}>
             <ActivityIndicator size="small" color={theme.text} />
@@ -265,7 +274,6 @@ export default function ModuleResultScreen({
           </View>
         )}
       </AccessibleView>
-
       <ScrollView
         style={styles.contentArea}
         showsVerticalScrollIndicator={false}
@@ -284,7 +292,6 @@ export default function ModuleResultScreen({
             {getPerformanceMessage()}
           </Text>
         </AccessibleView>
-
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <MaterialCommunityIcons
@@ -324,7 +331,6 @@ export default function ModuleResultScreen({
           </View>
         </View>
       </ScrollView>
-
       <View style={styles.footer}>
         {!passed && (
           <AccessibleButton
@@ -356,7 +362,6 @@ export default function ModuleResultScreen({
           />
         </AccessibleButton>
       </View>
-
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
           <ConfettiCannon
@@ -370,6 +375,7 @@ export default function ModuleResultScreen({
   );
 }
 
+// ... (Sua função createStyles permanece igual)
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,

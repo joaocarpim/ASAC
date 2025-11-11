@@ -1,4 +1,4 @@
-// src/screens/admin/AdminUserDetailScreen.tsx (Corrigido)
+// src/screens/admin/AdminUserDetailScreen.tsx (Sem redefinição de senha)
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -19,6 +19,7 @@ import {
   getModuleProgressByUser,
 } from "../../services/progressService";
 import { generateClient } from "aws-amplify/api";
+// ❌ IMPORTAÇÃO REMOVIDA: import { forgotPassword } from "aws-amplify/auth";
 import { listProgresses as listProgressesQuery } from "../../graphql/queries";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -46,7 +47,7 @@ export default function AdminUserDetailScreen({
   const [selectedModule, setSelectedModule] = useState<number>(1);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Estados para os totais (Declarados APENAS AQUI)
+  // Estados para os totais
   const [totalCorrect, setTotalCorrect] = useState(0);
   const [totalWrong, setTotalWrong] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
@@ -170,20 +171,7 @@ export default function AdminUserDetailScreen({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleResetPassword = () => {
-    Alert.alert(
-      "Redefinir Senha",
-      `Isso enviará um email de redefinição de senha para ${userData.email}. Você tem certeza?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Sim, redefinir",
-          onPress: () =>
-            console.log("Lógica de redefinir senha ainda não implementada"),
-        },
-      ]
-    );
-  };
+  // ❌ FUNÇÃO REMOVIDA: handleResetPassword
 
   if (loading) {
     return (
@@ -224,21 +212,13 @@ export default function AdminUserDetailScreen({
   const moduleTime = selectedModuleData?.timeSpent ?? 0;
   const modulePrecision = selectedModuleData?.accuracy ?? 0;
 
-  // ======================================================
-  // ✅ CORREÇÃO: As 4 linhas abaixo foram REMOVIDAS
-  // não precisamos redeclará-las, pois elas já existem como 'useState'
-  // ======================================================
-  // const totalCorrect = ... (REMOVIDO)
-  // const totalWrong = ... (REMOVIDO)
-  // const totalTime = ... (REMOVIDO)
-  // const totalPrecision = ... (REMOVIDO)
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
       <ScreenHeader title={userName} />
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* 1. Card de Informações do Usuário */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
             <View style={[styles.cardColumn, { flex: 2 }]}>
@@ -264,6 +244,53 @@ export default function AdminUserDetailScreen({
           </View>
         </View>
 
+        {/* 2. Card de Estatísticas Gerais */}
+        <View style={styles.card}>
+          <Text style={styles.cardSectionTitle}>
+            Estatísticas Gerais (Baseado na última tentativa)
+          </Text>
+          <View style={styles.cardRow}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Total Acertos</Text>
+              <Text style={styles.cardValue}>{totalCorrect}</Text>
+            </View>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Total Erros</Text>
+              <Text style={styles.cardValue}>{totalWrong}</Text>
+            </View>
+          </View>
+          <View style={styles.cardRow}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Tempo Total</Text>
+              <Text style={styles.cardValue}>{formatTime(totalTime)}</Text>
+            </View>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Precisão Média</Text>
+              <Text style={styles.cardValue}>{totalPrecision}%</Text>
+            </View>
+          </View>
+          <View style={styles.cardRow}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Moedas</Text>
+              <Text style={styles.cardValue}>{userData.coins || 0}</Text>
+            </View>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Pontos</Text>
+              <Text style={styles.cardValue}>
+                {(userData.points || 0).toLocaleString("pt-BR")}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.cardRow, { marginBottom: 0 }]}>
+            <View style={styles.cardColumn}>
+              <Text style={styles.cardLabel}>Módulos Concluídos</Text>
+              <Text style={styles.cardValue}>{modulesCompleted.length}/3</Text>
+            </View>
+            <View style={styles.cardColumn}></View>
+          </View>
+        </View>
+
+        {/* 3. Seção "Selecionar Módulo" */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Selecionar Módulo</Text>
           <View style={styles.modulesButtons}>
@@ -302,6 +329,7 @@ export default function AdminUserDetailScreen({
           </View>
         </View>
 
+        {/* 4. Grid de Estatísticas do Módulo */}
         <View style={styles.statsGrid}>
           <StatGridItem
             icon="target"
@@ -325,55 +353,7 @@ export default function AdminUserDetailScreen({
           />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>
-            Estatísticas Gerais (Baseado na última tentativa)
-          </Text>
-          <View style={styles.cardRow}>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Total Acertos</Text>
-              {/* ✅ CORREÇÃO: Usa a variável de estado */}
-              <Text style={styles.cardValue}>{totalCorrect}</Text>
-            </View>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Total Erros</Text>
-              {/* ✅ CORREÇÃO: Usa a variável de estado */}
-              <Text style={styles.cardValue}>{totalWrong}</Text>
-            </View>
-          </View>
-          <View style={styles.cardRow}>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Tempo Total</Text>
-              {/* ✅ CORREÇÃO: Usa a variável de estado */}
-              <Text style={styles.cardValue}>{formatTime(totalTime)}</Text>
-            </View>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Precisão Média</Text>
-              {/* ✅ CORREÇÃO: Usa a variável de estado */}
-              <Text style={styles.cardValue}>{totalPrecision}%</Text>
-            </View>
-          </View>
-          <View style={styles.cardRow}>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Moedas</Text>
-              <Text style={styles.cardValue}>{userData.coins || 0}</Text>
-            </View>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Pontos</Text>
-              <Text style={styles.cardValue}>
-                {(userData.points || 0).toLocaleString("pt-BR")}
-              </Text>
-            </View>
-          </View>
-          <View style={[styles.cardRow, { marginBottom: 0 }]}>
-            <View style={styles.cardColumn}>
-              <Text style={styles.cardLabel}>Módulos Concluídos</Text>
-              <Text style={styles.cardValue}>{modulesCompleted.length}/3</Text>
-            </View>
-            <View style={styles.cardColumn}></View>
-          </View>
-        </View>
-
+        {/* 5. Seção "Ações" */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ações</Text>
           <TouchableOpacity
@@ -396,25 +376,13 @@ export default function AdminUserDetailScreen({
             <Text style={styles.statLabel}>Detalhes</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.passwordButton}
-            onPress={handleResetPassword}
-          >
-            <MaterialCommunityIcons
-              name="lock-reset"
-              size={28}
-              color="#FFFFFF"
-            />
-            <Text style={styles.statValue}>Redefinir Senha</Text>
-            <Text style={styles.statLabel}>Enviar email de redefinição</Text>
-          </TouchableOpacity>
+          {/* ❌ BOTÃO DE SENHA REMOVIDO */}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-// ... Estilos (não mudam) ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0EFEA" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -423,6 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#191970",
     borderRadius: 12,
     padding: 20,
+    // top: 15, // ❌ REMOVIDO: Este 'top' estava bagunçando o layout
     marginBottom: 20,
   },
   cardRow: {
@@ -499,12 +468,5 @@ const styles = StyleSheet.create({
     padding: 15,
     alignItems: "center",
   },
-  passwordButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 12,
-    width: "100%",
-    padding: 15,
-    alignItems: "center",
-    marginTop: 10,
-  },
+  // ❌ ESTILO REMOVIDO: passwordButton
 });

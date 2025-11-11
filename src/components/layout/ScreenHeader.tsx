@@ -1,5 +1,3 @@
-// src/components/layout/ScreenHeader.tsx
-
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -12,7 +10,7 @@ import { Theme } from "../../types/contrast";
 
 type ScreenHeaderProps = {
   title: string;
-  onBackPress?: () => void; // 👈 1. ADICIONE A PROPRIEDADE OPCIONAL AQUI
+  onBackPress?: () => void;
   rightIcon?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   onRightIconPress?: () => void;
   backButtonAccessibilityLabel?: string;
@@ -21,7 +19,7 @@ type ScreenHeaderProps = {
 
 export default function ScreenHeader({
   title,
-  onBackPress, // 👈 2. RECEBA A NOVA PROPRIEDADE
+  onBackPress,
   rightIcon,
   onRightIconPress,
   backButtonAccessibilityLabel = "Voltar",
@@ -46,52 +44,57 @@ export default function ScreenHeader({
     isDyslexiaFontEnabled
   );
 
-  // 👈 3. CRIE UMA FUNÇÃO PARA LIDAR COM O CLIQUE DE VOLTAR
   const handleBackPress = () => {
-    // Se uma função onBackPress foi passada, use-a.
     if (onBackPress) {
       onBackPress();
     } else {
-      // Caso contrário, use o comportamento padrão.
       navigation.goBack();
     }
   };
 
   return (
     <View style={styles.header}>
+           {" "}
       <AccessibleButton
-        onPress={handleBackPress} // 👈 4. USE A NOVA FUNÇÃO AQUI
+        onPress={handleBackPress}
         style={styles.iconButton}
-        accessibilityText={backButtonAccessibilityLabel}
+        // ✅ ALTERADO: De 'accessibilityText' para 'accessibilityLabel'
+        accessibilityLabel={backButtonAccessibilityLabel}
       >
+               {" "}
         <MaterialCommunityIcons
           name="arrow-left"
           size={30}
           color={theme.text}
         />
+             {" "}
       </AccessibleButton>
-
+           {" "}
       <AccessibleHeader level={1} style={styles.title}>
-        {title}
+                {title}     {" "}
       </AccessibleHeader>
-
+           {" "}
       {rightIcon ? (
         <AccessibleButton
           onPress={onRightIconPress}
           style={styles.iconButton}
-          accessibilityText={
+          // ✅ ALTERADO: De 'accessibilityText' para 'accessibilityLabel'
+          accessibilityLabel={
             rightButtonAccessibilityLabel || `Botão ${rightIcon}`
           }
         >
+                   {" "}
           <MaterialCommunityIcons
             name={rightIcon}
             size={30}
             color={theme.text}
           />
+                 {" "}
         </AccessibleButton>
       ) : (
         <View style={styles.iconButton} />
       )}
+         {" "}
     </View>
   );
 }

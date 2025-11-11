@@ -1,5 +1,4 @@
-// src/screens/main/HomeScreen.tsx (Corrigido)
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -28,13 +27,15 @@ import {
   AccessibleButton,
 } from "../../components/AccessibleComponents";
 import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
-import { LEARNING_PATH_SESSIONS } from "../../navigation/learningPathData";
+
+// IMPORTAR OS STORES E O ÁUDIO
+import { useModalStore } from "../../store/useModalStore";
+import { useNotificationQueueStore } from "../../store/useNotificationQueueStore";
+import { Audio } from "expo-av";
 
 /* ===========================
     Estilos
    =========================== */
-
-// ✅ 1. TAMANHO DIMINUÍDO
 const BOX_SIZE = 85;
 
 const createStyles = (
@@ -99,13 +100,11 @@ const createStyles = (
       padding: 6,
     },
     statIcon: {
-      // ✅ 2. ÍCONE UM POUCO MENOR
       fontSize: 26 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
     statValue: {
       color: theme.cardText,
-      // ✅ 3. VALOR UM POUCO MENOR
       fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginTop: 2,
@@ -162,17 +161,21 @@ const createStyles = (
       color: theme.text,
       marginLeft: 10,
     } as TextStyle,
+
+    // ✅ ESTILO DO CONTAINER CORRIGIDO
     actionsContainer: {
       flexDirection: "row",
-      justifyContent: "center",
+      justifyContent: "center", // Centraliza os botões na linha
       alignItems: "center",
-      flexWrap: "wrap",
-      gap: 8,
-      margin: 5,
+      flexWrap: "wrap", // Permite quebrar a linha
+      gap: 8, // Espaço entre os botões
       alignSelf: "center",
-      paddingBottom: 70,
-      paddingHorizontal: 20,
+      paddingBottom: 70, // Espaçamento inferior
+
+      // Define a largura exata para 3 botões (85*3) + 2 vãos (8*2)
+      width: BOX_SIZE * 3 + 8 * 2, // = 271
     },
+
     actionButton: {
       width: BOX_SIZE,
       height: BOX_SIZE,
@@ -183,7 +186,6 @@ const createStyles = (
       padding: 6,
     },
     actionIcon: {
-      // ✅ 4. ÍCONE UM POUCO MENOR
       fontSize: 26 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
@@ -198,10 +200,9 @@ const createStyles = (
 
 /* ===========================
     Tipagens e Subcomponentes
-    (Mantidos como estão)
-    =========================== */
+   =========================== */
+// ... (Subcomponentes StatCard, ActionButton, ModuleItem permanecem iguais)
 type HomeScreenStyles = ReturnType<typeof createStyles>;
-
 interface StatCardProps {
   iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   value: string | number;
@@ -233,13 +234,14 @@ const StatCard: React.FC<StatCardProps> = ({
       accessibilityText={`${label}: ${value}.`}
       style={styles.statCard}
     >
+      {" "}
       <MaterialCommunityIcons
         name={iconName}
         size={iconStyle.fontSize}
         color={iconStyle.color}
-      />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      />{" "}
+      <Text style={styles.statValue}>{value}</Text>{" "}
+      <Text style={styles.statLabel}>{label}</Text>{" "}
     </AccessibleView>
   );
 };
@@ -256,12 +258,13 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       onPress={onPress}
       style={styles.actionButton}
     >
+      {" "}
       <MaterialCommunityIcons
         name={iconName}
         size={iconStyle.fontSize}
         color={iconStyle.color}
-      />
-      <Text style={styles.actionLabel}>{label}</Text>
+      />{" "}
+      <Text style={styles.actionLabel}>{label}</Text>{" "}
     </AccessibleButton>
   );
 };
@@ -288,17 +291,20 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
       disabled={isLocked}
       style={[styles.moduleItem, isLocked && { opacity: 0.55 }]}
     >
+      {" "}
       <View style={styles.moduleIconContainer}>
+        {" "}
         <MaterialCommunityIcons
           name={iconName}
           size={iconStyle.fontSize}
           color={iconStyle.color}
-        />
-      </View>
+        />{" "}
+      </View>{" "}
       <View style={styles.moduleTextContainer}>
-        <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
-        <Text style={styles.moduleSubtitle}>{module.title}</Text>
-      </View>
+        {" "}
+        <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>{" "}
+        <Text style={styles.moduleSubtitle}>{module.title}</Text>{" "}
+      </View>{" "}
       {isLocked ? (
         <MaterialCommunityIcons
           name="lock-outline"
@@ -312,7 +318,7 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
             { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
           ]}
         />
-      )}
+      )}{" "}
     </AccessibleButton>
   );
 };
@@ -342,6 +348,40 @@ const HomeScreen: React.FC<
     lineHeightMultiplier,
     letterSpacing
   );
+
+  const [welcomeMessageShown, setWelcomeMessageShown] = useState(false);
+  const { showModal } = useModalStore();
+  const { pendingNotification, dequeueNotification } =
+    useNotificationQueueStore();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (pendingNotification) {
+        console.log(
+          "[HomeScreen] Notificação pendente (Módulo) encontrada. Mostrando modal..."
+        );
+        showModal(pendingNotification.title, pendingNotification.message);
+        dequeueNotification();
+      }
+    }, [pendingNotification, showModal, dequeueNotification])
+  );
+
+  // EFEITO PARA MOSTRAR A MENSAGEM DE BOAS-VINDAS (agora sem som)
+  useEffect(() => {
+    if (dbUser && !welcomeMessageShown && !pendingNotification) {
+      const title = `🎉 Seja Bem-Vindo(a)!`;
+      const message = `Olá, ${dbUser.name}! Estamos felizes em ver você por aqui.`;
+
+      const showWelcomeModal = () => {
+        // Apenas chama o modal. O modal vai tocar o seu próprio som.
+        showModal(title, message);
+        setWelcomeMessageShown(true);
+      };
+
+      const timer = setTimeout(showWelcomeModal, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [dbUser, welcomeMessageShown, pendingNotification, showModal]);
 
   const fetchData = useCallback(async () => {
     if (!user?.userId) {
@@ -373,7 +413,6 @@ const HomeScreen: React.FC<
     if (moduleId === 1) return true;
     return completedModules.includes(moduleId - 1);
   };
-
   const openModule = async (moduleId: number, completedModules: number[]) => {
     if (!user?.userId) return;
     const allowed = canStartModule(moduleId, completedModules);
@@ -383,7 +422,6 @@ const HomeScreen: React.FC<
     }
     navigation.navigate("ModuleContent", { moduleId: String(moduleId) });
   };
-
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
@@ -400,7 +438,6 @@ const HomeScreen: React.FC<
       </View>
     );
   }
-
   const rawModules = dbUser.modulesCompleted;
   const completedModuleNumbers: number[] = (() => {
     if (Array.isArray(rawModules)) {
@@ -408,7 +445,6 @@ const HomeScreen: React.FC<
     }
     return [];
   })();
-
   const completedCount = completedModuleNumbers.length;
   const modulesProgressString = `${completedCount}/${DEFAULT_MODULES.length}`;
 
@@ -440,7 +476,6 @@ const HomeScreen: React.FC<
           />
         </AccessibleButton>
       </View>
-
       <View style={styles.statsContainer}>
         <StatCard
           iconName="hand-coin"
@@ -461,7 +496,6 @@ const HomeScreen: React.FC<
           styles={styles}
         />
       </View>
-
       <FlatList
         data={DEFAULT_MODULES}
         keyExtractor={(item) => item.id}
@@ -471,7 +505,6 @@ const HomeScreen: React.FC<
             item.moduleId,
             completedModuleNumbers
           );
-
           return (
             <ModuleItem
               module={item}
@@ -485,6 +518,7 @@ const HomeScreen: React.FC<
         contentContainerStyle={styles.modulesList}
       />
 
+      {/* A ordem dos botões já está correta (4º item é o Progresso) */}
       <View style={styles.actionsContainer}>
         <ActionButton
           iconName="podium-gold"

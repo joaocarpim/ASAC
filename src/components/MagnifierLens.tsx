@@ -132,7 +132,9 @@ const MagnifierLens: React.FC<MagnifierLensProps> = ({ viewShotRef }) => {
       ]}
       {...panResponder.panHandlers}
     >
+           {" "}
       <View style={styles.lens}>
+               {" "}
         {viewShotUri && (
           <Animated.Image
             source={{ uri: viewShotUri }}
@@ -140,8 +142,9 @@ const MagnifierLens: React.FC<MagnifierLensProps> = ({ viewShotRef }) => {
             style={animatedImageStyle}
           />
         )}
+             {" "}
       </View>
-      <View style={styles.centerCrosshair} />
+            <View style={styles.centerCrosshair} />   {" "}
     </Animated.View>
   );
 };
