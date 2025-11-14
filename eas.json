@@ -4,25 +4,19 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal",
-      "env": {
-        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
-        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}"
-      }
-    },
     "production": {
-      "autoIncrement": true,
-      "env": {
-        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
-        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}"
-      },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "AWS_PROJECT_REGION": "us-east-1",
+        "AWS_APPSYNC_GRAPHQL_ENDPOINT": "https://izr4ayivprhodgqzf3gm6ijwh4.appsync-api.us-east-1.amazonaws.com/graphql",
+        "AWS_APPSYNC_AUTH_TYPE": "AMAZON_COGNITO_USER_POOLS",
+        "AWS_APPSYNC_API_KEY": "da2-bd27jwfofvf5ldshzssk7wufsm",
+        "AWS_USER_POOLS_ID": "us-east-1_00uu9Yg4p",
+        "AWS_USER_POOLS_WEB_CLIENT_ID": "3imrsqbj2nral6o47uerq3u5qp",
+        "AWS_USER_FILES_S3_BUCKET": "asacf2d64dd682824f0a9d23969cf8cd6bf211020-dev",
+        "AWS_USER_FILES_S3_BUCKET_REGION": "us-east-1"
       }
     }
   },

@@ -1,9 +1,7 @@
 /* progressService.ts
-    VERSÃO 7.0 - Com Padrão Observer
+    VERSÃO 7.1 - Sem aws-exports.js
 */
 import { generateClient } from "aws-amplify/api";
-import { Amplify } from "aws-amplify";
-import awsconfig from "../aws-exports";
 import {
   getUser,
   listUsers,
@@ -20,7 +18,7 @@ import {
 // ✅ 1. IMPORTAR O SUJEITO
 import { moduleCompletionSubject } from "./ModuleCompletionSubject";
 
-Amplify.configure(awsconfig);
+// NÃO precisa mais configurar Amplify aqui - já está configurado no App.tsx
 const client = generateClient();
 
 const CREATE_PROGRESS_SIMPLE = /* GraphQL */ `
@@ -546,10 +544,10 @@ export const finishModule = async (
     );
     const newPoints = isCompleted
       ? (user.points ?? 0) + 12250
-      : (user.points ?? 0);
+      : user.points ?? 0;
     const newCoins = isCompleted
       ? (user.coins ?? 0) + coinsEarned
-      : (user.coins ?? 0);
+      : user.coins ?? 0;
 
     console.log("📊 Novos valores GERAIS:", {
       newPoints,

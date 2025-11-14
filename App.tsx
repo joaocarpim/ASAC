@@ -2,13 +2,39 @@ import "react-native-gesture-handler";
 
 import { Amplify } from "aws-amplify";
 import { Hub } from "aws-amplify/utils";
-import awsmobile from "./src/aws-exports";
 import amplifyConfig from "./src/config/amplify-config";
 
+// Configuração do Amplify
+// Em produção (EAS Build), usa as variáveis de ambiente do eas.json
+// Em desenvolvimento, usa o amplifyconfig.json
 if (process.env.NODE_ENV === "production") {
-  Amplify.configure(amplifyConfig);
+  const productionConfig = {
+    aws_project_region: process.env.AWS_PROJECT_REGION || "us-east-1",
+    aws_appsync_graphqlEndpoint: process.env.AWS_APPSYNC_GRAPHQL_ENDPOINT || "https://izr4ayivprhodgqzf3gm6ijwh4.appsync-api.us-east-1.amazonaws.com/graphql",
+    aws_appsync_region: process.env.AWS_PROJECT_REGION || "us-east-1",
+    aws_appsync_authenticationType: process.env.AWS_APPSYNC_AUTH_TYPE || "AMAZON_COGNITO_USER_POOLS",
+    aws_appsync_apiKey: process.env.AWS_APPSYNC_API_KEY || "da2-bd27jwfofvf5ldshzssk7wufsm",
+    aws_cognito_identity_pool_id: "us-east-1:68b91f88-44a7-4083-9cce-d3c0ce795dd2",
+    aws_cognito_region: "us-east-1",
+    aws_user_pools_id: process.env.AWS_USER_POOLS_ID || "us-east-1_00uu9Yg4p",
+    aws_user_pools_web_client_id: process.env.AWS_USER_POOLS_WEB_CLIENT_ID || "3imrsqbj2nral6o47uerq3u5qp",
+    oauth: {},
+    aws_cognito_username_attributes: ["EMAIL"],
+    aws_cognito_social_providers: [],
+    aws_cognito_signup_attributes: ["EMAIL"],
+    aws_cognito_mfa_configuration: "OFF",
+    aws_cognito_mfa_types: ["SMS"],
+    aws_cognito_password_protection_settings: {
+      passwordPolicyMinLength: 8,
+      passwordPolicyCharacters: []
+    },
+    aws_cognito_verification_mechanisms: ["EMAIL"],
+    aws_user_files_s3_bucket: process.env.AWS_USER_FILES_S3_BUCKET || "asacf2d64dd682824f0a9d23969cf8cd6bf211020-dev",
+    aws_user_files_s3_bucket_region: process.env.AWS_USER_FILES_S3_BUCKET_REGION || "us-east-1"
+  };
+  Amplify.configure(productionConfig);
 } else {
-  Amplify.configure(awsmobile);
+  Amplify.configure(amplifyConfig);
 }
 
 import React, { useEffect, useRef } from "react";
