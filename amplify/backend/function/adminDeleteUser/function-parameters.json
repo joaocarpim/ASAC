@@ -7,9 +7,6 @@
     },
     "auth": {
       "asac2f4153aa": [
-        "create",
-        "read",
-        "update",
         "delete"
       ]
     }

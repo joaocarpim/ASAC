@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ImageSourcePropType,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -137,10 +138,6 @@ export default function RankingScreen() {
             ? user.modulesCompleted.filter(Boolean).length
             : 0;
 
-          console.log(
-            `👤 ${user.name}: ${user.points} pontos, ${user.coins} moedas, ${modulesCompleted} módulos`
-          );
-
           return {
             id: user.id,
             name: user.name || "Usuário",
@@ -172,111 +169,96 @@ export default function RankingScreen() {
     navigation.goBack();
   };
 
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handleGoBack);
+  // ✅ Gesture para voltar à Home (swipe para direita)
+  const flingRight = Platform.OS !== "web"
+    ? Gesture.Fling().direction(Directions.RIGHT).onEnd(() => {
+        navigation.navigate("Home" as never);
+      })
+    : undefined;
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.pageContainer}>
-        <StatusBar
-          barStyle={theme.statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <View style={styles.header}>
-          <AccessibleButton
-            onPress={handleGoBack}
-            accessibilityText="Voltar para a tela anterior"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={28}
-              color={styles.headerTitle.color}
-            />
-          </AccessibleButton>
-          <AccessibleHeader level={1} style={styles.headerTitle}>
-            Classificação Geral
-          </AccessibleHeader>
-          <View style={styles.headerIconPlaceholder} />
-        </View>
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+  const renderContent = () => (
+    <SafeAreaView style={styles.pageContainer}>
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
+      <View style={styles.header}>
+        <AccessibleButton
+          onPress={handleGoBack}
+          accessibilityText="Voltar para a tela anterior"
         >
+          <MaterialCommunityIcons
+            name="arrow-left"
+            size={28}
+            color={styles.headerTitle.color}
+          />
+        </AccessibleButton>
+        <AccessibleHeader level={1} style={styles.headerTitle}>
+          Classificação Geral
+        </AccessibleHeader>
+        <View style={styles.headerIconPlaceholder} />
+      </View>
+      
+      {loading ? (
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.text} />
-          <Text style={{ color: theme.text, marginTop: 10 }}>
-            Carregando ranking...
-          </Text>
+          <Text style={styles.loadingText}>Carregando ranking...</Text>
         </View>
-      </SafeAreaView>
+      ) : (
+        <View style={styles.topSection}>
+          <AccessibleView accessibilityText="Troféu, representando o topo da classificação">
+            <Text selectable={false} style={styles.mainEmoji}>
+              🏆
+            </Text>
+          </AccessibleView>
+
+          {rankingData.length > 0 ? (
+            <ScrollView
+              style={styles.carouselContainer}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.carouselContent}
+            >
+              {rankingData.map((item, index) => (
+                <View key={item.id} style={styles.carouselItem}>
+                  <RankingListItem
+                    data={item}
+                    rank={index + 1}
+                    styles={styles}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons
+                name="account-group"
+                size={60}
+                color={theme.text}
+                style={{ opacity: 0.3 }}
+              />
+              <Text style={styles.emptyText}>
+                Nenhum usuário no ranking ainda
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+    </SafeAreaView>
+  );
+
+  // ✅ Envolver com GestureDetector apenas em mobile
+  if (Platform.OS !== "web" && flingRight) {
+    return (
+      <GestureDetector gesture={flingRight}>
+        <View style={styles.pageContainer}>
+          {renderContent()}
+        </View>
+      </GestureDetector>
     );
   }
 
-  return (
-    <GestureDetector gesture={flingRight}>
-      {/* ✅ CORREÇÃO: <SafeAreaView> envolvida por uma <View> para o gesture handler */}
-      <View style={{ flex: 1 }}>
-        <SafeAreaView style={styles.pageContainer}>
-          <StatusBar
-            barStyle={theme.statusBarStyle}
-            backgroundColor={theme.background}
-          />
-          <View style={styles.header}>
-            <AccessibleButton
-              onPress={handleGoBack}
-              accessibilityText="Voltar para a tela anterior"
-            >
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={28}
-                color={styles.headerTitle.color}
-              />
-            </AccessibleButton>
-            <AccessibleHeader level={1} style={styles.headerTitle}>
-              Classificação Geral
-            </AccessibleHeader>
-            <View style={styles.headerIconPlaceholder} />
-          </View>
-          <View style={styles.topSection}>
-            <AccessibleView accessibilityText="Troféu, representando o topo da classificação">
-              <Text selectable={false} style={styles.mainEmoji}>
-                🏆
-              </Text>
-            </AccessibleView>
-
-            {rankingData.length > 0 ? (
-              <ScrollView
-                style={styles.carouselContainer}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.carouselContent}
-              >
-                {rankingData.map((item, index) => (
-                  <View key={item.id} style={styles.carouselItem}>
-                    <RankingListItem
-                      data={item}
-                      rank={index + 1}
-                      styles={styles}
-                    />
-                  </View>
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons
-                  name="account-group"
-                  size={60}
-                  color={theme.text}
-                  style={{ opacity: 0.3 }}
-                />
-                <Text style={styles.emptyText}>
-                  Nenhum usuário no ranking ainda
-                </Text>
-              </View>
-            )}
-          </View>
-        </SafeAreaView>
-      </View>
-    </GestureDetector>
-  );
+  // ✅ Em web, retornar diretamente sem GestureDetector
+  return renderContent();
 }
 
 const createStyles = (
@@ -371,6 +353,17 @@ const createStyles = (
       fontSize: 16 * fontMultiplier,
       marginTop: 15,
       opacity: 0.6,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    loadingText: {
+      color: theme.text,
+      marginTop: 10,
+      fontSize: 14 * fontMultiplier,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
   });

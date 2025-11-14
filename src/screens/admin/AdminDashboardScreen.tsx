@@ -1,4 +1,4 @@
-// src/screens/admin/AdminDashboardScreen.tsx (Com função de apagar)
+// src/screens/admin/AdminDashboardScreen.tsx (Com logs de depuração)
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -19,42 +19,42 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "../../store/authStore";
 import { getAllUsers } from "../../services/progressService";
 
-// ✅ 1. IMPORTAÇÕES ADICIONADAS
 import { generateClient } from "aws-amplify/api";
-// Certifique-se que o caminho para suas mutações está correto
-import { deleteUser as deleteUserMutation } from "../../graphql/mutations";
+import {
+  deleteUser as deleteUserMutation,
+  adminDeleteCognitoUser,
+  deleteProgress,
+  deleteAchievement,
+} from "../../graphql/mutations";
+import { listProgresses, listAchievements } from "../../graphql/queries";
 
-// ✅ Usa o tipo User do authStore
-type User = import("../../store/authStore").User & { id: string }; // Pega o 'id' do dynamo
+type User = import("../../store/authStore").User & {
+  id: string;
+  email: string;
+};
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 type StatCardProps = { icon: IconName; value: string; label: string };
-// ✅ 2. PROPS DO USERLISTITEM ATUALIZADAS
 type UserListItemProps = {
   item: User;
   onPress: () => void;
-  onDelete: () => void; // Prop para apagar
+  onDelete: () => void;
 };
 
+// ... (Componentes StatCard e UserListItem não mudam)
 const StatCard = ({ icon, value, label }: StatCardProps) => (
-  // ... (Componente StatCard não muda) ...
   <View style={styles.statCard}>
     <MaterialCommunityIcons name={icon} size={28} color="#FFFFFF" />
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
-
-// ✅ 3. COMPONENTE USERLISTITEM ATUALIZADO
 const UserListItem = ({ item, onPress, onDelete }: UserListItemProps) => {
   const modulesCount = Array.isArray(item.modulesCompleted)
     ? item.modulesCompleted.length
     : 0;
-
   return (
-    // O container principal não é mais clicável
     <View style={styles.userItem}>
-      {/* A parte da informação ainda é clicável para navegar */}
       <TouchableOpacity onPress={onPress} style={styles.userInfoClickable}>
         <Image
           source={require("../../assets/images/avatar1.png")}
@@ -88,13 +88,11 @@ const UserListItem = ({ item, onPress, onDelete }: UserListItemProps) => {
           </View>
         </View>
       </TouchableOpacity>
-
-      {/* Botão de apagar separado */}
       <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
         <MaterialCommunityIcons
           name="trash-can-outline"
           size={28}
-          color="#FF8A8A" // Uma cor de "perigo"
+          color="#FF8A8A"
         />
       </TouchableOpacity>
     </View>
@@ -114,37 +112,28 @@ export default function AdminDashboardScreen({
     averageProgress: 0,
   });
 
-  // ... (Função calculateStats não muda) ...
+  // ... (funções calculateStats, fetchUsers, useFocusEffect, handleLogout não mudam)
   const calculateStats = (userList: User[]) => {
     const totalUsers = userList.length;
     const activeUsers = userList.filter(
       (u: User) => (u.currentModule ?? 0) > 1 || (u.points ?? 0) > 0
     ).length;
-
     const totalModulesCompleted = userList.reduce((sum, user) => {
       const modules = Array.isArray(user.modulesCompleted)
         ? user.modulesCompleted.length
         : 0;
       return sum + modules;
     }, 0);
-
     const averageProgress =
       totalUsers > 0
         ? Math.round((totalModulesCompleted / (totalUsers * 3)) * 100)
         : 0;
-
-    setStats({
-      totalUsers,
-      activeUsers,
-      averageProgress,
-    });
+    setStats({ totalUsers, activeUsers, averageProgress });
   };
-
-  // ... (Função fetchUsers não muda) ...
   const fetchUsers = async () => {
     if (!loading) setLoading(true);
     try {
-      const allUsers = (await getAllUsers()) as User[]; // Força o tipo
+      const allUsers = (await getAllUsers()) as User[];
       const assistidos = allUsers.filter((u: User) => !u.isAdmin);
       setUsers(assistidos);
       calculateStats(assistidos);
@@ -158,7 +147,6 @@ export default function AdminDashboardScreen({
       setLoading(false);
     }
   };
-
   useFocusEffect(
     useCallback(() => {
       if (user) {
@@ -169,59 +157,171 @@ export default function AdminDashboardScreen({
       }
     }, [user])
   );
-
   const handleLogout = async () => {
     useAuthStore.getState().signOut();
   };
 
-  // ✅ 4. FUNÇÃO PARA APAGAR O USUÁRIO
+  // ✅ FUNÇÃO DE APAGAR ATUALIZADA COM LOGS
   const handleDeleteUser = (userToDelete: User) => {
+    console.log(
+      `🔴 [DELETE_USER] P0: Botão de lixeira clicado para ${userToDelete.name}`
+    );
+
+    if (!userToDelete.email) {
+      console.error(`🔴 [DELETE_USER] P1: FALHA. Usuário não tem email.`);
+      Alert.alert(
+        "Erro",
+        "Não foi possível apagar o usuário pois ele não tem um email registrado no banco de dados."
+      );
+      return;
+    }
+
+    console.log(
+      `🟡 [DELETE_USER] P1: Validação de email OK. Mostrando modal...`
+    );
+
     Alert.alert(
-      "Apagar Assistido",
-      `Você tem certeza que quer apagar ${
+      "Apagar Usuário (Cognito e DB)",
+      `Você tem CERTEZA que quer apagar ${
         userToDelete.name ?? "este usuário"
-      }? Esta ação é irreversível e apagará todos os dados de progresso.`,
+      } (${userToDelete.email})? Esta ação é IRREVERSÍVEL e apagará a conta do Cognito e TODOS os dados de progresso e conquistas do DynamoDB.`,
       [
-        { text: "Cancelar", style: "cancel" },
         {
-          text: "Apagar",
+          text: "Cancelar",
+          style: "cancel",
+          onPress: () =>
+            console.log("🟡 [DELETE_USER] P2: Ação cancelada pelo usuário."),
+        },
+        {
+          text: "Apagar Permanentemente",
           style: "destructive",
           onPress: async () => {
-            // Reutiliza o loading da tela
+            console.log(
+              `🟡 [DELETE_USER] P2: Usuário confirmou. Iniciando exclusão...`
+            );
             setLoading(true);
             try {
               const client = generateClient();
-              // 1. Apaga o usuário do DynamoDB
+
+              // ETAPA 1
+              console.log(
+                `🟡 [DELETE_USER] P3: Buscando progresso de ${userToDelete.id}`
+              );
+              const progressResult: any = await client.graphql({
+                query: listProgresses,
+                variables: { filter: { userId: { eq: userToDelete.id } } },
+                authMode: "userPool",
+              });
+              const progressItems = progressResult.data.listProgresses.items;
+              console.log(
+                `🟢 [DELETE_USER] P3: Encontrado(s) ${progressItems.length} registro(s) de progresso.`
+              );
+
+              // ETAPA 2
+              console.log(
+                `🟡 [DELETE_USER] P4: Buscando conquistas de ${userToDelete.id}`
+              );
+              const achievementsResult: any = await client.graphql({
+                query: listAchievements,
+                variables: { filter: { userId: { eq: userToDelete.id } } },
+                authMode: "userPool",
+              });
+              const achievementItems =
+                achievementsResult.data.listAchievements.items;
+              console.log(
+                `🟢 [DELETE_USER] P4: Encontrada(s) ${achievementItems.length} conquista(s).`
+              );
+
+              // ETAPA 3 & 4
+              const progressDeletions = progressItems.map((p: any) =>
+                client.graphql({
+                  query: deleteProgress,
+                  variables: { input: { id: p.id } },
+                  authMode: "userPool",
+                })
+              );
+              const achievementDeletions = achievementItems.map((a: any) =>
+                client.graphql({
+                  query: deleteAchievement,
+                  variables: { input: { id: a.id } },
+                  authMode: "userPool",
+                })
+              );
+
+              if (
+                progressDeletions.length > 0 ||
+                achievementDeletions.length > 0
+              ) {
+                console.log(
+                  `🟡 [DELETE_USER] P5: Apagando ${progressDeletions.length} progressos e ${achievementDeletions.length} conquistas...`
+                );
+                await Promise.all([
+                  ...progressDeletions,
+                  ...achievementDeletions,
+                ]);
+                console.log("🟢 [DELETE_USER] P5: Dependências apagadas.");
+              } else {
+                console.log(
+                  "🟢 [DELETE_USER] P5: Nenhuma dependência (progresso/conquista) para apagar."
+                );
+              }
+
+              // ETAPA 5
+              console.log(
+                `🟡 [DELETE_USER] P6: Apagando do Cognito: ${userToDelete.email}`
+              );
+              const cognitoResult: any = await client.graphql({
+                query: adminDeleteCognitoUser,
+                variables: { username: userToDelete.email },
+                authMode: "userPool",
+              });
+
+              if (cognitoResult.errors) {
+                throw new Error(
+                  cognitoResult.errors[0].message ||
+                    "Falha ao apagar do Cognito"
+                );
+              }
+              console.log(
+                `🟢 [DELETE_USER] P6: Usuário ${userToDelete.email} apagado do Cognito.`
+              );
+
+              // ETAPA 6
+              console.log(
+                `🟡 [DELETE_USER] P7: Apagando do DynamoDB: ${userToDelete.id}`
+              );
               await client.graphql({
                 query: deleteUserMutation,
                 variables: { input: { id: userToDelete.id } },
                 authMode: "userPool",
               });
+              console.log(
+                `🟢 [DELETE_USER] P7: Usuário ${userToDelete.id} apagado do DynamoDB.`
+              );
 
-              // 2. Remove o usuário da lista local (UI)
+              // ETAPA 7
+              console.log(`🟡 [DELETE_USER] P8: Atualizando UI...`);
               const updatedUsers = users.filter(
                 (u) => u.id !== userToDelete.id
               );
               setUsers(updatedUsers);
-              calculateStats(updatedUsers); // Recalcula estatísticas
+              calculateStats(updatedUsers);
 
               Alert.alert(
                 "Sucesso",
-                `${userToDelete.name ?? "Usuário"} foi apagado do banco de dados.`
-              );
-
-              console.log(
-                `⚠️ AVISO: Usuário ${userToDelete.id} apagado do DynamoDB. 
-                 A conta de autenticação (Cognito) ainda pode existir.`
+                `${userToDelete.name ?? "Usuário"} foi apagado permanentemente.`
               );
             } catch (error: any) {
-              console.error("❌ Erro ao apagar usuário:", error);
+              // ✅ LOG DE ERRO MELHORADO
+              console.error("🔴🔴🔴 [DELETE_USER] ERRO FATAL:", error);
               Alert.alert(
-                "Erro",
+                "Erro na Exclusão",
                 `Não foi possível apagar o usuário: ${error.message || error}`
               );
             } finally {
-              // Garante que o loading para
+              console.log(
+                "🟡 [DELETE_USER] P9: Finalizando, setLoading(false)."
+              );
               setLoading(false);
             }
           },
@@ -231,9 +331,9 @@ export default function AdminDashboardScreen({
   };
 
   return (
+    // ... (Seu JSX de retorno permanece exatamente o mesmo)
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F0EFEA" />
-      {/* ... (Header não muda) ... */}
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <MaterialCommunityIcons
@@ -251,7 +351,6 @@ export default function AdminDashboardScreen({
         </TouchableOpacity>
       </View>
 
-      {/* ... (StatsContainer não muda) ... */}
       <View style={styles.statsContainer}>
         <StatCard
           icon="account-group"
@@ -270,7 +369,6 @@ export default function AdminDashboardScreen({
         />
       </View>
 
-      {/* ... (SearchContainer não muda) ... */}
       <View style={styles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={24} color="#888" />
         <TextInput
@@ -281,7 +379,6 @@ export default function AdminDashboardScreen({
         />
       </View>
 
-      {/* ... (ListHeader não muda) ... */}
       <View style={styles.listHeader}>
         <Text style={styles.listTitle}>Lista de assistidos</Text>
         <TouchableOpacity
@@ -300,7 +397,6 @@ export default function AdminDashboardScreen({
             (user.name ?? "").toLowerCase().includes(searchQuery.toLowerCase())
           )}
           keyExtractor={(item: User) => item.id}
-          // ✅ 5. ATUALIZAÇÃO DO RENDERITEM
           renderItem={({ item }) => (
             <UserListItem
               item={item}
@@ -310,7 +406,6 @@ export default function AdminDashboardScreen({
                   userName: item.name ?? "Usuário",
                 })
               }
-              // Passa a função de apagar para o componente
               onDelete={() => handleDeleteUser(item)}
             />
           )}
@@ -323,7 +418,7 @@ export default function AdminDashboardScreen({
   );
 }
 
-// ✅ 6. ATUALIZAÇÃO DOS ESTILOS
+// ... (Seus estilos permanecem os mesmos)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0EFEA" },
   header: {
@@ -374,8 +469,6 @@ const styles = StyleSheet.create({
   },
   listTitle: { fontSize: 18, fontWeight: "bold", color: "#191970" },
   addButton: { backgroundColor: "#191970", borderRadius: 8, padding: 8 },
-
-  // ESTILOS DO ITEM DA LISTA MODIFICADOS
   userItem: {
     backgroundColor: "#191970",
     borderRadius: 15,
@@ -383,14 +476,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
-    justifyContent: "space-between", // Adicionado
+    justifyContent: "space-between",
   },
   userInfoClickable: {
-    // Novo
     flexDirection: "row",
     alignItems: "center",
-    flex: 1, // Ocupa o espaço
-    marginRight: 10, // Dá espaço para o botão de apagar
+    flex: 1,
+    marginRight: 10,
   },
   userAvatar: { width: 45, height: 45, borderRadius: 22.5, marginRight: 15 },
   userInfo: { flex: 1 },
@@ -398,7 +490,6 @@ const styles = StyleSheet.create({
   userStats: { flexDirection: "row", alignItems: "center", marginTop: 5 },
   userStatText: { color: "#FFFFFF", fontSize: 12, marginLeft: 4 },
   deleteButton: {
-    // Novo
     padding: 10,
     justifyContent: "center",
     alignItems: "center",

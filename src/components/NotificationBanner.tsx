@@ -20,23 +20,25 @@ export function NotificationBanner() {
   const [data, setData] = useState<NotificationData | null>(null);
   const translateY = useRef(new Animated.Value(-150)).current;
 
-  // ✅ LINHA CORRIGIDA
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    NotificationService.on("show", (notificationData) => {
+    const showListener = (notificationData: NotificationData | void) => {
       if (notificationData) {
-        showNotification(notificationData as NotificationData);
+        showNotification(notificationData);
       }
-    });
+    };
 
-    NotificationService.on("hide", () => {
+    const hideListener = () => {
       hideNotification();
-    });
+    };
+
+    NotificationService.on("show", showListener);
+    NotificationService.on("hide", hideListener);
 
     return () => {
-      NotificationService.off("show", () => {});
-      NotificationService.off("hide", () => {});
+      NotificationService.off("show", showListener);
+      NotificationService.off("hide", hideListener);
     };
   }, []);
 
@@ -56,7 +58,6 @@ export function NotificationBanner() {
     }).start();
 
     if (notificationData.duration !== 0) {
-      // @ts-ignore - Esta atribuição agora é segura por causa da correção acima
       timerRef.current = setTimeout(() => {
         hideNotification();
       }, notificationData.duration || 4000);
@@ -76,6 +77,7 @@ export function NotificationBanner() {
 
   if (!visible || !data) return null;
 
+  // ✅ CORREÇÃO APLICADA: Cores de texto corrigidas para contraste adequado
   const getColors = () => {
     switch (data.type) {
       case "success":
@@ -83,10 +85,10 @@ export function NotificationBanner() {
       case "error":
         return { bg: "#F44336", icon: "alert-circle", text: "#FFFFFF" };
       case "warning":
-        return { bg: "#FFC107", icon: "alert", text: "#333333" };
+        return { bg: "#FFC107", icon: "alert", text: "#333333" }; // Amarelo mantém texto escuro
       case "info":
       default:
-        return { bg: "#2196F3", icon: "information", text: "#FFFFFF" };
+        return { bg: "#2196F3", icon: "information", text: "#FFFFFF" }; // ✅ CORRIGIDO
     }
   };
 

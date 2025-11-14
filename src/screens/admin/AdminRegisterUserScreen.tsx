@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  // Alert, // MODIFICADO: Não precisamos mais do Alert
   StatusBar,
   ActivityIndicator,
 } from "react-native";
@@ -14,11 +13,8 @@ import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { generateClient } from "aws-amplify/api";
 import { adminRegisterUser } from "../../graphql/mutations";
-
-// NOVO: Importa o componente de modal
 import AppModal from "../../components/layout/AppModal";
 
-// NOVO: Define um tipo para o estado do modal
 interface ModalInfo {
   visible: boolean;
   type: "success" | "error" | null;
@@ -33,8 +29,6 @@ export default function AdminRegisterUserScreen({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // NOVO: Estado unificado para o modal
   const [modalInfo, setModalInfo] = useState<ModalInfo>({
     visible: false,
     type: null,
@@ -42,17 +36,14 @@ export default function AdminRegisterUserScreen({
     message: "",
   });
 
-  // NOVO: Função para fechar o modal
   const handleCloseModal = () => {
     setModalInfo({ visible: false, type: null, title: "", message: "" });
-    // Se o modal era de sucesso, navega de volta APÓS fechar
     if (modalInfo.type === "success") {
       navigation.goBack();
     }
   };
 
   const handleRegister = async () => {
-    // MODIFICADO: Substitui Alert.alert por setModalInfo
     if (!name.trim() || !email.trim() || !password.trim()) {
       setModalInfo({
         visible: true,
@@ -62,7 +53,7 @@ export default function AdminRegisterUserScreen({
       });
       return;
     }
-    // MODIFICADO: Substitui Alert.alert por setModalInfo
+
     if (password.length < 8) {
       setModalInfo({
         visible: true,
@@ -72,6 +63,7 @@ export default function AdminRegisterUserScreen({
       });
       return;
     }
+
     setLoading(true);
 
     try {
@@ -88,78 +80,68 @@ export default function AdminRegisterUserScreen({
         authMode: "userPool",
       });
 
-      console.log("📥 Resposta completa:", JSON.stringify(result, null, 2));
+      console.log(
+        "📥 Resposta GraphQL completa:",
+        JSON.stringify(result, null, 2)
+      );
 
       if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors[0].message);
+        throw new Error(result.errors.map((e: any) => e.message).join("; "));
       }
 
-      if (result.data?.adminRegisterUser) {
-        const response = result.data.adminRegisterUser;
-        let lambdaResponse: {
-          success: boolean;
-          message?: string;
-          error?: string;
-        };
-
-        try {
-          lambdaResponse = JSON.parse(response);
-        } catch (parseError) {
-          throw new Error("Resposta inválida da Lambda.");
-        }
-
-        console.log("📦 Resposta da Lambda parseada:", lambdaResponse);
-
-        if (lambdaResponse.success) {
-          const userName = name;
-          const userEmail = email;
-          setName("");
-          setEmail("");
-          setPassword("");
-
-          // MODIFICADO: Mostra o modal de sucesso
-          // A navegação foi movida para o 'handleCloseModal'
-          setModalInfo({
-            visible: true,
-            type: "success",
-            title: "✅ Sucesso",
-            message: `Assistido cadastrado!\n\n${userName}\n${userEmail}`,
-          });
-        } else {
-          // MODIFICADO: Lança o erro com a mensagem específica
-          throw new Error(
-            lambdaResponse.error === "UsernameExistsException"
-              ? "Este email já está cadastrado."
-              : lambdaResponse.error || "Falha ao cadastrar usuário."
-          );
-        }
-      } else {
+      if (!result.data?.adminRegisterUser) {
         throw new Error("Resposta vazia da Lambda.");
+      }
+
+      let lambdaResponse: {
+        success: boolean;
+        message?: string;
+        error?: string;
+      };
+
+      try {
+        lambdaResponse = JSON.parse(result.data.adminRegisterUser);
+        console.log("📦 Resposta Lambda parseada:", lambdaResponse);
+      } catch (parseError) {
+        console.error("❌ Falha ao parsear resposta da Lambda:", parseError);
+        throw new Error("Resposta inválida da Lambda.");
+      }
+
+      if (lambdaResponse.success) {
+        setModalInfo({
+          visible: true,
+          type: "success",
+          title: "✅ Sucesso",
+          message: `Assistido cadastrado!\n\n${name}\n${email}`,
+        });
+        setName("");
+        setEmail("");
+        setPassword("");
+      } else {
+        let errorMessage =
+          lambdaResponse.error || lambdaResponse.message || "Erro desconhecido";
+
+        if (errorMessage.includes("UsernameExistsException")) {
+          errorMessage = "Este email já está cadastrado no Cognito.";
+        } else if (errorMessage.includes("DynamoDB")) {
+          errorMessage =
+            "Erro ao salvar dados no banco. Tente novamente mais tarde.";
+        } else if (errorMessage.includes("password")) {
+          errorMessage = "Senha inválida. Deve ter no mínimo 8 caracteres.";
+        }
+
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
       console.error("❌ Erro ao registrar usuário:", error);
-      let errorMessage = error.message || "Erro desconhecido.";
 
-      // MODIFICADO: Ajusta as mensagens de erro para o modal
-      if (errorMessage.includes("UsernameExistsException")) {
-        errorMessage = "Este email já está cadastrado.";
-      } else if (errorMessage.includes("Unauthorized")) {
-        errorMessage = "Você não tem permissão para cadastrar usuários.";
-      } else if (errorMessage.includes("password")) {
-        // Captura o erro da senha que movemos da validação inicial
-        errorMessage = "A senha deve ter no mínimo 8 caracteres.";
-      } else if (!errorMessage.includes("email")) {
-        // Mensagem genérica solicitada
-        errorMessage =
-          "Não foi possível registrar o assistido.\nVerifique os dados e tente novamente.";
-      }
-
-      // MODIFICADO: Substitui Alert.alert por setModalInfo
       setModalInfo({
         visible: true,
         type: "error",
         title: "Erro no Cadastro",
-        message: errorMessage,
+        message:
+          error.message ||
+          "Não foi possível registrar o assistido.\nVerifique os dados e tente novamente.",
       });
     } finally {
       setLoading(false);
@@ -168,7 +150,6 @@ export default function AdminRegisterUserScreen({
 
   return (
     <View style={styles.container}>
-      {/* MODIFICADO: O modal controlará o StatusBar quando estiver visível */}
       <StatusBar
         barStyle={modalInfo.visible ? "dark-content" : "dark-content"}
         backgroundColor={modalInfo.visible ? "rgba(0, 0, 0, 0.5)" : "#F0EFEA"}
@@ -258,8 +239,6 @@ export default function AdminRegisterUserScreen({
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* NOVO: Renderiza o modal */}
       <AppModal
         visible={modalInfo.visible}
         type={modalInfo.type}

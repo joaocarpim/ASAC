@@ -1,10 +1,5 @@
-import React, {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  useLayoutEffect, // Este será removido
-} from "react";
+// src/screens/progress/ProgressScreen.tsx
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -12,6 +7,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Animated,
+  TouchableOpacity,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
@@ -22,13 +18,10 @@ import { generateClient } from "aws-amplify/api";
 import { listProgresses, getUser } from "../../graphql/queries";
 import { useContrast } from "../../hooks/useContrast";
 import { AccessibleText } from "../../components/AccessibleComponents";
-// ✅ ADICIONA OS IMPORTS DE GESTO
-import {
-  GestureHandlerRootView,
-  Gesture,
-  GestureDetector,
-  Directions,
-} from "react-native-gesture-handler";
+
+// ✅ 1. IMPORTAR useSettings E O TIPO Theme
+import { useSettings } from "../../hooks/useSettings";
+import { Theme } from "../../types/contrast";
 
 import { StatItem } from "../../components/progress/StatItem";
 import { ModuleCard } from "../../components/progress/ModuleCard";
@@ -52,7 +45,6 @@ const ProgressScreenComponent = ({
   const [moduleProgress, setModuleProgress] = useState<ProgressItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para o resumo
   const [totalCorrect, setTotalCorrect] = useState(0);
   const [totalWrong, setTotalWrong] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
@@ -61,13 +53,24 @@ const ProgressScreenComponent = ({
 
   const headerFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ❌ REMOVIDO: Este hook ativava o gesto nativo da borda,
-  // mas queremos um gesto "fling" na tela inteira.
-  // useLayoutEffect(() => {
-  //   navigation.setOptions({
-  //     gestureEnabled: true,
-  //   });
-  // }, [navigation]);
+  // ✅ 2. CHAMAR O useSettings() HOOK
+  const {
+    fontSizeMultiplier,
+    isBoldTextEnabled,
+    lineHeightMultiplier,
+    letterSpacing,
+    isDyslexiaFontEnabled,
+  } = useSettings();
+
+  // ✅ 3. PASSAR OS VALORES DOS SETTINGS PARA A FUNÇÃO DE ESTILOS
+  const styles = createStyles(
+    theme,
+    fontSizeMultiplier,
+    isBoldTextEnabled,
+    lineHeightMultiplier,
+    letterSpacing,
+    isDyslexiaFontEnabled
+  );
 
   const fetchProgressData = useCallback(async () => {
     if (!user?.userId) {
@@ -106,7 +109,6 @@ const ProgressScreenComponent = ({
       let nextToken: string | null = null;
 
       do {
-        // Busca dados de progresso frescos
         const queryWithCacheBuster = `
           # CacheBuster: ${Date.now()}-${Math.random()}
           ${listProgresses}
@@ -183,7 +185,7 @@ const ProgressScreenComponent = ({
       console.log("--- DADOS FINAIS QUE SERÃO MOSTRADOS NA TELA ---");
       latestProgress.forEach((p) => {
         console.log(
-          ` -> Módulo ${p.moduleNumber}: Nota ${p.accuracy}% (ID: ${p.id})`
+          ` → Módulo ${p.moduleNumber}: Nota ${p.accuracy}% (ID: ${p.id})`
         );
       });
 
@@ -205,10 +207,10 @@ const ProgressScreenComponent = ({
         count > 0 ? Math.round(totals.sumAccuracy / count) : 0;
 
       console.log("--- RESUMO GERAL ---");
-      console.log(` Precisão Média: ${avgAccuracy}%`);
+      console.log(` Precisão média: ${avgAccuracy}%`);
 
       setTotalCorrect(totals.sumCorrect);
-      setTotalWrong(totals.sumWrong); // Corrigido (era wrongAnswers)
+      setTotalWrong(totals.sumWrong);
       setTotalTime(totals.sumTime);
       setAvgAccuracy(avgAccuracy);
 
@@ -243,224 +245,231 @@ const ProgressScreenComponent = ({
     return `${secs}s`;
   };
 
-  // ✅ ADICIONA A LÓGICA DO GESTO
   const handleGoBack = () => {
     navigation.goBack();
   };
 
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handleGoBack);
-
   if (loading) {
     return (
-      // ✅ ENVOLVE A TELA DE LOADING COM O GESTO
-      <GestureDetector gesture={flingRight}>
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
-          <StatusBar
-            barStyle={theme.statusBarStyle}
-            backgroundColor={theme.background}
-          />
-          <ScreenHeader title="Progresso" />
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.text} />
-          </View>
-        </View>
-      </GestureDetector>
-    );
-  }
-
-  return (
-    // ✅ ENVOLVE A TELA PRINCIPAL COM O GESTO
-    <GestureDetector gesture={flingRight}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <StatusBar
           barStyle={theme.statusBarStyle}
           backgroundColor={theme.background}
         />
-        <ScreenHeader title="Progresso" />
-
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <Animated.View
-            style={[
-              styles.summaryCard,
-              {
-                opacity: headerFadeAnim,
-                backgroundColor: theme.card,
-              },
-            ]}
-          >
-            <AccessibleText
-              baseSize={20}
-              style={[styles.sectionTitle, { color: theme.text }]}
-            >
-              📊 Resumo Geral
-            </AccessibleText>
-            <AccessibleText
-              baseSize={12}
-              style={[styles.sectionSubtitle, { color: theme.text }]}
-            >
-              Baseado nas últimas tentativas de cada módulo
-            </AccessibleText>
-
-            <View style={styles.statsGrid}>
-              <StatItem
-                icon="target"
-                value={`${avgAccuracy}%`}
-                label="Precisão Média"
-                color="#FFC107"
-                delay={0}
-              />
-              <StatItem
-                icon="check-all"
-                value={totalCorrect.toString()}
-                label="Total Acertos"
-                color="#4CAF50"
-                delay={100}
-              />
-              <StatItem
-                icon="close-circle"
-                value={totalWrong.toString()}
-                label="Total Erros"
-                color="#F44336"
-                delay={200}
-              />
-              <StatItem
-                icon="clock-time-eight-outline"
-                value={formatTime(totalTime)}
-                label="Tempo Total"
-                color="#2196F3"
-                delay={300}
-              />
-              <StatItem
-                icon="book-open-variant"
-                value={moduleProgress.length.toString()}
-                label="Módulos Feitos"
-                color="#9C27B0"
-                delay={400}
-              />
-              <StatItem
-                icon="trophy"
-                value={userPoints.toLocaleString("pt-BR")}
-                label="Pontos"
-                color="#FF9800"
-                delay={500}
-              />
-            </View>
-          </Animated.View>
-
-          <View style={styles.section}>
-            <AccessibleText
-              baseSize={20}
-              style={[styles.sectionTitleDark, { color: theme.text }]}
-            >
-              📚 Desempenho por Módulo
-            </AccessibleText>
-            <AccessibleText
-              baseSize={12}
-              style={[styles.sectionSubtitleDark, { color: theme.text }]}
-            >
-              Última tentativa de cada módulo - Arraste para ver mais detalhes
-            </AccessibleText>
-
-            {moduleProgress.length > 0 ? (
-              moduleProgress.map((p, index) => (
-                <ModuleCard
-                  key={`${p.moduleNumber}-${p.id}`}
-                  moduleNumber={p.moduleNumber}
-                  accuracy={p.accuracy}
-                  correctAnswers={p.correctAnswers}
-                  wrongAnswers={p.wrongAnswers}
-                  timeSpent={p.timeSpent}
-                  updatedAt={p.updatedAt}
-                  index={index}
-                  theme={theme}
-                  onPress={() =>
-                    navigation.navigate("IncorrectAnswers", {
-                      moduleNumber: p.moduleNumber,
-                    })
-                  }
-                />
-              ))
-            ) : (
-              <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons
-                  name="book-outline"
-                  size={64}
-                  color={theme.text}
-                />
-                <AccessibleText
-                  baseSize={16}
-                  style={[styles.emptyText, { color: theme.text }]}
-                >
-                  Você ainda não completou nenhum módulo
-                </AccessibleText>
-              </View>
-            )}
-          </View>
-        </ScrollView>
+        <ScreenHeader title="Progresso" onBackPress={handleGoBack} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.text} />
+        </View>
       </View>
-    </GestureDetector>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
+      <ScreenHeader title="Progresso" onBackPress={handleGoBack} />
+
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Animated.View
+          style={[
+            styles.summaryCard,
+            {
+              opacity: headerFadeAnim,
+              backgroundColor: theme.card,
+            },
+          ]}
+        >
+          <AccessibleText
+            baseSize={20}
+            style={[styles.sectionTitle, { color: theme.text }]}
+          >
+            📊 Resumo Geral
+          </AccessibleText>
+          <AccessibleText
+            baseSize={12}
+            style={[styles.sectionSubtitle, { color: theme.text }]}
+          >
+            Baseado nas últimas tentativas de cada módulo
+          </AccessibleText>
+
+          <View style={styles.statsGrid}>
+            <StatItem
+              icon="target"
+              value={`${avgAccuracy}%`}
+              label="Precisão Média"
+              color="#FFC107"
+              delay={0}
+            />
+            <StatItem
+              icon="check-all"
+              value={totalCorrect.toString()}
+              label="Total Acertos"
+              color="#4CAF50"
+              delay={100}
+            />
+            <StatItem
+              icon="close-circle"
+              value={totalWrong.toString()}
+              label="Total Erros"
+              color="#F44336"
+              delay={200}
+            />
+            <StatItem
+              icon="clock-time-eight-outline"
+              value={formatTime(totalTime)}
+              label="Tempo Total"
+              color="#2196F3"
+              delay={300}
+            />
+            <StatItem
+              icon="book-open-variant"
+              value={moduleProgress.length.toString()}
+              label="Módulos Feitos"
+              color="#9C27B0"
+              delay={400}
+            />
+            <StatItem
+              icon="trophy"
+              value={userPoints.toLocaleString("pt-BR")}
+              label="Pontos"
+              color="#FF9800"
+              delay={500}
+            />
+          </View>
+        </Animated.View>
+
+        <View style={styles.section}>
+          <AccessibleText
+            baseSize={20}
+            style={[styles.sectionTitleDark, { color: theme.text }]}
+          >
+            📘 Desempenho por Módulo
+          </AccessibleText>
+          <AccessibleText
+            baseSize={12}
+            style={[styles.sectionSubtitleDark, { color: theme.text }]}
+          >
+            Última tentativa de cada módulo — toque para ver mais detalhes
+          </AccessibleText>
+
+          {moduleProgress.length > 0 ? (
+            moduleProgress.map((p, index) => (
+              <ModuleCard
+                key={`${p.moduleNumber}-${p.id}`}
+                moduleNumber={p.moduleNumber}
+                accuracy={p.accuracy}
+                correctAnswers={p.correctAnswers}
+                wrongAnswers={p.wrongAnswers}
+                timeSpent={p.timeSpent}
+                updatedAt={p.updatedAt}
+                index={index}
+                theme={theme}
+                onPress={() =>
+                  navigation.navigate("IncorrectAnswers", {
+                    moduleNumber: p.moduleNumber,
+                  })
+                }
+              />
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons
+                name="book-outline"
+                size={64}
+                color={theme.text}
+              />
+              <AccessibleText
+                baseSize={16}
+                style={[styles.emptyText, { color: theme.text }]}
+              >
+                Você ainda não completou nenhum módulo
+              </AccessibleText>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
-// Envolva o export default com o GestureHandlerRootView
 export default function ProgressScreen(
   props: RootStackScreenProps<"Progress">
 ) {
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ProgressScreenComponent {...props} />
-    </GestureHandlerRootView>
-  );
+  return <ProgressScreenComponent {...props} />;
 }
 
-// Estilos
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  summaryCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 20,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  sectionTitle: {
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    marginBottom: 16,
-  },
-  sectionTitleDark: {
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  sectionSubtitleDark: {
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  section: { marginBottom: 20 },
-  emptyContainer: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyText: {
-    marginTop: 16,
-    textAlign: "center",
-  },
-});
+// ✅ 4. CONVERTER StyleSheet.create EM UMA FUNÇÃO createStyles
+const createStyles = (
+  theme: Theme,
+  fontMultiplier: number, // fontMultiplier não estava sendo usado, mas mantido
+  isBold: boolean, // isBold não estava sendo usado, mas mantido
+  lineHeight: number, // lineHeight não estava sendo usado, mas mantido
+  letterSpacing: number,
+  isDyslexiaFont: boolean
+) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    scrollContainer: { paddingHorizontal: 20, paddingBottom: 40 },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    summaryCard: {
+      borderRadius: 16,
+      padding: 20,
+      marginTop: 20,
+      marginBottom: 20,
+      elevation: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+    },
+    sectionTitle: {
+      fontWeight: "bold",
+      marginBottom: 4,
+      // Aplicar configurações de fonte
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      letterSpacing: letterSpacing,
+    },
+    sectionSubtitle: {
+      marginBottom: 16,
+      // Aplicar configurações de fonte
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      letterSpacing: letterSpacing,
+    },
+    sectionTitleDark: {
+      fontWeight: "bold",
+      marginBottom: 4,
+      // Aplicar configurações de fonte
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      letterSpacing: letterSpacing,
+    },
+    sectionSubtitleDark: {
+      marginBottom: 16,
+      // Aplicar configurações de fonte
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      letterSpacing: letterSpacing,
+    },
+    statsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+    },
+    section: { marginBottom: 10 },
+    emptyContainer: {
+      alignItems: "center",
+      paddingVertical: 40,
+    },
+    emptyText: {
+      marginTop: 16,
+      textAlign: "center",
+      // Aplicar configurações de fonte
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      letterSpacing: letterSpacing,
+    },
+  });

@@ -1,0 +1,23 @@
+[
+  {
+    "Action": ["cognito-idp:AdminDeleteUser", "cognito-idp:AdminGetUser"],
+    "Resource": [
+      {
+        "Fn::Sub": [
+          "arn:aws:cognito-idp:${region}:${account}:userpool/${userPoolId}",
+          {
+            "region": {
+              "Ref": "AWS::Region"
+            },
+            "account": {
+              "Ref": "AWS::AccountId"
+            },
+            "userPoolId": {
+              "Ref": "authasac2f4153aaUserPoolId"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

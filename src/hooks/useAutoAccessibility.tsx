@@ -1,5 +1,4 @@
-// src/hooks/useAutoAccessibility.tsx
-
+// src/hooks/useAutoAccessibility.tsx (Cross-Platform Fix)
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useElementDetection } from "./useElementDetection";
 import { TextExtractor } from "../utils/textExtractor";
@@ -11,19 +10,15 @@ export interface AutoAccessibilityOptions {
   debounceMs?: number;
 }
 
-// Interface básica para contexto de acessibilidade (sem importação)
 interface AccessibilityContext {
   isAccessibilityMode: boolean;
   refreshElements?: () => void;
 }
 
-// Hook básico que será usado até o contexto ser criado
 const useBasicAccessibility = (): AccessibilityContext => {
   const [isAccessibilityMode, setIsAccessibilityMode] = useState(false);
 
-  // Para desenvolvimento, podemos ativar por padrão ou criar um toggle
   useEffect(() => {
-    // Ativar automaticamente para teste
     setIsAccessibilityMode(true);
   }, []);
 
@@ -38,15 +33,15 @@ export const useAutoAccessibility = (
   options: AutoAccessibilityOptions = {}
 ) => {
   const { isAccessibilityMode, refreshElements } = useBasicAccessibility();
-
   const { registerElement, unregisterElement, updateElementPosition } =
     useElementDetection();
 
   const elementRef = useRef<any>(null);
   const elementIdRef = useRef<string | null>(null);
   const lastComponentRef = useRef<any>(null);
-  // ✅ CORREÇÃO: Usar ReturnType para compatibilidade cross-platform
-  const registerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ✅ FIX: Tipo cross-platform para timeout
+  const registerTimeoutRef = useRef<number | NodeJS.Timeout | null>(null);
   const isRegisteredRef = useRef<boolean>(false);
 
   const [registrationAttempts, setRegistrationAttempts] = useState(0);
@@ -58,13 +53,14 @@ export const useAutoAccessibility = (
     debounceMs = 100,
   } = options;
 
-  /**
-   * Registra o componente automaticamente
-   */
   const registerComponent = useCallback(async () => {
-    // Limpar timeout anterior
+    // ✅ Limpar timeout de forma segura
     if (registerTimeoutRef.current) {
-      clearTimeout(registerTimeoutRef.current);
+      if (typeof registerTimeoutRef.current === "number") {
+        clearTimeout(registerTimeoutRef.current);
+      } else {
+        clearTimeout(registerTimeoutRef.current as NodeJS.Timeout);
+      }
     }
 
     if (!elementRef.current || !isAccessibilityMode) {
@@ -77,10 +73,8 @@ export const useAutoAccessibility = (
     }
 
     try {
-      // Capturar o componente atual
       const currentComponent = elementRef.current;
 
-      // Se já está registrado com o mesmo componente, não re-registrar
       if (
         currentComponent === lastComponentRef.current &&
         isRegisteredRef.current
@@ -88,7 +82,6 @@ export const useAutoAccessibility = (
         return true;
       }
 
-      // Se mudou o componente, desregistrar o anterior
       if (
         elementIdRef.current &&
         currentComponent !== lastComponentRef.current
@@ -98,17 +91,14 @@ export const useAutoAccessibility = (
         isRegisteredRef.current = false;
       }
 
-      // Extrair informações automaticamente do componente
       let componentToAnalyze = currentComponent;
 
-      // Se é uma ref para um elemento React Native, tentar pegar o componente pai
       if (currentComponent._children && currentComponent._children.length > 0) {
         componentToAnalyze = currentComponent._children[0];
       }
 
       const elementInfo = TextExtractor.processElement(componentToAnalyze);
 
-      // Verificar se vale a pena registrar
       const hasValidText =
         elementInfo.text &&
         elementInfo.text !== `${elementInfo.type} sem texto`;
@@ -119,7 +109,6 @@ export const useAutoAccessibility = (
         return false;
       }
 
-      // Registrar elemento
       const elementId = await registerElement(
         componentToAnalyze,
         elementRef,
@@ -159,12 +148,13 @@ export const useAutoAccessibility = (
     registrationAttempts,
   ]);
 
-  /**
-   * Desregistra o componente
-   */
   const unregisterComponent = useCallback(() => {
     if (registerTimeoutRef.current) {
-      clearTimeout(registerTimeoutRef.current);
+      if (typeof registerTimeoutRef.current === "number") {
+        clearTimeout(registerTimeoutRef.current);
+      } else {
+        clearTimeout(registerTimeoutRef.current as NodeJS.Timeout);
+      }
     }
 
     if (elementIdRef.current) {
@@ -175,34 +165,32 @@ export const useAutoAccessibility = (
     }
   }, [unregisterElement]);
 
-  /**
-   * Atualiza posição quando layout muda
-   */
   const handleLayoutChange = useCallback(() => {
     if (!isAccessibilityMode || !updateOnLayout) return;
 
-    // Debounce para evitar muitas atualizações
     if (registerTimeoutRef.current) {
-      clearTimeout(registerTimeoutRef.current);
+      if (typeof registerTimeoutRef.current === "number") {
+        clearTimeout(registerTimeoutRef.current);
+      } else {
+        clearTimeout(registerTimeoutRef.current as NodeJS.Timeout);
+      }
     }
 
+    // ✅ Armazenar como tipo genérico
     registerTimeoutRef.current = setTimeout(async () => {
       if (elementIdRef.current && elementRef.current) {
-        // Tentar atualizar posição primeiro
         const updated = await updateElementPosition(
           elementIdRef.current,
           elementRef
         );
 
-        // Se não conseguiu atualizar, re-registrar
         if (!updated) {
           await registerComponent();
         }
       } else {
-        // Se não tem elemento registrado, tentar registrar
         await registerComponent();
       }
-    }, debounceMs);
+    }, debounceMs) as any; // Type assertion para compatibilidade
   }, [
     isAccessibilityMode,
     updateOnLayout,
@@ -211,19 +199,14 @@ export const useAutoAccessibility = (
     registerComponent,
   ]);
 
-  /**
-   * Força novo registro
-   */
   const forceReregister = useCallback(async () => {
     unregisterComponent();
     setRegistrationAttempts(0);
     return await registerComponent();
   }, [unregisterComponent, registerComponent]);
 
-  // Registrar/desregistrar baseado no modo de acessibilidade
   useEffect(() => {
     if (isAccessibilityMode) {
-      // Pequeno delay para garantir que o componente foi montado
       const timeoutId = setTimeout(registerComponent, 50);
       return () => clearTimeout(timeoutId);
     } else {
@@ -231,12 +214,15 @@ export const useAutoAccessibility = (
     }
   }, [isAccessibilityMode, registerComponent, unregisterComponent]);
 
-  // Limpeza na desmontagem
   useEffect(() => {
     return () => {
       unregisterComponent();
       if (registerTimeoutRef.current) {
-        clearTimeout(registerTimeoutRef.current);
+        if (typeof registerTimeoutRef.current === "number") {
+          clearTimeout(registerTimeoutRef.current);
+        } else {
+          clearTimeout(registerTimeoutRef.current as NodeJS.Timeout);
+        }
       }
     };
   }, [unregisterComponent]);

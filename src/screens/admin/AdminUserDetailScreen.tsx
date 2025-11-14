@@ -1,6 +1,6 @@
 // src/screens/admin/AdminUserDetailScreen.tsx (Sem redefinição de senha)
 import React, { useState, useCallback } from "react";
-import {
+import { 
   View,
   Text,
   StyleSheet,

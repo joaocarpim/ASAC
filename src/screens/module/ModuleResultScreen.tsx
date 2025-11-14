@@ -25,12 +25,12 @@ import {
 import { Audio } from "expo-av";
 import { useAuthStore } from "../../store/authStore";
 import progressService, { ErrorDetail } from "../../services/progressService";
-
-// ✅ 1. IMPORTAR O STORE DO MODAL
 import { useModalStore } from "../../store/useModalStore";
-
-// ❌ A importação local do modal foi removida, pois ele é global no App.tsx
-// import { CompletionModal } from "../../components/modal/CompletionModal";
+import {
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 
 const { width } = Dimensions.get("window");
 
@@ -78,7 +78,6 @@ export default function ModuleResultScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  // ✅ 2. OBTER A AÇÃO 'showModal' DO STORE
   const { showModal } = useModalStore();
 
   const styles = createStyles(
@@ -117,14 +116,12 @@ export default function ModuleResultScreen({
       playSound(successSound);
       setShowConfetti(true);
 
-      // ✅ 3. CHAMAR O MODAL DIRETAMENTE DAQUI
       const title = "🎉 Módulo Concluído!";
       const body = `Parabéns! Você completou o Módulo ${moduleId} com ${accuracy}% de acerto!`;
 
-      // Adiciona um pequeno atraso para o usuário ver a tela de resultado antes do modal
       const timer = setTimeout(() => {
         showModal(title, body);
-      }, 750); // 0.75 segundos de atraso
+      }, 750);
 
       const confettiTimer = setTimeout(() => setShowConfetti(false), 2500);
 
@@ -135,9 +132,8 @@ export default function ModuleResultScreen({
     } else {
       playSound(failureSound);
     }
-  }, [passed, successSound, failureSound, showModal, moduleId, accuracy]); // Adicionadas dependências
+  }, [passed, successSound, failureSound, showModal, moduleId, accuracy]);
 
-  // ... (o resto do seu arquivo: handleSaveProgress, useEffect de salvar, formatTime, etc. continua igual)
   const handleSaveProgress = useCallback(async () => {
     if (!user?.userId || !progressId) {
       console.warn("⚠️ Dados insuficientes para salvar:", {
@@ -206,17 +202,20 @@ export default function ModuleResultScreen({
     errorDetails,
     totalQuestions,
   ]);
+
   useEffect(() => {
     if (user?.userId && !saved && !saving) {
       handleSaveProgress();
     }
   }, [user?.userId, saved, saving, handleSaveProgress]);
+
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
     return `${remainingSeconds}s`;
   };
+
   const getPerformanceMessage = (): string => {
     if (accuracy >= 90)
       return "Excelente! Você dominou completamente este módulo!";
@@ -225,16 +224,25 @@ export default function ModuleResultScreen({
     if (accuracy >= 70) return "Bom trabalho! Você passou no módulo!";
     return "Continue praticando! A prática leva à perfeição!";
   };
+
   const getAccuracyColor = (): string => {
     if (accuracy >= 90) return "#4CAF50";
     if (accuracy >= 80) return "#8BC34A";
     if (accuracy >= 70) return "#FFC107";
     return "#F44336";
   };
+
   const errors = wrongAnswers ?? totalQuestions - correctAnswers;
 
-  // ... (o seu JSX de retorno permanece igual, ele NÃO precisa renderizar o <CompletionModal /> aqui)
-  return (
+  // ✅ Gesture para voltar à Home (swipe direita)
+  const handleGoHome = () => navigation.navigate("Home");
+
+  const flingRight =
+    Platform.OS !== "web"
+      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handleGoHome)
+      : undefined;
+
+  const renderContent = () => (
     <View style={styles.container}>
       <StatusBar
         barStyle={theme.statusBarStyle}
@@ -373,9 +381,17 @@ export default function ModuleResultScreen({
       )}
     </View>
   );
+
+  // ✅ Envolver com GestureDetector apenas em mobile
+  if (Platform.OS !== "web" && flingRight) {
+    return (
+      <GestureDetector gesture={flingRight}>{renderContent()}</GestureDetector>
+    );
+  }
+
+  return renderContent();
 }
 
-// ... (Sua função createStyles permanece igual)
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,

@@ -1,5 +1,5 @@
-// src/screens/module/AlphabetSectionsScreen.tsx (ARQUIVO NOVO)
-import React from "react";
+// src/screens/module/AlphabetSectionsScreen.tsx (COM DEBUG)
+import React, { useMemo } from "react"; // <--- CORREÇÃO AQUI
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -32,15 +33,42 @@ export default function AlphabetSectionsScreen() {
   );
   const navigation = useNavigation<NavigationProps>();
 
-  // Gesto de arrastar para voltar
-  const panGesture = Gesture.Pan().onEnd((event) => {
-    if (
-      event.translationX > 80 &&
-      Math.abs(event.translationX) > Math.abs(event.translationY)
-    ) {
-      navigation.goBack();
-    }
-  });
+  console.log("🔵 [AlphabetSections] Tela renderizada");
+
+  const panGesture = useMemo(
+    () =>
+      Platform.OS !== "web"
+        ? Gesture.Pan()
+            .onStart(() => {
+              console.log("👆 [AlphabetSections] Gesture iniciado");
+            })
+            .onUpdate((event) => {
+              console.log(
+                `📍 [AlphabetSections] Pan update - X: ${event.translationX.toFixed(0)}, Y: ${event.translationY.toFixed(0)}`
+              );
+            })
+            .onEnd((event) => {
+              console.log(
+                `✅ [AlphabetSections] Gesture finalizado - X: ${event.translationX.toFixed(0)}, Y: ${event.translationY.toFixed(0)}`
+              );
+
+              if (
+                event.translationX > 80 &&
+                Math.abs(event.translationX) > Math.abs(event.translationY)
+              ) {
+                console.log(
+                  "🔙 [AlphabetSections] Swipe RIGHT detectado → Voltando"
+                );
+                navigation.goBack();
+              } else {
+                console.log(
+                  "❌ [AlphabetSections] Swipe não atingiu threshold"
+                );
+              }
+            })
+        : Gesture.Pan(), // Gesture vazio para web
+    [navigation]
+  );
 
   const renderSessionCard = ({
     item: session,
@@ -50,7 +78,7 @@ export default function AlphabetSectionsScreen() {
     const accessibilityLabel = `${session.title}. ${session.description}. Toque duas vezes para iniciar a aula.`;
 
     const handlePress = () => {
-      // Navega para a tela de AULA (carrossel)
+      console.log(`🎯 [AlphabetSections] Card pressionado: ${session.title}`);
       navigation.navigate("AlphabetLesson", {
         title: session.title,
         characters: session.characters,
@@ -64,11 +92,17 @@ export default function AlphabetSectionsScreen() {
         activeOpacity={0.7}
         accessible={true}
         accessibilityLabel={accessibilityLabel}
+        accessibilityRole="button"
+        onAccessibilityTap={() => {
+          console.log(`♿ [AlphabetSections] TalkBack tap: ${session.title}`);
+          handlePress();
+        }}
       >
         <MaterialCommunityIcons
           name={session.icon}
           size={40}
           color={theme.text}
+          importantForAccessibility="no"
         />
         <View style={styles.cardTextContainer}>
           <Text style={styles.cardTitle}>{session.title}</Text>
@@ -78,26 +112,34 @@ export default function AlphabetSectionsScreen() {
     );
   };
 
-  return (
-    <GestureDetector gesture={panGesture}>
-      <View style={styles.container}>
-        <StatusBar
-          barStyle={theme.statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <ScreenHeader title="Aprender o Alfabeto" />
-        <FlatList
-          data={LEARNING_PATH_SESSIONS} // Usa os mesmos dados da Jornada
-          renderItem={renderSessionCard}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-        />
-      </View>
-    </GestureDetector>
+  const renderContent = () => (
+    <View style={styles.container}>
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
+      <ScreenHeader title="Aprender o Alfabeto" />
+      <FlatList
+        data={LEARNING_PATH_SESSIONS}
+        renderItem={renderSessionCard}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+      />
+    </View>
   );
+
+  console.log(`🎨 [AlphabetSections] Platform: ${Platform.OS}`);
+
+  // ✅ Só usar GestureDetector em mobile
+  if (Platform.OS !== "web" && panGesture) {
+    return (
+      <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
+    );
+  }
+
+  return renderContent();
 }
 
-// Estilos (semelhantes ao LearningPathScreen)
 const createStyles = (
   theme: any,
   fontMultiplier: number,
@@ -106,7 +148,11 @@ const createStyles = (
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    listContainer: { paddingHorizontal: 16, paddingBottom: 20, paddingTop: 10 },
+    listContainer: {
+      paddingHorizontal: 16,
+      paddingBottom: 20,
+      paddingTop: 10,
+    },
     card: {
       backgroundColor: theme.card,
       borderRadius: 16,

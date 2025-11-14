@@ -6,8 +6,16 @@ type User
   @auth(
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, provider: userPools, operations: [create, read, update, delete] }
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: private
+        provider: userPools
+        operations: [create, read, update, delete]
+      }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -35,8 +43,16 @@ type Achievement
   @auth(
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
-      { allow: private, provider: userPools, operations: [create, read, update, delete] }
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: private
+        provider: userPools
+        operations: [create, read, update, delete]
+      }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -54,8 +70,16 @@ type Progress
   @model
   @auth(
     rules: [
-      { allow: private, provider: userPools, operations: [create, read, update, delete] }
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: private
+        provider: userPools
+        operations: [create, read, update, delete]
+      }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -84,7 +108,11 @@ type Module
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
       { allow: private, provider: userPools, operations: [read] }
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -106,7 +134,11 @@ type Lesson
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
       { allow: private, provider: userPools, operations: [read] }
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -127,7 +159,11 @@ type Question
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
       { allow: private, provider: userPools, operations: [read] }
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -138,7 +174,7 @@ type Question
   module: Module @belongsTo(fields: ["moduleId"])
 }
 
-# =========================================
+# =G========================================
 # === Símbolos Braille ===
 # =========================================
 type BrailleSymbol
@@ -147,7 +183,11 @@ type BrailleSymbol
     rules: [
       { allow: public, provider: apiKey, operations: [read] }
       { allow: private, provider: userPools, operations: [read] }
-      { allow: groups, groups: ["Admins"], operations: [create, read, update, delete] }
+      {
+        allow: groups
+        groups: ["Admins"]
+        operations: [create, read, update, delete]
+      }
     ]
   ) {
   id: ID! @primaryKey
@@ -160,7 +200,13 @@ type BrailleSymbol
 # === Mutations personalizadas ===
 # =========================================
 type Mutation {
+  # Mutation para registrar novo usuário
   adminRegisterUser(name: String!, email: String!, password: String!): String
     @function(name: "AdminRegisterUser-${env}")
+    @auth(rules: [{ allow: groups, groups: ["Admins"] }])
+
+  # ✅ CORRIGIDO: Mutation para apagar usuário do Cognito
+  adminDeleteCognitoUser(username: String!): Boolean
+    @function(name: "adminDeleteUser-${env}") # <--- ✨ CORREÇÃO FEITA AQUI
     @auth(rules: [{ allow: groups, groups: ["Admins"] }])
 }

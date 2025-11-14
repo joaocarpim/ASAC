@@ -1,5 +1,4 @@
-// src/screens/session/BraillePracticeScreen.tsx (Estilos da Cela Diminuídos)
-
+// src/screens/session/BraillePracticeScreen.tsx (CORRIGIDO PARA WEB)
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
@@ -9,6 +8,7 @@ import {
   Dimensions,
   StatusBar,
   AccessibilityInfo,
+  Platform,
 } from "react-native";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -21,7 +21,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { RootStackParamList } from "../../navigation/types";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 type BraillePracticeRouteProp = RouteProp<
   RootStackParamList,
@@ -55,12 +55,18 @@ export default function BraillePracticeScreen() {
   const { theme } = useContrast();
   const { fontSizeMultiplier, isBoldTextEnabled, isDyslexiaFontEnabled } =
     useSettings();
-  const styles = createStyles(
-    theme,
-    fontSizeMultiplier,
-    isBoldTextEnabled,
-    isDyslexiaFontEnabled
+  const styles = useMemo(
+    () =>
+      createStyles(
+        theme,
+        fontSizeMultiplier,
+        isBoldTextEnabled,
+        isDyslexiaFontEnabled
+      ),
+    [theme, fontSizeMultiplier, isBoldTextEnabled, isDyslexiaFontEnabled]
   );
+
+  console.log("🔵 [BraillePractice] Tela renderizada - Index:", currentIndex);
 
   const soundObjects = useMemo(
     () => ({
@@ -83,8 +89,9 @@ export default function BraillePracticeScreen() {
         await soundObjects.happy.loadAsync(
           require("../../../assets/som/happy.mp3")
         );
+        console.log("🔊 [BraillePractice] Sons carregados");
       } catch (error) {
-        console.warn("Erro ao carregar sons:", error);
+        console.warn("❌ [BraillePractice] Erro ao carregar sons:", error);
       }
     };
     loadSounds();
@@ -97,8 +104,9 @@ export default function BraillePracticeScreen() {
     async (soundType: "correct" | "incorrect" | "happy") => {
       try {
         await soundObjects[soundType].replayAsync();
+        console.log(`🔊 [BraillePractice] Som tocado: ${soundType}`);
       } catch (error) {
-        console.warn(`Não foi possível tocar o som ${soundType}:`, error);
+        console.warn(`❌ [BraillePractice] Erro ao tocar ${soundType}:`, error);
       }
     },
     [soundObjects]
@@ -106,6 +114,7 @@ export default function BraillePracticeScreen() {
 
   const setupNewChallenge = useCallback(() => {
     if (currentIndex >= initialShuffledChars.length) {
+      console.log("🎉 [BraillePractice] Sessão completa!");
       setSessionComplete(true);
       playSound("happy");
       AccessibilityInfo.announceForAccessibility(
@@ -116,64 +125,94 @@ export default function BraillePracticeScreen() {
     setActiveDots([]);
     setFeedback("");
     setIsCorrect(null);
+    console.log(
+      `🔄 [BraillePractice] Novo desafio: ${initialShuffledChars[currentIndex]}`
+    );
   }, [
     currentIndex,
     initialShuffledChars.length,
-    playSound,
     initialShuffledChars,
+    playSound,
   ]);
 
   useEffect(() => {
     setupNewChallenge();
   }, [currentIndex, setupNewChallenge]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
+    console.log("➡️ [BraillePractice] Avançando para próximo");
     setCurrentIndex((prevIndex) => prevIndex + 1);
-  };
+  }, []);
 
-  const handleDotPress = (dotNumber: number) => {
-    if (isCorrect) return;
-    setActiveDots((prev) =>
-      prev.includes(dotNumber)
-        ? prev.filter((d) => d !== dotNumber)
-        : [...prev, dotNumber]
-    );
-  };
+  const handleDotPress = useCallback(
+    (dotNumber: number) => {
+      if (isCorrect) return;
+      console.log(`👆 [BraillePractice] Dot ${dotNumber} pressionado`);
+      setActiveDots((prev) =>
+        prev.includes(dotNumber)
+          ? prev.filter((d) => d !== dotNumber)
+          : [...prev, dotNumber]
+      );
+    },
+    [isCorrect]
+  );
 
-  const checkAnswer = () => {
+  const checkAnswer = useCallback(() => {
     const currentCharacter = initialShuffledChars[currentIndex];
     if (!currentCharacter) return;
     const correctPattern =
       ALL_BRAILLE_CHARS[currentCharacter as keyof typeof ALL_BRAILLE_CHARS];
     const sortedUserPattern = [...activeDots].sort();
     const sortedCorrectPattern = [...correctPattern].sort();
+
+    console.log(`🔍 [BraillePractice] Verificando resposta:`);
+    console.log(`   User: [${sortedUserPattern}]`);
+    console.log(`   Correct: [${sortedCorrectPattern}]`);
+
     if (
       JSON.stringify(sortedUserPattern) === JSON.stringify(sortedCorrectPattern)
     ) {
+      console.log("✅ [BraillePractice] Resposta CORRETA!");
       setFeedback("Correto! 🎉");
       setIsCorrect(true);
       playSound("correct");
       AccessibilityInfo.announceForAccessibility("Correto!");
     } else {
+      console.log("❌ [BraillePractice] Resposta INCORRETA");
       setFeedback("Tente Novamente. 🤔");
       setIsCorrect(false);
       playSound("incorrect");
       AccessibilityInfo.announceForAccessibility("Incorreto, tente novamente.");
     }
-  };
+  }, [initialShuffledChars, currentIndex, activeDots, playSound]);
 
-  const panGesture = Gesture.Pan().onEnd((event) => {
-    if (
-      event.translationX > 50 &&
-      Math.abs(event.translationX) > Math.abs(event.translationY)
-    ) {
-      navigation.goBack();
-    }
-  });
+  // ✅ Gesture só para mobile
+  const panGesture = useMemo(
+    () =>
+      Platform.OS !== "web"
+        ? Gesture.Pan()
+            .onStart(() => {
+              console.log("👆 [BraillePractice] Pan gesture iniciado");
+            })
+            .onEnd((event) => {
+              console.log(
+                `✅ [BraillePractice] Pan finalizado - X: ${event.translationX.toFixed(0)}, Y: ${event.translationY.toFixed(0)}`
+              );
+              if (
+                event.translationX > 50 &&
+                Math.abs(event.translationX) > Math.abs(event.translationY)
+              ) {
+                console.log("🔙 [BraillePractice] Swipe RIGHT → Voltando");
+                navigation.goBack();
+              }
+            })
+        : Gesture.Pan(), // Gesture vazio para web
+    [navigation]
+  );
 
-  if (sessionComplete) {
-    return (
-      <GestureDetector gesture={panGesture}>
+  const renderContent = () => {
+    if (sessionComplete) {
+      return (
         <View style={styles.container}>
           <ConfettiCannon
             count={200}
@@ -187,19 +226,29 @@ export default function BraillePracticeScreen() {
           />
           <MaterialCommunityIcons
             name="party-popper"
-            size={80}
+            size={60}
             color="#FFD700"
+            importantForAccessibility="no"
           />
-          <Text style={styles.completionTitle} accessibilityRole="header">
+          <Text
+            style={styles.completionTitle}
+            accessible={true}
+            accessibilityRole="header"
+          >
             Parabéns!
           </Text>
-          <Text style={styles.completionSubtitle}>
+          <Text style={styles.completionSubtitle} accessible={true}>
             Você concluiu a sessão "{title}"!
           </Text>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              console.log("🔙 [BraillePractice] Voltando para jornada");
+              navigation.goBack();
+            }}
+            accessible={true}
             accessibilityLabel="Voltar para a Jornada"
+            accessibilityRole="button"
           >
             <Text
               style={[styles.buttonText, { color: theme.buttonText ?? "#FFF" }]}
@@ -208,34 +257,39 @@ export default function BraillePracticeScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </GestureDetector>
-    );
-  }
+      );
+    }
 
-  const currentCharacter = initialShuffledChars[currentIndex];
+    const currentCharacter = initialShuffledChars[currentIndex];
 
-  return (
-    <GestureDetector gesture={panGesture}>
+    return (
       <View style={styles.container}>
         <StatusBar
           barStyle={theme.statusBarStyle}
           backgroundColor={theme.background}
         />
-        <Text style={styles.titleHeader} accessibilityRole="header">
-          {title}
-        </Text>
-        <Text
-          style={styles.progressIndicator}
-          accessibilityLabel={`Progresso: ${currentIndex + 1} de ${initialShuffledChars.length}`}
-        >
-          {currentIndex + 1} / {initialShuffledChars.length}
-        </Text>
-        <Text style={styles.prompt}>
-          Forme o caractere:{" "}
-          <Text style={styles.letter}>{currentCharacter}</Text>
+        <View style={styles.header}>
+          <Text
+            style={styles.titleHeader}
+            accessible={true}
+            accessibilityRole="header"
+          >
+            {title}
+          </Text>
+          <Text
+            style={styles.progressIndicator}
+            accessible={true}
+            accessibilityLabel={`Progresso: ${currentIndex + 1} de ${initialShuffledChars.length}`}
+          >
+            {currentIndex + 1} / {initialShuffledChars.length}
+          </Text>
+        </View>
+        <Text style={styles.prompt} accessible={true}>
+          Forme: <Text style={styles.letter}>{currentCharacter}</Text>
         </Text>
         <View
           style={styles.brailleCell}
+          accessible={true}
           accessibilityLabel="Cela Braille com 6 pontos interativos"
         >
           {[1, 2, 3, 4, 5, 6].map((dotNumber) => {
@@ -250,6 +304,7 @@ export default function BraillePracticeScreen() {
                 accessibilityLabel={`Ponto ${dotNumber}`}
                 accessibilityState={{ selected: isActive }}
                 accessibilityHint={`Toque para ${isActive ? "desativar" : "ativar"}`}
+                accessibilityRole="button"
               >
                 <View
                   style={[
@@ -257,21 +312,21 @@ export default function BraillePracticeScreen() {
                     isActive ? styles.dotActive : styles.dotInactive,
                   ]}
                 >
-                  <Text style={styles.dotNumber}>{dotNumber}</Text>
+                  <Text style={styles.dotNumber} importantForAccessibility="no">
+                    {dotNumber}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
-        <View
-          style={styles.feedbackPlaceholder}
-          accessibilityLiveRegion="polite"
-        >
+        <View style={styles.feedbackContainer}>
           <Text
             style={[
               styles.feedback,
               { color: isCorrect ? "#28a745" : "#dc3545" },
             ]}
+            accessible={true}
           >
             {feedback}
           </Text>
@@ -284,7 +339,9 @@ export default function BraillePracticeScreen() {
                 { backgroundColor: theme.button ?? "#28a745" },
               ]}
               onPress={handleNext}
+              accessible={true}
               accessibilityLabel="Ir para o próximo caractere"
+              accessibilityRole="button"
             >
               <Text
                 style={[
@@ -302,7 +359,9 @@ export default function BraillePracticeScreen() {
                 { backgroundColor: theme.button ?? "#007bff" },
               ]}
               onPress={checkAnswer}
+              accessible={true}
               accessibilityLabel="Verificar resposta"
+              accessibilityRole="button"
             >
               <Text
                 style={[
@@ -316,8 +375,19 @@ export default function BraillePracticeScreen() {
           )}
         </View>
       </View>
-    </GestureDetector>
-  );
+    );
+  };
+
+  console.log(`🎨 [BraillePractice] Platform: ${Platform.OS}`);
+
+  // ✅ Só usar GestureDetector em mobile
+  if (Platform.OS !== "web" && panGesture) {
+    return (
+      <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
+    );
+  }
+
+  return renderContent();
 }
 
 const createStyles = (
@@ -329,52 +399,56 @@ const createStyles = (
   StyleSheet.create({
     container: {
       flex: 1,
-      justifyContent: "center",
+      justifyContent: "space-evenly",
       alignItems: "center",
       backgroundColor: theme.background,
-      padding: 10,
+      paddingVertical: height * 0.02,
+      paddingHorizontal: 16,
+    },
+    header: {
+      alignItems: "center",
+      marginTop: 40,
     },
     titleHeader: {
-      position: "absolute",
-      top: 50,
-      fontSize: 22 * fontMultiplier,
+      fontSize: 20 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       color: theme.text,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
+      marginBottom: 4,
     },
     progressIndicator: {
-      position: "absolute",
-      top: 85,
-      fontSize: 16 * fontMultiplier,
+      fontSize: 14 * fontMultiplier,
       color: theme.text,
       opacity: 0.7,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
     prompt: {
-      fontSize: 24 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "700",
+      fontSize: 20 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "600",
       color: theme.text,
-      marginBottom: 20,
       textAlign: "center",
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-    letter: { color: theme.button ?? "#005a9c", fontSize: 28 * fontMultiplier },
+    letter: {
+      color: theme.button ?? "#005a9c",
+      fontSize: 24 * fontMultiplier,
+      fontWeight: "bold",
+    },
     brailleCell: {
-      // ✅ DIMINUÍDO
-      width: width * 0.4,
-      height: width * 0.4 * 1.6,
+      width: width * 0.35,
+      height: width * 0.35 * 1.6,
       backgroundColor: theme.card,
-      borderRadius: 25,
+      borderRadius: 20,
       flexDirection: "column",
       flexWrap: "wrap",
       alignContent: "center",
       justifyContent: "space-around",
-      paddingVertical: 5,
-      elevation: 5,
+      paddingVertical: 8,
+      elevation: 4,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
     },
     dotContainer: {
       width: "50%",
@@ -383,63 +457,67 @@ const createStyles = (
       alignItems: "center",
     },
     dot: {
-      // ✅ DIMINUÍDO
-      width: 45,
-      height: 45,
-      borderRadius: 22.5, // Metade do width/height
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 2,
     },
-    dotInactive: { backgroundColor: theme.background, borderColor: "#c0c8d0" },
+    dotInactive: {
+      backgroundColor: theme.background,
+      borderColor: "#c0c8d0",
+    },
     dotActive: {
       backgroundColor: theme.button ?? "#005a9c",
       borderColor: "#003d69",
     },
     dotNumber: {
-      fontSize: 14 * fontMultiplier,
+      fontSize: 12 * fontMultiplier,
       color: "rgba(0,0,0,0.4)",
       fontWeight: "bold",
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-    feedbackPlaceholder: {
-      height: 30,
-      marginTop: 20,
+    feedbackContainer: {
+      height: 28,
       justifyContent: "center",
     },
     feedback: {
-      fontSize: 20 * fontMultiplier,
+      fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       textAlign: "center",
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-    actionContainer: { marginTop: 20, width: "80%" },
+    actionContainer: {
+      width: "85%",
+      maxWidth: 400,
+    },
     button: {
-      paddingVertical: 18,
-      borderRadius: 20,
+      paddingVertical: 14,
+      borderRadius: 16,
       alignItems: "center",
       backgroundColor: theme.button ?? "#007bff",
       width: "100%",
     },
     buttonText: {
-      fontSize: 20 * fontMultiplier,
+      fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
     completionTitle: {
-      fontSize: 36 * fontMultiplier,
+      fontSize: 32 * fontMultiplier,
       fontWeight: "bold",
       color: theme.text,
-      marginTop: 20,
-      marginBottom: 10,
+      marginTop: 16,
+      marginBottom: 8,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
     completionSubtitle: {
-      fontSize: 20 * fontMultiplier,
+      fontSize: 18 * fontMultiplier,
       color: theme.text,
       opacity: 0.8,
       textAlign: "center",
-      marginBottom: 40,
+      marginBottom: 32,
       paddingHorizontal: 20,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },

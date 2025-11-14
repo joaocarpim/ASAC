@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "asacbrilleapp",
-    "slug": "asacbrilleapp",
-    "owner": "asac",
+    "name": "asac",
+    "slug": "asac",
+    "owner": "asacapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
@@ -27,7 +27,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "442fb37a-6e0d-40bf-b340-06166732b4aa"
+        "projectId": "8f2b33ff-21ab-4aec-86c7-33e5d7e61fa5"
       }
     }
   }

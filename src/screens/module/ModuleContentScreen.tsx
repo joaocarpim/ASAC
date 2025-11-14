@@ -34,11 +34,9 @@ const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string") return false;
-  // Simplificado para lidar com cores de tema
   const hex = color.replace("#", "");
   if (hex.length < 3) return false;
 
-  // Lógica de luminância (mantida)
   let r, g, b;
   if (hex.length === 3) {
     r = parseInt(hex[0] + hex[0], 16);
@@ -49,7 +47,7 @@ function isColorDark(color: ColorValue | undefined): boolean {
     g = parseInt(hex.substring(2, 4), 16);
     b = parseInt(hex.substring(4, 6), 16);
   } else {
-    return false; // Formato inválido
+    return false;
   }
 
   const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -111,6 +109,7 @@ export default function ModuleContentScreen({
     if (currentPageIndex > 0) {
       setCurrentPageIndex((prev) => prev - 1);
     } else {
+      // ✅ Swipe na primeira página volta para Home
       navigation.navigate("Home");
     }
   };
@@ -126,13 +125,21 @@ export default function ModuleContentScreen({
     }
   };
 
-  const flingLeft = Gesture.Fling()
-    .direction(Directions.LEFT)
-    .onEnd(handleNextPage);
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handlePrevious);
-  const composedGestures = Gesture.Race(flingLeft, flingRight);
+  // ✅ Gestos funcionam apenas em mobile
+  const flingLeft =
+    Platform.OS !== "web"
+      ? Gesture.Fling().direction(Directions.LEFT).onEnd(handleNextPage)
+      : undefined;
+
+  const flingRight =
+    Platform.OS !== "web"
+      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handlePrevious)
+      : undefined;
+
+  const composedGestures =
+    Platform.OS !== "web" && flingLeft && flingRight
+      ? Gesture.Race(flingLeft, flingRight)
+      : undefined;
 
   const currentSection = moduleData?.sections?.[currentPageIndex];
   const totalPages = moduleData?.sections?.length ?? 1;
@@ -161,44 +168,53 @@ export default function ModuleContentScreen({
     );
   }
 
-  return (
+  const renderContent = () => (
     <View style={styles.container}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
       <ScreenHeader title={moduleData.title || "Módulo"} />
 
-      <GestureDetector gesture={composedGestures}>
-        <ScrollView contentContainerStyle={styles.scrollWrapper}>
-          <AccessibleView
-            style={styles.contentCard}
-            accessibilityText={mainAccessibilityText}
-          >
-            <View style={styles.cardInner}>
-              {currentSection ? (
-                <>
-                  <AccessibleHeader level={2} style={styles.contentTitle}>
-                    {currentSection.order}. {currentSection.title}
-                  </AccessibleHeader>
-                  <AccessibleText baseSize={16} style={styles.contentBody}>
-                    {currentSection.content}
-                  </AccessibleText>
-                </>
-              ) : (
-                <View style={styles.contentCenter}>
-                  <Text style={[styles.contentBody, styles.emptyText]}>
-                    Nenhuma seção encontrada.
-                  </Text>
-                </View>
-              )}
-            </View>
-          </AccessibleView>
+      <ScrollView contentContainerStyle={styles.scrollWrapper}>
+        <AccessibleView
+          style={styles.contentCard}
+          accessibilityText={mainAccessibilityText}
+        >
+          <View style={styles.cardInner}>
+            {currentSection ? (
+              <>
+                <AccessibleHeader level={2} style={styles.contentTitle}>
+                  {currentSection.order}. {currentSection.title}
+                </AccessibleHeader>
+                <AccessibleText baseSize={16} style={styles.contentBody}>
+                  {currentSection.content}
+                </AccessibleText>
+              </>
+            ) : (
+              <View style={styles.contentCenter}>
+                <Text style={[styles.contentBody, styles.emptyText]}>
+                  Nenhuma seção encontrada.
+                </Text>
+              </View>
+            )}
+          </View>
+        </AccessibleView>
 
-          <Text style={styles.pageIndicator}>
-            {pageNumber} / {totalPages}
-          </Text>
-        </ScrollView>
-      </GestureDetector>
+        <Text style={styles.pageIndicator}>
+          {pageNumber} / {totalPages}
+        </Text>
+      </ScrollView>
     </View>
   );
+
+  // ✅ Envolver com GestureDetector apenas em mobile
+  if (Platform.OS !== "web" && composedGestures) {
+    return (
+      <GestureDetector gesture={composedGestures}>
+        {renderContent()}
+      </GestureDetector>
+    );
+  }
+
+  return renderContent();
 }
 
 const getStyles = (
@@ -230,17 +246,17 @@ const getStyles = (
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     scrollWrapper: {
-      paddingHorizontal: WINDOW_WIDTH * 0.05, // ✅ Responsivo
+      paddingHorizontal: WINDOW_WIDTH * 0.05,
       paddingTop: 18,
       paddingBottom: 40,
       alignItems: "center",
-      flexGrow: 1, // ✅ Garante que o ScrollView se expanda
-      justifyContent: "center", // ✅ Centraliza o card verticalmente se o conteúdo for pequeno
+      flexGrow: 1,
+      justifyContent: "center",
     },
     contentCard: {
       width: "100%",
       maxWidth: 980,
-      minHeight: WINDOW_HEIGHT * 0.5, // ✅ Responsivo à altura
+      minHeight: WINDOW_HEIGHT * 0.5,
       borderRadius: 12,
       backgroundColor: (theme as any).card ?? "#fff",
       ...Platform.select({
@@ -253,10 +269,10 @@ const getStyles = (
         android: { elevation: 6 },
         web: { boxShadow: "0 8px 20px rgba(0,0,0,0.12)" },
       }),
-      justifyContent: "center", // ✅ Centraliza o texto verticalmente
+      justifyContent: "center",
     },
     cardInner: {
-      padding: WINDOW_WIDTH * 0.06, // ✅ Padding responsivo
+      padding: WINDOW_WIDTH * 0.06,
     },
     contentTitle: {
       fontSize: 20 * fontMultiplier,
@@ -268,7 +284,7 @@ const getStyles = (
     },
     contentBody: {
       fontSize: 16 * fontMultiplier,
-      lineHeight: Math.round(22 * lineHeightMultiplier * fontMultiplier), // ✅ Aplicado fontMultiplier
+      lineHeight: Math.round(22 * lineHeightMultiplier * fontMultiplier),
       color: (theme as any).cardText ?? theme.text,
       textAlign: "left",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,

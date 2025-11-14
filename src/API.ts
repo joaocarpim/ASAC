@@ -773,6 +773,14 @@ export type AdminRegisterUserMutation = {
   adminRegisterUser?: string | null,
 };
 
+export type AdminDeleteCognitoUserMutationVariables = {
+  username: string,
+};
+
+export type AdminDeleteCognitoUserMutation = {
+  adminDeleteCognitoUser?: boolean | null,
+};
+
 export type CreateUserMutationVariables = {
   input: CreateUserInput,
   condition?: ModelUserConditionInput | null,

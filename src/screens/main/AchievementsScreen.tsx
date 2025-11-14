@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Animated,
+  Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -50,10 +51,7 @@ export default function AchievementsScreen() {
   const [achievements, setAchievements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [emblemsByPerformance, setEmblemsByPerformance] = useState<
-    {
-      moduleNumber: number;
-      accuracy: number;
-    }[]
+    { moduleNumber: number; accuracy: number }[]
   >([]);
   const modulosTotais = 3;
 
@@ -79,7 +77,6 @@ export default function AchievementsScreen() {
     try {
       console.log("🏆 Buscando conquistas do usuário:", user.userId);
 
-      // Cache Buster para 'getUser'
       console.log("👤 Buscando dados frescos do usuário...");
       const userQueryWithBuster = `
         # CacheBuster: ${Date.now()}-${Math.random()}
@@ -103,7 +100,7 @@ export default function AchievementsScreen() {
 
         console.log("📚 Módulos completados (frescos):", completedModules);
         setProgressoAtual(completedModules.length);
-        setCompletedModulesList(completedModules); // Salva a lista
+        setCompletedModulesList(completedModules);
 
         const dbAchievements = dbUser.achievements?.items || [];
         const newAchievements: any[] = [];
@@ -125,7 +122,6 @@ export default function AchievementsScreen() {
         setAchievements(allAchievements);
       }
 
-      // Cache Buster para 'listProgresses'
       console.log("📊 Buscando dados de progresso para emblemas...");
       const progressQueryWithBuster = `
         # CacheBuster: ${Date.now()}-${Math.random()}
@@ -140,7 +136,6 @@ export default function AchievementsScreen() {
       const rawList = result?.data?.listProgresses?.items || [];
       console.log("📊 Raw progress data:", rawList);
 
-      // Lógica para pegar a ÚLTIMA tentativa com timeSpent > 0
       const latestProgressByModule = new Map<number, any>();
 
       (Array.isArray(rawList) ? rawList : []).forEach((p: any) => {
@@ -172,10 +167,7 @@ export default function AchievementsScreen() {
       });
 
       const latestProgressRecords = Array.from(latestProgressByModule.values());
-      console.log(
-        "🏆 Últimos progressos (latest timestamp com timeSpent > 0):",
-        latestProgressRecords
-      );
+      console.log("🏆 Últimos progressos:", latestProgressRecords);
 
       const modulePerformance: { moduleNumber: number; accuracy: number }[] =
         [];
@@ -210,28 +202,23 @@ export default function AchievementsScreen() {
   );
 
   const handleGoBack = () => navigation.goBack();
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handleGoBack);
 
-  // =================================================================
-  // ✅ CORREÇÃO: Lógica de renderização dos ícones atualizada
-  // =================================================================
+  // ✅ Só criar gesture em plataformas mobile
+  const flingRight =
+    Platform.OS !== "web"
+      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handleGoBack)
+      : undefined;
+
   const renderModuleIcons = () => {
     return Array.from({ length: modulosTotais }, (_, i) => {
       const moduleNum = i + 1;
-
-      // 1. Está na lista de 'concluídos' (do dbUser)?
       const isCompleted = completedModulesList.includes(moduleNum);
-
-      // 2. Qual é a pontuação da *última* tentativa?
       const progressData = emblemsByPerformance.find(
         (p) => p.moduleNumber === moduleNum
       );
       const accuracy = progressData ? progressData.accuracy : 0;
       const hasHighAccuracy = accuracy >= 70;
 
-      // Animação (só para alta performance)
       const scaleAnim = new Animated.Value(1);
       if (isCompleted && hasHighAccuracy) {
         Animated.sequence([
@@ -245,24 +232,16 @@ export default function AchievementsScreen() {
           key={i}
           style={[
             styles.moduloIconContainer,
-
-            // ✅ Se 70%+, aplica o estilo completo (borda verde + opacidade 1)
             isCompleted && hasHighAccuracy && styles.moduloIconCompleted,
-
-            // ✅ Se < 70%, aplica o estilo de baixa precisão (só opacidade 1)
             isCompleted && !hasHighAccuracy && styles.moduloIconLowAccuracy,
-
             { transform: [{ scale: scaleAnim }] },
           ]}
         >
           {!isCompleted ? (
-            // 1. Não concluído -> Cadeado
             <MaterialCommunityIcons name="lock" size={28} color={theme.text} />
           ) : hasHighAccuracy ? (
-            // 2. Concluído E 70%+ -> Emoji
             <Text style={styles.moduloEmoji}>{MODULE_EMOJIS[i]}</Text>
           ) : (
-            // 3. Concluído MAS < 70% -> Check (cor do texto do card)
             <MaterialCommunityIcons
               name="check"
               size={28}
@@ -273,9 +252,6 @@ export default function AchievementsScreen() {
       );
     });
   };
-  // =================================================================
-  // FIM DA CORREÇÃO
-  // =================================================================
 
   const renderAchievementCard = (achievement: any, index: number) => {
     const scaleAnim = new Animated.Value(0.8);
@@ -305,60 +281,32 @@ export default function AchievementsScreen() {
     );
   };
 
-  if (loading) {
-    return (
-      <GestureDetector gesture={flingRight}>
-        <View style={styles.page}>
-          <StatusBar
-            barStyle={theme.statusBarStyle}
-            backgroundColor={theme.background}
+  const renderContent = () => (
+    <View style={styles.page}>
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoBack} accessibilityLabel="Voltar">
+          <MaterialCommunityIcons
+            name="arrow-left"
+            size={28}
+            color={theme.text}
           />
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={handleGoBack}
-              accessibilityLabel="Voltar"
-            >
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={28}
-                color={theme.text}
-              />
-            </TouchableOpacity>
-            <AccessibleHeader level={1} style={styles.headerTitle}>
-              Minhas Conquistas
-            </AccessibleHeader>
-            <View style={styles.headerIconPlaceholder} />
-          </View>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.text} />
-            <Text style={styles.loadingText}>Carregando conquistas...</Text>
-          </View>
-        </View>
-      </GestureDetector>
-    );
-  }
+        </TouchableOpacity>
+        <AccessibleHeader level={1} style={styles.headerTitle}>
+          Minhas Conquistas
+        </AccessibleHeader>
+        <View style={styles.headerIconPlaceholder} />
+      </View>
 
-  return (
-    <GestureDetector gesture={flingRight}>
-      <View style={styles.page}>
-        <StatusBar
-          barStyle={theme.statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} accessibilityLabel="Voltar">
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={28}
-              color={theme.text}
-            />
-          </TouchableOpacity>
-          <AccessibleHeader level={1} style={styles.headerTitle}>
-            Minhas Conquistas
-          </AccessibleHeader>
-          <View style={styles.headerIconPlaceholder} />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.text} />
+          <Text style={styles.loadingText}>Carregando conquistas...</Text>
         </View>
-
+      ) : (
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
@@ -432,9 +380,19 @@ export default function AchievementsScreen() {
             )}
           </View>
         </ScrollView>
-      </View>
-    </GestureDetector>
+      )}
+    </View>
   );
+
+  // ✅ Envolver com GestureDetector apenas em mobile
+  if (Platform.OS !== "web" && flingRight) {
+    return (
+      <GestureDetector gesture={flingRight}>{renderContent()}</GestureDetector>
+    );
+  }
+
+  // ✅ Em web, retornar diretamente sem GestureDetector
+  return renderContent();
 }
 
 const createStyles = (
@@ -522,12 +480,8 @@ const createStyles = (
       borderWidth: 2,
       borderColor: theme.cardText,
     },
-    // Estilo para 70%+ (borda verde, opacidade 1)
     moduloIconCompleted: { opacity: 1, borderColor: "#4CD964" },
-
-    // ✅ NOVO ESTILO: Estilo para < 70% (borda normal, opacidade 1)
     moduloIconLowAccuracy: { opacity: 1, borderColor: theme.cardText },
-
     moduloEmoji: { fontSize: 32 },
     progressText: {
       fontSize: 14 * fontMultiplier,

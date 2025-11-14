@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+// src/screens/main/HomeScreen.tsx
+import React, { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -6,9 +7,9 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  FlatList,
   Platform,
   TextStyle,
+  ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -28,15 +29,16 @@ import {
 } from "../../components/AccessibleComponents";
 import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
 
-// IMPORTAR OS STORES E O ÁUDIO
+// IMPORTAR OS STORES
 import { useModalStore } from "../../store/useModalStore";
 import { useNotificationQueueStore } from "../../store/useNotificationQueueStore";
-import { Audio } from "expo-av";
 
 /* ===========================
     Estilos
    =========================== */
-const BOX_SIZE = 85;
+const BOX_SIZE = 75;
+const FEATURE_BUTTON_WIDTH = 165;
+const FEATURE_BUTTON_HEIGHT = 110;
 
 const createStyles = (
   theme: Theme,
@@ -53,33 +55,39 @@ const createStyles = (
       alignItems: "center",
       backgroundColor: theme.background,
     },
-    container: { flex: 1, backgroundColor: theme.background },
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollContent: {
+      paddingBottom: 20,
+    },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginTop: 10,
-      paddingHorizontal: 20,
+      marginTop: 8,
+      paddingHorizontal: 16,
     },
     headerTitle: {
-      fontSize: 24 * fontMultiplier,
+      fontSize: 22 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       color: theme.text,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
+      lineHeight: 22 * fontMultiplier * lineHeightMultiplier,
       letterSpacing,
     },
     headerSubtitle: {
-      fontSize: 14 * fontMultiplier,
+      fontSize: 13 * fontMultiplier,
       color: theme.text,
       opacity: 0.8,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      lineHeight: 14 * fontMultiplier * lineHeightMultiplier,
+      lineHeight: 13 * fontMultiplier * lineHeightMultiplier,
       letterSpacing,
     },
     headerIcon: {
       backgroundColor: theme.button ?? "#191970",
-      borderRadius: 12,
+      borderRadius: 10,
       padding: 6,
     },
     statsContainer: {
@@ -88,110 +96,199 @@ const createStyles = (
       alignItems: "center",
       gap: 8,
       alignSelf: "center",
-      marginVertical: 14,
+      marginVertical: 12,
     },
     statCard: {
       width: BOX_SIZE,
       height: BOX_SIZE,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: 14,
       justifyContent: "center",
       alignItems: "center",
-      padding: 6,
+      padding: 4,
     },
     statIcon: {
-      fontSize: 26 * fontMultiplier,
+      fontSize: 22 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
     statValue: {
       color: theme.cardText,
-      fontSize: 17 * fontMultiplier,
+      fontSize: 15 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginTop: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     statLabel: {
       color: theme.cardText,
-      fontSize: 11 * fontMultiplier,
+      fontSize: 10 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-    modulesList: { paddingHorizontal: 20, paddingBottom: 10, gap: 8 },
+
+    // MÓDULOS COM CONFIG E ALFABETO
+    modulesSection: {
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    modulesSectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 10,
+    },
+    modulesTitle: {
+      fontSize: 16 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "700",
+      color: theme.text,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      flex: 1,
+    },
+    headerButtons: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    smallButton: {
+      width: 44,
+      height: 44,
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    smallIcon: {
+      fontSize: 22 * fontMultiplier,
+      color: theme.cardText,
+    } as TextStyle,
+    modulesList: {
+      gap: 8,
+      marginBottom: 12,
+    },
     moduleItem: {
       backgroundColor: theme.card,
       borderRadius: 12,
-      paddingHorizontal: 10,
-      paddingVertical: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
       flexDirection: "row",
       alignItems: "center",
     },
     moduleIconContainer: {
       backgroundColor: theme.background,
-      borderRadius: 25,
+      borderRadius: 22,
       padding: 8,
-      marginRight: 12,
+      marginRight: 10,
     },
     moduleIcon: {
-      fontSize: 24 * fontMultiplier,
+      fontSize: 20 * fontMultiplier,
       color: theme.text,
     } as TextStyle,
     moduleTextContainer: { flex: 1 },
     moduleTitle: {
       color: theme.cardText,
-      fontSize: 14 * fontMultiplier,
+      fontSize: 13 * fontMultiplier,
       fontWeight: isBold ? "900" : "bold",
       marginBottom: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     moduleSubtitle: {
       color: theme.cardText,
-      fontSize: 12 * fontMultiplier,
+      fontSize: 11 * fontMultiplier,
       opacity: 0.9,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
     moduleStatusIndicator: {
-      width: 16,
-      height: 16,
-      borderRadius: 8,
-      marginLeft: 10,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      marginLeft: 8,
     },
     lockIcon: {
-      fontSize: 26 * fontMultiplier,
+      fontSize: 22 * fontMultiplier,
       color: theme.text,
-      marginLeft: 10,
+      marginLeft: 8,
     } as TextStyle,
 
-    // ✅ ESTILO DO CONTAINER CORRIGIDO
-    actionsContainer: {
+    // 🎨 FEATURES EM DESTAQUE (LADO A LADO)
+    featuresSection: {
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    featuresRow: {
       flexDirection: "row",
-      justifyContent: "center", // Centraliza os botões na linha
+      gap: 10,
+      justifyContent: "center",
+    },
+    featureButton: {
+      width: FEATURE_BUTTON_WIDTH,
+      height: FEATURE_BUTTON_HEIGHT,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 12,
+      justifyContent: "space-between",
+      elevation: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+    },
+    featureIconContainer: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: "center",
       alignItems: "center",
-      flexWrap: "wrap", // Permite quebrar a linha
-      gap: 8, // Espaço entre os botões
-      alignSelf: "center",
-      paddingBottom: 70, // Espaçamento inferior
-
-      // Define a largura exata para 3 botões (85*3) + 2 vãos (8*2)
-      width: BOX_SIZE * 3 + 8 * 2, // = 271
+    },
+    featureWriting: {
+      backgroundColor: "#FF6B6B",
+    },
+    featureContractions: {
+      backgroundColor: "#4ECDC4",
+    },
+    featureIcon: {
+      fontSize: 28 * fontMultiplier,
+      color: "#FFFFFF",
+    } as TextStyle,
+    featureTitle: {
+      color: theme.cardText,
+      fontSize: 14 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "700",
+      marginTop: 8,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    featureSubtitle: {
+      color: theme.cardText,
+      fontSize: 11 * fontMultiplier,
+      opacity: 0.7,
+      marginTop: 2,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
 
+    // AÇÕES RÁPIDAS
+    actionsContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 8,
+      marginVertical: 8,
+      paddingHorizontal: 16,
+    },
     actionButton: {
       width: BOX_SIZE,
       height: BOX_SIZE,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: 14,
       justifyContent: "center",
       alignItems: "center",
-      padding: 6,
+      padding: 4,
     },
     actionIcon: {
-      fontSize: 26 * fontMultiplier,
+      fontSize: 22 * fontMultiplier,
       color: theme.cardText,
     } as TextStyle,
     actionLabel: {
       color: theme.cardText,
-      fontSize: 11 * fontMultiplier,
+      fontSize: 10 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
@@ -201,20 +298,22 @@ const createStyles = (
 /* ===========================
     Tipagens e Subcomponentes
    =========================== */
-// ... (Subcomponentes StatCard, ActionButton, ModuleItem permanecem iguais)
 type HomeScreenStyles = ReturnType<typeof createStyles>;
+
 interface StatCardProps {
   iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   value: string | number;
   label: string;
   styles: HomeScreenStyles;
 }
+
 interface ActionButtonProps {
   iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   label: string;
   onPress: () => void;
   styles: HomeScreenStyles;
 }
+
 interface ModuleItemProps {
   module: { id: string; moduleId: number; title: string; description?: string };
   completed: boolean;
@@ -222,6 +321,16 @@ interface ModuleItemProps {
   onPress: () => void;
   styles: HomeScreenStyles;
 }
+
+interface FeatureButtonProps {
+  title: string;
+  subtitle: string;
+  iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  gradientType: "writing" | "contractions";
+  onPress: () => void;
+  styles: HomeScreenStyles;
+}
+
 const StatCard: React.FC<StatCardProps> = ({
   iconName,
   value,
@@ -234,17 +343,55 @@ const StatCard: React.FC<StatCardProps> = ({
       accessibilityText={`${label}: ${value}.`}
       style={styles.statCard}
     >
-      {" "}
       <MaterialCommunityIcons
         name={iconName}
         size={iconStyle.fontSize}
         color={iconStyle.color}
-      />{" "}
-      <Text style={styles.statValue}>{value}</Text>{" "}
-      <Text style={styles.statLabel}>{label}</Text>{" "}
+      />
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </AccessibleView>
   );
 };
+
+const FeatureButton: React.FC<FeatureButtonProps> = ({
+  title,
+  subtitle,
+  iconName,
+  gradientType,
+  onPress,
+  styles,
+}) => {
+  const iconStyle = styles.featureIcon as TextStyle;
+
+  return (
+    <AccessibleButton
+      accessibilityText={`${title}. ${subtitle}`}
+      onPress={onPress}
+      style={styles.featureButton}
+    >
+      <View
+        style={[
+          styles.featureIconContainer,
+          gradientType === "writing"
+            ? styles.featureWriting
+            : styles.featureContractions,
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={iconName}
+          size={iconStyle.fontSize}
+          color="#FFFFFF"
+        />
+      </View>
+      <View>
+        <Text style={styles.featureTitle}>{title}</Text>
+        <Text style={styles.featureSubtitle}>{subtitle}</Text>
+      </View>
+    </AccessibleButton>
+  );
+};
+
 const ActionButton: React.FC<ActionButtonProps> = ({
   iconName,
   label,
@@ -258,16 +405,16 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       onPress={onPress}
       style={styles.actionButton}
     >
-      {" "}
       <MaterialCommunityIcons
         name={iconName}
         size={iconStyle.fontSize}
         color={iconStyle.color}
-      />{" "}
-      <Text style={styles.actionLabel}>{label}</Text>{" "}
+      />
+      <Text style={styles.actionLabel}>{label}</Text>
     </AccessibleButton>
   );
 };
+
 const ModuleItem: React.FC<ModuleItemProps> = ({
   module,
   completed,
@@ -291,20 +438,17 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
       disabled={isLocked}
       style={[styles.moduleItem, isLocked && { opacity: 0.55 }]}
     >
-      {" "}
       <View style={styles.moduleIconContainer}>
-        {" "}
         <MaterialCommunityIcons
           name={iconName}
           size={iconStyle.fontSize}
           color={iconStyle.color}
-        />{" "}
-      </View>{" "}
+        />
+      </View>
       <View style={styles.moduleTextContainer}>
-        {" "}
-        <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>{" "}
-        <Text style={styles.moduleSubtitle}>{module.title}</Text>{" "}
-      </View>{" "}
+        <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
+        <Text style={styles.moduleSubtitle}>{module.title}</Text>
+      </View>
       {isLocked ? (
         <MaterialCommunityIcons
           name="lock-outline"
@@ -318,7 +462,7 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
             { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
           ]}
         />
-      )}{" "}
+      )}
     </AccessibleButton>
   );
 };
@@ -366,14 +510,12 @@ const HomeScreen: React.FC<
     }, [pendingNotification, showModal, dequeueNotification])
   );
 
-  // EFEITO PARA MOSTRAR A MENSAGEM DE BOAS-VINDAS (agora sem som)
   useEffect(() => {
     if (dbUser && !welcomeMessageShown && !pendingNotification) {
       const title = `🎉 Seja Bem-Vindo(a)!`;
       const message = `Olá, ${dbUser.name}! Estamos felizes em ver você por aqui.`;
 
       const showWelcomeModal = () => {
-        // Apenas chama o modal. O modal vai tocar o seu próprio som.
         showModal(title, message);
         setWelcomeMessageShown(true);
       };
@@ -413,6 +555,7 @@ const HomeScreen: React.FC<
     if (moduleId === 1) return true;
     return completedModules.includes(moduleId - 1);
   };
+
   const openModule = async (moduleId: number, completedModules: number[]) => {
     if (!user?.userId) return;
     const allowed = canStartModule(moduleId, completedModules);
@@ -422,6 +565,7 @@ const HomeScreen: React.FC<
     }
     navigation.navigate("ModuleContent", { moduleId: String(moduleId) });
   };
+
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
@@ -438,6 +582,7 @@ const HomeScreen: React.FC<
       </View>
     );
   }
+
   const rawModules = dbUser.modulesCompleted;
   const completedModuleNumbers: number[] = (() => {
     if (Array.isArray(rawModules)) {
@@ -459,104 +604,160 @@ const HomeScreen: React.FC<
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
-      <View style={styles.header}>
-        <View>
-          <AccessibleHeader level={1} style={styles.headerTitle}>
-            Olá, {dbUser.name ?? user?.name ?? "Usuário"}!
-          </AccessibleHeader>
-          <AccessibleText baseSize={16} style={styles.headerSubtitle}>
-            Continue aprendendo com ASAC
-          </AccessibleText>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <AccessibleHeader level={1} style={styles.headerTitle}>
+              Olá, {dbUser.name ?? user?.name ?? "Usuário"}!
+            </AccessibleHeader>
+            <AccessibleText baseSize={16} style={styles.headerSubtitle}>
+              Continue aprendendo com ASAC
+            </AccessibleText>
+          </View>
+          <AccessibleButton onPress={handleLogout} style={styles.headerIcon}>
+            <MaterialCommunityIcons
+              name="logout"
+              size={22}
+              color={theme.buttonText ?? "#FFFFFF"}
+            />
+          </AccessibleButton>
         </View>
-        <AccessibleButton onPress={handleLogout} style={styles.headerIcon}>
-          <MaterialCommunityIcons
-            name="logout"
-            size={26}
-            color={theme.buttonText ?? "#FFFFFF"}
+
+        {/* Stats */}
+        <View style={styles.statsContainer}>
+          <StatCard
+            iconName="hand-coin"
+            value={dbUser.coins ?? 0}
+            label="Moedas"
+            styles={styles}
           />
-        </AccessibleButton>
-      </View>
-      <View style={styles.statsContainer}>
-        <StatCard
-          iconName="hand-coin"
-          value={dbUser.coins ?? 0}
-          label="Moedas"
-          styles={styles}
-        />
-        <StatCard
-          iconName="trophy-variant"
-          value={(dbUser.points ?? 0).toLocaleString("pt-BR")}
-          label="Pontos"
-          styles={styles}
-        />
-        <StatCard
-          iconName="book-multiple"
-          value={modulesProgressString}
-          label="Módulos"
-          styles={styles}
-        />
-      </View>
-      <FlatList
-        data={DEFAULT_MODULES}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          const isCompleted = completedModuleNumbers.includes(item.moduleId);
-          const isLocked = !canStartModule(
-            item.moduleId,
-            completedModuleNumbers
-          );
-          return (
-            <ModuleItem
-              module={item}
-              completed={isCompleted}
-              isLocked={isLocked}
-              onPress={() => openModule(item.moduleId, completedModuleNumbers)}
+          <StatCard
+            iconName="trophy-variant"
+            value={(dbUser.points ?? 0).toLocaleString("pt-BR")}
+            label="Pontos"
+            styles={styles}
+          />
+          <StatCard
+            iconName="book-multiple"
+            value={modulesProgressString}
+            label="Módulos"
+            styles={styles}
+          />
+        </View>
+
+        {/* MÓDULOS COM CONFIG E ALFABETO */}
+        <View style={styles.modulesSection}>
+          <View style={styles.modulesSectionHeader}>
+            <Text style={styles.modulesTitle}>Seus Módulos</Text>
+            <View style={styles.headerButtons}>
+              <AccessibleButton
+                onPress={() => navigation.navigate("Settings")}
+                style={styles.smallButton}
+                accessibilityText="Configurações"
+              >
+                <MaterialCommunityIcons
+                  name="cog"
+                  size={(styles.smallIcon as TextStyle).fontSize}
+                  color={(styles.smallIcon as TextStyle).color}
+                />
+              </AccessibleButton>
+
+              <AccessibleButton
+                onPress={() => navigation.navigate("AlphabetSections")}
+                style={styles.smallButton}
+                accessibilityText="Alfabeto"
+              >
+                <MaterialCommunityIcons
+                  name="alphabetical"
+                  size={(styles.smallIcon as TextStyle).fontSize}
+                  color={(styles.smallIcon as TextStyle).color}
+                />
+              </AccessibleButton>
+            </View>
+          </View>
+
+          <View style={styles.modulesList}>
+            {DEFAULT_MODULES.map((item) => {
+              const isCompleted = completedModuleNumbers.includes(
+                item.moduleId
+              );
+              const isLocked = !canStartModule(
+                item.moduleId,
+                completedModuleNumbers
+              );
+              return (
+                <ModuleItem
+                  key={item.id}
+                  module={item}
+                  completed={isCompleted}
+                  isLocked={isLocked}
+                  onPress={() =>
+                    openModule(item.moduleId, completedModuleNumbers)
+                  }
+                  styles={styles}
+                />
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 🎨 FEATURES EM DESTAQUE (LADO A LADO) */}
+        <View style={styles.featuresSection}>
+          <View style={styles.featuresRow}>
+            <FeatureButton
+              title="Escrita"
+              subtitle="Teste sua velocidade"
+              iconName="keyboard-variant"
+              gradientType="writing"
+              onPress={() => navigation.navigate("WritingChallengeIntro")}
               styles={styles}
             />
-          );
-        }}
-        contentContainerStyle={styles.modulesList}
-      />
 
-      {/* A ordem dos botões já está correta (4º item é o Progresso) */}
-      <View style={styles.actionsContainer}>
-        <ActionButton
-          iconName="podium-gold"
-          label="Ranking"
-          onPress={() => navigation.navigate("Ranking")}
-          styles={styles}
-        />
-        <ActionButton
-          iconName="road-variant"
-          label="Jornada"
-          onPress={() => navigation.navigate("LearningPath")}
-          styles={styles}
-        />
-        <ActionButton
-          iconName="medal-outline"
-          label="Conquistas"
-          onPress={() => navigation.navigate("Achievements")}
-          styles={styles}
-        />
-        <ActionButton
-          iconName="rocket-launch-outline"
-          label="Progresso"
-          onPress={() => navigation.navigate("Progress")}
-          styles={styles}
-        />
-        <ActionButton
-          iconName="alphabetical"
-          label="Alfabeto"
-          onPress={() => navigation.navigate("AlphabetSections")}
-          styles={styles}
-        />
-        <ActionButton
-          iconName="cog"
-          label="Configs"
-          onPress={() => navigation.navigate("Settings")}
-          styles={styles}
-        />
-      </View>
+            <FeatureButton
+              title="Contrações"
+              subtitle="Aprenda atalhos"
+              iconName="alpha-c-box-outline"
+              gradientType="contractions"
+              onPress={() => navigation.navigate("ContractionsHome")}
+              styles={styles}
+            />
+          </View>
+        </View>
+
+        {/* AÇÕES RÁPIDAS */}
+        <View style={styles.actionsContainer}>
+          <ActionButton
+            iconName="podium-gold"
+            label="Ranking"
+            onPress={() => navigation.navigate("Ranking")}
+            styles={styles}
+          />
+          <ActionButton
+            iconName="road-variant"
+            label="Jornada"
+            onPress={() => navigation.navigate("LearningPath")}
+            styles={styles}
+          />
+          <ActionButton
+            iconName="medal-outline"
+            label="Conquistas"
+            onPress={() => navigation.navigate("Achievements")}
+            styles={styles}
+          />
+          <ActionButton
+            iconName="rocket-launch-outline"
+            label="Progresso"
+            onPress={() => navigation.navigate("Progress")}
+            styles={styles}
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 };

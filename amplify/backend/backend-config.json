@@ -63,16 +63,9 @@
     }
   },
   "function": {
-    "AdminRegisterUser": {
+    "adminDeleteUser": {
       "build": true,
       "dependsOn": [
-        {
-          "attributes": [
-            "UserPoolId"
-          ],
-          "category": "auth",
-          "resourceName": "asac2f4153aa"
-        },
         {
           "attributes": [
             "GraphQLAPIIdOutput",
@@ -81,6 +74,36 @@
           ],
           "category": "api",
           "resourceName": "asac"
+        },
+        {
+          "attributes": [
+            "UserPoolId"
+          ],
+          "category": "auth",
+          "resourceName": "asac2f4153aa"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    },
+    "adminRegisterUser": {
+      "build": true,
+      "dependsOn": [
+        {
+          "attributes": [
+            "GraphQLAPIIdOutput",
+            "GraphQLAPIEndpointOutput",
+            "GraphQLAPIKeyOutput"
+          ],
+          "category": "api",
+          "resourceName": "asac"
+        },
+        {
+          "attributes": [
+            "UserPoolId"
+          ],
+          "category": "auth",
+          "resourceName": "asac2f4153aa"
         }
       ],
       "providerPlugin": "awscloudformation",
@@ -88,19 +111,35 @@
     }
   },
   "parameters": {
-    "AMPLIFY_function_AdminRegisterUser_deploymentBucketName": {
+    "AMPLIFY_function_adminDeleteUser_deploymentBucketName": {
       "usedBy": [
         {
           "category": "function",
-          "resourceName": "AdminRegisterUser"
+          "resourceName": "adminDeleteUser"
         }
       ]
     },
-    "AMPLIFY_function_AdminRegisterUser_s3Key": {
+    "AMPLIFY_function_adminDeleteUser_s3Key": {
       "usedBy": [
         {
           "category": "function",
-          "resourceName": "AdminRegisterUser"
+          "resourceName": "adminDeleteUser"
+        }
+      ]
+    },
+    "AMPLIFY_function_adminRegisterUser_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "adminRegisterUser"
+        }
+      ]
+    },
+    "AMPLIFY_function_adminRegisterUser_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "adminRegisterUser"
         }
       ]
     }

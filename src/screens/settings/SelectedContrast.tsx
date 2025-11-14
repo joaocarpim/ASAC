@@ -7,14 +7,13 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  useWindowDimensions, // ✅ 1. Importado
+  useWindowDimensions,
 } from "react-native";
 import { useContrast } from "../../hooks/useContrast";
 import { ContrastMode } from "../../types/contrast";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import {
-  AccessibleView,
   AccessibleHeader,
   AccessibleButton,
 } from "../../components/AccessibleComponents";
@@ -31,19 +30,25 @@ interface OptionCardProps {
   label: string;
   accessibilityHint: string;
   onPress: (mode: ContrastMode) => void;
-  scaleFont: (size: number) => number; // Pass scaleFont como prop
+  scaleFont: (size: number) => number;
 }
 
 const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
   const { changeContrastMode } = useContrast();
   const [selection, setSelection] = useState<ContrastMode>("blue_yellow");
 
-  // ✅ 2. Use o hook DENTRO do componente
   const { width } = useWindowDimensions();
-  const FONT_SCALE = width > 0 ? width / 375 : 1; // Previne divisão por zero
+  const FONT_SCALE = width > 0 ? width / 375 : 1;
   const scaleFont = (size: number) => Math.round(size * FONT_SCALE);
 
+  // --- LOG 1 ---
+  console.log(`[ContrastScreen Render] Seleção atual: ${selection}`);
+
   const handleContinue = () => {
+    // --- LOG 3 ---
+    console.log(
+      `[ContrastScreen Prosseguir] Salvando modo: ${selection}. Navegando para Home.`
+    );
     changeContrastMode(selection);
     navigation.replace("Home");
   };
@@ -61,7 +66,6 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
     cyanText: "#00FFFF",
   };
 
-  // ✅ 3. Crie os estilos DINAMICAMENTE
   const styles = createStyles(scaleFont);
 
   return (
@@ -70,10 +74,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
         backgroundColor={PREVIEW_COLORS.yellowBg}
         barStyle="dark-content"
       />
-      <AccessibleView
-        style={styles.container}
-        accessibilityText="Tela de seleção de contraste."
-      >
+      <View style={styles.container}>
         <AccessibleHeader
           level={1}
           style={[styles.title, { color: PREVIEW_COLORS.blueText }]}
@@ -82,7 +83,6 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
         </AccessibleHeader>
 
         <View style={styles.optionsContainer}>
-          {/* Os OptionCards agora recebem scaleFont */}
           <OptionCard
             colors={PREVIEW_COLORS}
             currentSelection={selection}
@@ -148,7 +148,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             Prosseguir
           </Text>
         </AccessibleButton>
-      </AccessibleView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -160,14 +160,13 @@ const OptionCard: React.FC<OptionCardProps> = ({
   label,
   accessibilityHint,
   onPress,
-  scaleFont, // Recebe a função
+  scaleFont,
 }) => {
   const isSelected = currentSelection === mode;
   const accessibilityFullText = `Opção ${label}. ${accessibilityHint} ${
     isSelected ? "Atualmente selecionado." : ""
   }`;
 
-  // ✅ 4. Recria os estilos dinamicamente
   const styles = createStyles(scaleFont);
 
   const cardStyles: Record<
@@ -186,10 +185,16 @@ const OptionCard: React.FC<OptionCardProps> = ({
     cyan_dark: { backgroundColor: colors.cyanDarkBg, color: colors.cyanText },
   };
 
+  const handlePress = () => {
+    // --- LOG 2 ---
+    console.log(`[OptionCard Click] Selecionado: ${mode}`);
+    onPress(mode);
+  };
+
   return (
     <View style={styles.cardWrapper}>
       <AccessibleButton
-        onPress={() => onPress(mode)}
+        onPress={handlePress} // Usando o handler com log
         accessibilityText={accessibilityFullText}
         style={{ flex: 1 }}
       >
@@ -213,16 +218,14 @@ const OptionCard: React.FC<OptionCardProps> = ({
   );
 };
 
-// ✅ 5. Transforme os estilos em uma função
 const createStyles = (scaleFont: (size: number) => number) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      justifyContent: "center", // Centraliza o conteúdo
-      // marginTop: 100, // ❌ REMOVIDO: Isso quebrava o layout
+      justifyContent: "center",
       alignItems: "center",
       paddingHorizontal: 10,
-      paddingBottom: 20, // Garante que o botão não cole na borda
+      paddingBottom: 20,
     },
     title: {
       fontSize: scaleFont(24),

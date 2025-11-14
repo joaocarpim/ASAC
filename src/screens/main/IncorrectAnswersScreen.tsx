@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   ColorValue,
   Animated,
+  Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
@@ -22,7 +23,7 @@ import { Theme } from "../../types/contrast";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useSettings } from "../../hooks/useSettings";
 import { useAuthStore } from "../../store/authStore";
-import progressService from "../../services/progressService"; // Corrigido para import default
+import progressService from "../../services/progressService";
 import { RootStackParamList } from "../../navigation/types";
 import {
   Gesture,
@@ -74,7 +75,6 @@ const IncorrectAnswerCard = ({
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Animação de entrada
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -90,7 +90,6 @@ const IncorrectAnswerCard = ({
       }),
     ]).start();
 
-    // Pulso sutil no badge
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -105,7 +104,7 @@ const IncorrectAnswerCard = ({
         }),
       ])
     ).start();
-  }, [slideAnim, fadeAnim, index, pulseAnim]); // Adicionadas dependências
+  }, [slideAnim, fadeAnim, index, pulseAnim]);
 
   const questionNum = item.questionNumber.toString().split("-").pop() || "?";
 
@@ -117,7 +116,6 @@ const IncorrectAnswerCard = ({
       }}
     >
       <View style={styles.card}>
-        {/* Header com gradiente visual */}
         <View style={styles.cardHeader}>
           <Animated.View
             style={[
@@ -136,24 +134,20 @@ const IncorrectAnswerCard = ({
           </View>
         </View>
 
-        {/* Corpo do card */}
         <View style={styles.cardBody}>
           <View style={styles.questionSection}>
             <MaterialCommunityIcons
               name="help-circle-outline"
               size={20}
-              color={theme.text} // Ajustado para theme.text
+              color={theme.text}
               style={styles.sectionIcon}
             />
             <Text style={styles.questionText}>{item.questionText}</Text>
           </View>
 
-          {/* Divisor */}
           <View style={styles.divider} />
 
-          {/* Respostas */}
           <View style={styles.answersContainer}>
-            {/* Resposta errada */}
             <View style={[styles.answerBox, styles.wrongAnswerBox]}>
               <View style={styles.answerHeader}>
                 <MaterialCommunityIcons
@@ -166,7 +160,6 @@ const IncorrectAnswerCard = ({
               <Text style={styles.userAnswer}>{item.userAnswer}</Text>
             </View>
 
-            {/* Resposta correta */}
             <View style={[styles.answerBox, styles.correctAnswerBox]}>
               <View style={styles.answerHeader}>
                 <MaterialCommunityIcons
@@ -221,7 +214,6 @@ export default function IncorrectAnswersScreen({
     ? "light-content"
     : "dark-content";
 
-  // Animações do header
   const headerFadeAnim = useRef(new Animated.Value(0)).current;
   const headerScaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -232,7 +224,6 @@ export default function IncorrectAnswersScreen({
     }
     setLoading(true);
     try {
-      // Corrigido para usar a importação default
       const progress = await progressService.getModuleProgressByUser(
         user.userId,
         moduleNumber
@@ -256,7 +247,6 @@ export default function IncorrectAnswersScreen({
 
         setIncorrectAnswers(aggregatedErrors);
 
-        // Animar header após carregar dados
         Animated.parallel([
           Animated.timing(headerFadeAnim, {
             toValue: 1,
@@ -279,7 +269,7 @@ export default function IncorrectAnswersScreen({
     } finally {
       setLoading(false);
     }
-  }, [user?.userId, moduleNumber, headerFadeAnim, headerScaleAnim]); // Adicionadas dependências
+  }, [user?.userId, moduleNumber, headerFadeAnim, headerScaleAnim]);
 
   useFocusEffect(
     useCallback(() => {
@@ -288,35 +278,24 @@ export default function IncorrectAnswersScreen({
   );
 
   const handleGoBack = () => navigation.goBack();
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handleGoBack);
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <StatusBar
-          barStyle={statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <ScreenHeader title={`Módulo ${moduleNumber} - Erros`} />
+  // ✅ Só criar gesture em plataformas mobile
+  const flingRight =
+    Platform.OS !== "web"
+      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handleGoBack)
+      : undefined;
+
+  const renderContent = () => (
+    <View style={styles.container}>
+      <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
+      <ScreenHeader title={`Módulo ${moduleNumber} - Erros`} />
+
+      {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.text} />
         </View>
-      </View>
-    );
-  }
-
-  return (
-    <GestureDetector gesture={flingRight}>
-      <View style={styles.container}>
-        <StatusBar
-          barStyle={statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <ScreenHeader title={`Módulo ${moduleNumber} - Erros`} />
+      ) : (
         <ScrollView contentContainerStyle={styles.scrollContainer}>
-          {/* Header com estatísticas */}
           <Animated.View
             style={[
               styles.statsCard,
@@ -352,7 +331,6 @@ export default function IncorrectAnswersScreen({
             </Text>
           </Animated.View>
 
-          {/* Lista de erros */}
           {incorrectAnswers.length > 0 ? (
             <View style={styles.errorsSection}>
               {incorrectAnswers.map((item, index) => (
@@ -375,9 +353,19 @@ export default function IncorrectAnswersScreen({
             </View>
           )}
         </ScrollView>
-      </View>
-    </GestureDetector>
+      )}
+    </View>
   );
+
+  // ✅ Envolver com GestureDetector apenas em mobile
+  if (Platform.OS !== "web" && flingRight) {
+    return (
+      <GestureDetector gesture={flingRight}>{renderContent()}</GestureDetector>
+    );
+  }
+
+  // ✅ Em web, retornar diretamente sem GestureDetector
+  return renderContent();
 }
 
 const createStyles = (
@@ -396,8 +384,6 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
     },
-
-    // Stats Card
     statsCard: {
       backgroundColor: theme.card,
       borderRadius: 16,
@@ -429,8 +415,6 @@ const createStyles = (
       textAlign: "center",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-
-    // Errors Section
     errorsSection: {
       marginBottom: 20,
     },
@@ -446,8 +430,7 @@ const createStyles = (
       shadowRadius: 5,
     },
     cardHeader: {
-      // ✅ CORREÇÃO AQUI
-      backgroundColor: theme.background, // Trocado de "#FFEBEE" para theme.background
+      backgroundColor: theme.background,
       padding: 16,
       flexDirection: "row",
       alignItems: "center",
@@ -463,7 +446,7 @@ const createStyles = (
       elevation: 2,
     },
     questionNumber: {
-      color: "#FFFFFF", // Mantido como branco para contrastar com o badge vermelho
+      color: "#FFFFFF",
       fontSize: 20 * fontMultiplier,
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -505,13 +488,11 @@ const createStyles = (
       borderWidth: 2,
     },
     wrongAnswerBox: {
-      // ✅ CORREÇÃO AQUI
-      backgroundColor: theme.background, // Trocado de "#FFEBEE" para theme.background
+      backgroundColor: theme.background,
       borderColor: "#F44336",
     },
     correctAnswerBox: {
-      // ✅ CORREÇÃO AQUI
-      backgroundColor: theme.background, // Trocado de "#E8F5E9" para theme.background
+      backgroundColor: theme.background,
       borderColor: "#4CAF50",
     },
     answerHeader: {
@@ -523,24 +504,22 @@ const createStyles = (
     answerLabel: {
       fontSize: 12 * fontMultiplier,
       fontWeight: "bold",
-      color: theme.text, // Corrigido para theme.text para garantir visibilidade
+      color: theme.text,
       opacity: 0.7,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     userAnswer: {
       fontSize: 15 * fontMultiplier,
-      color: "#C62828", // Mantido como cor semântica de erro
+      color: "#C62828",
       fontWeight: "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     correctAnswer: {
       fontSize: 15 * fontMultiplier,
-      color: "#2E7D32", // Mantido como cor semântica de acerto
+      color: "#2E7D32",
       fontWeight: "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-
-    // Empty State
     emptyContainer: {
       alignItems: "center",
       paddingVertical: 60,

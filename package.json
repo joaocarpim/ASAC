@@ -30,8 +30,8 @@
     "expo-status-bar": "~1.12.1",
     "expo-system-ui": "~3.0.4",
     "nativewind": "^2.0.11",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "react-native": "^0.82.1",
     "react-native-confetti-cannon": "^1.5.2",
     "react-native-gesture-handler": "~2.16.1",
@@ -50,11 +50,11 @@
     "@aws-amplify/backend-cli": "^1.8.0",
     "@aws-amplify/cli": "^12.10.1",
     "@babel/core": "^7.26.0",
-    "@types/react": "~18.2.45",
+    "@types/react": "~19.1.10",
     "aws-cdk-lib": "^2.134.0",
     "constructs": "10.3.0",
     "tsx": "^4.7.2",
-    "typescript": "~5.3.3"
+    "typescript": "~5.9.2"
   },
   "private": true
 }

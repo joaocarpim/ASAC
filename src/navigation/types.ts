@@ -1,23 +1,21 @@
-// src/navigation/types.ts
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ErrorDetail } from "../services/progressService"; // Mantenha este import
+import { ErrorDetail } from "../services/progressService";
 
 export type RootStackParamList = {
   // Onboarding
   Welcome: undefined;
-  TutorialStep1: undefined;
-  TutorialStep2: undefined;
-  TutorialStep3: undefined; // Auth
+  Tutorial: undefined;
 
+  // Auth
   Login: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email: string };
   ConfirmSignUp: { email: string; password?: string };
   NewPassword: { username: string };
 
-  // ✅ ADICIONE ESTA LINHA:
-  Loading: undefined; // Main App
+  Loading: undefined;
 
+  // Main App
   Home: undefined;
   Ranking: undefined;
   Achievements: undefined;
@@ -50,12 +48,28 @@ export type RootStackParamList = {
     progressId?: string;
     errorDetails?: string;
     pointsEarned: number;
-  }; // Admin
+  };
 
+  // Admin
   AdminDashboard: undefined;
   AdminUserDetail: { userId: string; userName: string };
   AdminIncorrectAnswers: { userId: string; moduleNumber: number };
   AdminRegisterUser: undefined;
+
+  // Writing Challenges (Grau 1)
+  WritingChallengeIntro: undefined;
+  WritingChallengeRoullete: undefined;
+  WritingChallengeGame: { word: string };
+  WritingChallengeSuccess: { word: string };
+
+  // ✅ ======================================
+  // ✅ NOVAS TELAS DE CONTRAÇÕES (GRAU 2)
+  // ✅ ======================================
+  ContractionsHome: undefined;
+  ContractionsLesson: undefined;
+  ContractionsRoullete: undefined;
+  ContractionsGame: { word: string; dots: number[] }; // Mudei de 'contraction' para 'dots'
+  ContractionsSuccess: { word: string };
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =

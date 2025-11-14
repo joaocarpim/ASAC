@@ -1,29 +1,19 @@
-// src/screens/module/AlphabetLessonScreen.tsx (ATUALIZADO)
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-  useCallback,
-} from "react";
+// src/screens/module/AlphabetLessonScreen.tsx (COM SWIPE NAVIGATION)
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  // FlatList, // ❌ Não precisamos mais da FlatList
   Dimensions,
   StatusBar,
   TouchableOpacity,
-  ScrollView, // ✅ Usamos ScrollView para o conteúdo
+  ScrollView,
+  Platform,
+  Animated,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import {
-  Gesture,
-  GestureDetector,
-  Directions,
-  GestureHandlerRootView, // Importado para envolver tudo
-} from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { Audio } from "expo-av";
 import { useContrast } from "../../hooks/useContrast";
@@ -38,7 +28,6 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { RootStackParamList } from "../../navigation/types";
 import { ALL_BRAILLE_CHARS } from "../../navigation/brailleLetters";
 
-const screenWidth = Dimensions.get("window").width;
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
 
 type AlphabetLessonRouteProp = RouteProp<RootStackParamList, "AlphabetLesson">;
@@ -50,8 +39,6 @@ const getDotDescription = (dots: number[]): string => {
   const last = sorted.pop();
   return `Pontos ${sorted.join(", ")} e ${last} levantados.`;
 };
-
-// --- COMPONENTES INTERNOS DA TELA ---
 
 const BrailleCell = ({
   dots,
@@ -85,31 +72,39 @@ const BrailleCell = ({
 const BrailleCard = ({
   item,
   styles,
+  translateX,
 }: {
   item: BrailleItem;
   styles: ReturnType<typeof createStyles>;
+  translateX: Animated.Value;
 }) => {
   const accessibilityLabel = `${item.letter}. ${item.description}`;
+
   return (
-    // Usamos AccessibleView aqui como o contêiner do card
-    <AccessibleView
-      style={styles.contentCard}
-      accessibilityText={accessibilityLabel}
+    <Animated.View
+      style={[
+        styles.contentCard,
+        {
+          transform: [{ translateX }],
+        },
+      ]}
     >
-      <View style={styles.cardInner}>
-        <AccessibleHeader level={2} style={styles.letter}>
-          {item.letter}
-        </AccessibleHeader>
-        <BrailleCell dots={item.dots} styles={styles} />
-        <AccessibleText
-          style={styles.descriptionText}
-          baseSize={18}
-          accessibilityText="" // Oculta, pois o contêiner já fala
-        >
-          {item.description}
-        </AccessibleText>
-      </View>
-    </AccessibleView>
+      <AccessibleView accessibilityText={accessibilityLabel}>
+        <View style={styles.cardInner}>
+          <AccessibleHeader level={2} style={styles.letter}>
+            {item.letter}
+          </AccessibleHeader>
+          <BrailleCell dots={item.dots} styles={styles} />
+          <AccessibleText
+            style={styles.descriptionText}
+            baseSize={18}
+            accessibilityText=""
+          >
+            {item.description}
+          </AccessibleText>
+        </View>
+      </AccessibleView>
+    </Animated.View>
   );
 };
 
@@ -117,7 +112,7 @@ const CongratsCard = ({
   item,
   onReturn,
   styles,
-  isVisible, // isVisible controla o confete
+  isVisible,
 }: {
   item: CongratsItem;
   onReturn: () => void;
@@ -126,7 +121,7 @@ const CongratsCard = ({
 }) => {
   return (
     <AccessibleView
-      style={styles.contentCard} // Reutiliza o estilo de card
+      style={styles.contentCard}
       accessibilityText={`Parabéns, você completou a ${item.title}! Toque duas vezes para voltar.`}
     >
       {isVisible && (
@@ -148,7 +143,6 @@ const CongratsCard = ({
   );
 };
 
-// --- TIPOS DE DADOS ---
 type BrailleItem = {
   type: "char";
   id: string;
@@ -157,9 +151,7 @@ type BrailleItem = {
   description: string;
 };
 type CongratsItem = { type: "congrats"; id: string; title: string };
-// (Não precisamos mais do LearningItem, pois o "parabéns" é um estado)
 
-// --- COMPONENTE PRINCIPAL ---
 export default function AlphabetLessonScreen() {
   const navigation = useNavigation();
   const route = useRoute<AlphabetLessonRouteProp>();
@@ -175,35 +167,51 @@ export default function AlphabetLessonScreen() {
   } = useSettings();
 
   const [happySound, setHappySound] = useState<Audio.Sound | null>(null);
-
-  // ✅ LÓGICA DE ESTADO (igual ao ModuleContentScreen)
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [isFinished, setIsFinished] = useState(false); // Estado para controlar a tela de parabéns
+  const [isFinished, setIsFinished] = useState(false);
+  const translateX = useState(new Animated.Value(0))[0];
 
-  const styles = createStyles(
-    theme,
-    fontSizeMultiplier,
-    isBoldTextEnabled,
-    lineHeightMultiplier,
-    letterSpacing,
-    isDyslexiaFontEnabled
+  const styles = useMemo(
+    () =>
+      createStyles(
+        theme,
+        fontSizeMultiplier,
+        isBoldTextEnabled,
+        lineHeightMultiplier,
+        letterSpacing,
+        isDyslexiaFontEnabled
+      ),
+    [
+      theme,
+      fontSizeMultiplier,
+      isBoldTextEnabled,
+      lineHeightMultiplier,
+      letterSpacing,
+      isDyslexiaFontEnabled,
+    ]
   );
 
-  // Carrega o som
   useEffect(() => {
+    let sound: Audio.Sound | null = null;
+
     const loadSound = async () => {
       try {
-        const { sound } = await Audio.Sound.createAsync(
+        const { sound: loadedSound } = await Audio.Sound.createAsync(
           require("../../../assets/som/happy.mp3")
         );
-        setHappySound(sound);
+        sound = loadedSound;
+        setHappySound(loadedSound);
       } catch (error) {
         console.warn("Erro ao carregar som 'happy':", error);
       }
     };
+
     loadSound();
+
     return () => {
-      happySound?.unloadAsync();
+      if (sound) {
+        sound.unloadAsync();
+      }
     };
   }, []);
 
@@ -216,14 +224,12 @@ export default function AlphabetLessonScreen() {
     }
   }, []);
 
-  // ✅ Efeito que toca o som QUANDO 'isFinished' vira true
   useEffect(() => {
-    if (isFinished) {
+    if (isFinished && happySound) {
       playSound(happySound);
     }
   }, [isFinished, happySound, playSound]);
 
-  // ✅ Dados agora são SÓ os caracteres
   const sessionCharacters = useMemo((): BrailleItem[] => {
     return characters.map((char: string) => {
       const dots =
@@ -238,84 +244,192 @@ export default function AlphabetLessonScreen() {
     });
   }, [characters]);
 
-  // ✅ Funções de navegação de página
-  const handleGoBackToSections = () => {
+  const handleGoBackToSections = useCallback(() => {
     navigation.goBack();
-  };
+  }, [navigation]);
 
-  const handleNext = () => {
-    if (isFinished) return; // Já está na tela final
-    if (currentPageIndex < sessionCharacters.length - 1) {
-      setCurrentPageIndex((prev) => prev + 1);
-    } else {
-      // Chegou ao fim
-      setIsFinished(true);
-    }
-  };
+  const handleNext = useCallback(() => {
+    if (isFinished) return;
 
-  const handlePrevious = () => {
+    // Anima para a esquerda antes de mudar
+    Animated.timing(translateX, {
+      toValue: -WINDOW_WIDTH,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      if (currentPageIndex < sessionCharacters.length - 1) {
+        setCurrentPageIndex((prev) => prev + 1);
+        translateX.setValue(WINDOW_WIDTH);
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      } else {
+        setIsFinished(true);
+        translateX.setValue(0);
+      }
+    });
+  }, [isFinished, currentPageIndex, sessionCharacters.length, translateX]);
+
+  const handlePrevious = useCallback(() => {
     if (isFinished) {
-      setIsFinished(false); // Sai da tela de parabéns e volta pro último item
+      setIsFinished(false);
       return;
     }
-    if (currentPageIndex > 0) {
-      setCurrentPageIndex((prev) => prev - 1);
-    } else {
-      handleGoBackToSections(); // No primeiro card, deslizar para a direita volta
-    }
-  };
 
-  // ✅ Gestos
-  const flingLeft = Gesture.Fling()
-    .direction(Directions.LEFT)
-    .onEnd(handleNext);
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(handlePrevious);
-  const composedGestures = Gesture.Race(flingLeft, flingRight);
+    if (currentPageIndex > 0) {
+      // Anima para a direita antes de mudar
+      Animated.timing(translateX, {
+        toValue: WINDOW_WIDTH,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setCurrentPageIndex((prev) => prev - 1);
+        translateX.setValue(-WINDOW_WIDTH);
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      });
+    } else {
+      navigation.goBack();
+    }
+  }, [isFinished, currentPageIndex, navigation, translateX]);
+
+  // Gesto de Pan para navegação por swipe
+  const panGesture = useMemo(
+    () =>
+      Platform.OS !== "web"
+        ? Gesture.Pan()
+            .onUpdate((event) => {
+              // Atualiza a posição durante o arrasto
+              translateX.setValue(event.translationX);
+            })
+            .onEnd((event) => {
+              const { translationX: tx, translationY: ty, velocityX } = event;
+              const isHorizontal = Math.abs(tx) > Math.abs(ty);
+
+              if (!isHorizontal) {
+                // Volta para a posição original se não for horizontal
+                Animated.spring(translateX, {
+                  toValue: 0,
+                  useNativeDriver: true,
+                }).start();
+                return;
+              }
+
+              const threshold = WINDOW_WIDTH * 0.25;
+              const shouldChangePage =
+                Math.abs(tx) > threshold || Math.abs(velocityX) > 500;
+
+              if (shouldChangePage) {
+                if (tx < 0) {
+                  // Swipe para ESQUERDA → Próximo
+                  handleNext();
+                } else {
+                  // Swipe para DIREITA → Anterior
+                  handlePrevious();
+                }
+              } else {
+                // Volta para a posição original
+                Animated.spring(translateX, {
+                  toValue: 0,
+                  useNativeDriver: true,
+                }).start();
+              }
+            })
+        : undefined,
+    [handleNext, handlePrevious, translateX]
+  );
 
   const currentItem = sessionCharacters[currentPageIndex];
   const totalPages = sessionCharacters.length;
   const pageNumber = currentPageIndex + 1;
 
-  return (
-    // ✅ Precisa do GestureHandlerRootView aqui por causa do GestureDetector
-    <GestureHandlerRootView style={styles.container}>
-      <GestureDetector gesture={composedGestures}>
-        <View style={styles.container}>
-          <StatusBar
-            barStyle={theme.statusBarStyle}
-            backgroundColor={theme.background}
+  const renderContent = () => (
+    <View style={styles.container}>
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
+      <ScreenHeader title={title} />
+      <ScrollView contentContainerStyle={styles.scrollWrapper}>
+        {isFinished ? (
+          <CongratsCard
+            item={{ type: "congrats", id: "congrats-card", title: title }}
+            onReturn={handleGoBackToSections}
+            styles={styles}
+            isVisible={isFinished}
           />
-          <ScreenHeader title={title} />
+        ) : (
+          <>
+            <BrailleCard
+              item={currentItem}
+              styles={styles}
+              translateX={translateX}
+            />
+            <Text style={styles.pageIndicator}>
+              {pageNumber} / {totalPages}
+            </Text>
 
-          {/* ✅ Lógica de renderização igual ao ModuleContentScreen */}
-          <ScrollView contentContainerStyle={styles.scrollWrapper}>
-            {isFinished ? (
-              <CongratsCard
-                item={{ type: "congrats", id: "congrats-card", title: title }}
-                onReturn={handleGoBackToSections}
-                styles={styles}
-                isVisible={isFinished}
-              />
-            ) : (
-              <BrailleCard item={currentItem} styles={styles} />
-            )}
+            <View style={styles.navigationButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.navButton,
+                  currentPageIndex === 0 && styles.navButtonDisabled,
+                ]}
+                onPress={handlePrevious}
+                disabled={currentPageIndex === 0}
+                accessibilityLabel="Voltar para a lição anterior"
+              >
+                <MaterialCommunityIcons
+                  name="chevron-left"
+                  size={32}
+                  color={currentPageIndex === 0 ? "#999" : theme.button}
+                />
+              </TouchableOpacity>
 
-            {!isFinished && (
-              <Text style={styles.pageIndicator}>
-                {pageNumber} / {totalPages}
-              </Text>
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={handleNext}
+                accessibilityLabel={
+                  currentPageIndex === totalPages - 1
+                    ? "Finalizar sessão"
+                    : "Próxima lição"
+                }
+              >
+                <MaterialCommunityIcons
+                  name={
+                    currentPageIndex === totalPages - 1
+                      ? "check-circle"
+                      : "chevron-right"
+                  }
+                  size={32}
+                  color={theme.button}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {Platform.OS !== "web" && (
+              <Text style={styles.gestureHint}>← Arraste para navegar →</Text>
             )}
-          </ScrollView>
-        </View>
-      </GestureDetector>
-    </GestureHandlerRootView>
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
+
+  if (Platform.OS !== "web" && panGesture) {
+    return (
+      <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
+    );
+  }
+
+  return renderContent();
 }
 
-// --- ESTILOS ---
-// ✅ Estilos mesclados do AlphabetScreen e ModuleContentScreen
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -326,8 +440,6 @@ const createStyles = (
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-
-    // Estilos do Wrapper (do ModuleContentScreen)
     scrollWrapper: {
       paddingHorizontal: WINDOW_WIDTH * 0.05,
       paddingTop: 18,
@@ -343,17 +455,45 @@ const createStyles = (
       fontSize: 13 * fontMultiplier,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-
-    // Container do Card (Adaptado)
-    cardContainer: {
-      width: "100%", // Ocupa a largura do scrollWrapper
+    navigationButtons: {
+      flexDirection: "row",
+      justifyContent: "space-between",
       alignItems: "center",
+      width: "100%",
+      maxWidth: 400,
+      marginTop: 24,
+      paddingHorizontal: 20,
+    },
+    navButton: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: theme.card,
+      justifyContent: "center",
+      alignItems: "center",
+      elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+    },
+    navButtonDisabled: {
+      opacity: 0.4,
+      elevation: 0,
+    },
+    gestureHint: {
+      marginTop: 16,
+      color: theme.text,
+      opacity: 0.5,
+      fontSize: 12 * fontMultiplier,
+      fontStyle: "italic",
+      textAlign: "center",
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     contentCard: {
-      // Estilo base para ambos os cards
       width: "100%",
       maxWidth: 980,
-      minHeight: WINDOW_HEIGHT * 0.6, // Altura mínima
+      minHeight: WINDOW_HEIGHT * 0.6,
       borderRadius: 12,
       backgroundColor: theme.card,
       elevation: 6,
@@ -369,8 +509,6 @@ const createStyles = (
       alignItems: "center",
       width: "100%",
     },
-
-    // Card de Caractere
     letter: {
       fontSize: 48 * fontMultiplier,
       fontWeight: "bold",
@@ -384,8 +522,6 @@ const createStyles = (
       marginTop: 20,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-
-    // Cela Braille (Seus estilos de aumento)
     brailleCell: {
       width: 160,
       height: 240,
@@ -429,8 +565,6 @@ const createStyles = (
       opacity: 0.5,
       fontWeight: "bold",
     },
-
-    // Card de Parabéns
     congratsTitle: {
       fontSize: 32 * fontMultiplier,
       fontWeight: "bold",

@@ -1,3 +1,4 @@
+// src/context/AccessibilityProvider.tsx
 import React, {
   createContext,
   useContext,
@@ -5,10 +6,8 @@ import React, {
   useRef,
   useCallback,
   useEffect,
-  Dispatch,
-  SetStateAction,
 } from "react";
-import { PanResponder, Dimensions, PixelRatio } from "react-native";
+import { Platform, Dimensions, PixelRatio } from "react-native";
 import {
   AccessibleElement,
   AccessibilityContextType,
@@ -16,7 +15,6 @@ import {
   MagnifierState,
 } from "../types/accessibility";
 
-/** PrecisionElement estendido */
 interface PrecisionElement extends AccessibleElement {
   centerX: number;
   centerY: number;
@@ -64,12 +62,12 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
   };
 
   const { width, height } = Dimensions.get("window");
-  const PIXEL_RATIO = PixelRatio.get();
-
   const MAGNIFIER_RADIUS = 75;
   const INTERSECTION_SAMPLES = 8;
 
-  /* -------------------- utilitários -------------------- */
+  // =====================================================
+  // FUNÇÕES AUXILIARES (mantidas iguais)
+  // =====================================================
 
   const normalizeCoord = useCallback((x: number, y: number) => {
     return { x, y };
@@ -120,8 +118,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
         for (let j = 0; j < S; j++) {
           const sampleX = rect.left + ((i + 0.5) / S) * rectW;
           const sampleY = rect.top + ((j + 0.5) / S) * rectH;
-          const d2 =
-            (sampleX - cx) * (sampleX - cx) + (sampleY - cy) * (sampleY - cy);
+          const d2 = (sampleX - cx) ** 2 + (sampleY - cy) ** 2;
           if (d2 <= r * r) hits++;
         }
       }
@@ -191,11 +188,13 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     ) => {
       let score = 0;
       score += (element.priority ?? 0) * 10;
+
       const exactContainment =
         touchX >= element.x &&
         touchX <= element.x + element.width &&
         touchY >= element.y &&
         touchY <= element.y + element.height;
+
       if (exactContainment) {
         score += 50;
         const centerDistance = Math.hypot(
@@ -206,22 +205,27 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
           centerDistance / Math.max(element.width, element.height);
         score += (1 - Math.min(1, normalizedCenterDistance)) * 20;
       }
+
       const maxDistance = 100;
       const proximityScore = Math.max(
         0,
         ((maxDistance - element.distanceFromTouch) / maxDistance) * 30
       );
       score += proximityScore;
+
       const maxArea = width * height * 0.1;
       const sizeScore = Math.max(0, ((maxArea - element.area) / maxArea) * 20);
       score += sizeScore;
+
       if (element.isInteractive) {
         score += 25;
         if (element.type === "botão") score += 10;
       }
+
       const screenArea = width * height;
       const elementAreaPercentage = element.area / screenArea;
       if (elementAreaPercentage > 0.3) score -= 30;
+
       if (
         element.text &&
         element.text.length > 5 &&
@@ -263,17 +267,21 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
         element: AccessibleElement;
         distance: number;
       }> = [];
+
       for (const element of elementsRef.current.values()) {
         const centerX = element.x + element.width / 2;
         const centerY = element.y + element.height / 2;
         const distance = Math.hypot(touchX - centerX, touchY - centerY);
         if (distance <= 120) expandedCandidates.push({ element, distance });
       }
+
       if (expandedCandidates.length === 0) return null;
+
       expandedCandidates.sort(
         (a, b) =>
           a.distance - b.distance || b.element.priority - a.element.priority
       );
+
       return expandedCandidates[0].element;
     },
     []
@@ -335,13 +343,16 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     ]
   );
 
-  /* -------------------- TTS / announce -------------------- */
+  // =====================================================
+  // TTS / FALA
+  // =====================================================
 
   const speakText = useCallback(
     (text: string) => {
       if (speechTimeoutRef.current) {
         clearTimeout(speechTimeoutRef.current);
       }
+
       speechTimeoutRef.current = setTimeout(() => {
         if (typeof window !== "undefined" && "speechSynthesis" in window) {
           window.speechSynthesis.cancel();
@@ -369,7 +380,9 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     []
   );
 
-  /* -------------------- registro / limpeza -------------------- */
+  // =====================================================
+  // REGISTRO DE ELEMENTOS
+  // =====================================================
 
   const registerElement = useCallback((element: AccessibleElement) => {
     elementsRef.current.set(element.id, {
@@ -391,11 +404,14 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     lastMagnifiedElementIdRef.current = null;
   }, []);
 
-  /* -------------------- controles de modo / panResponder (voz) -------------------- */
+  // =====================================================
+  // MODO VOZ (SEM PanResponder para WEB)
+  // =====================================================
 
   const toggleVoiceMode = useCallback(() => {
     const newMode = !isVoiceMode;
     setIsVoiceMode(newMode);
+
     if (newMode) {
       speakText(
         "Explorar por Toque ativado. Pressione e arraste o dedo pela tela."
@@ -407,38 +423,45 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     }
   }, [isVoiceMode, speakText]);
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => isVoiceMode && !magnifier.isActive,
-    onMoveShouldSetPanResponder: () => isVoiceMode && !magnifier.isActive,
-    onPanResponderGrant: (evt) => {
-      const { pageX, pageY } = evt.nativeEvent;
-      const el = findElementAtPositionPrecise(pageX, pageY);
-      if (el) {
-        lastSpokenRef.current = el.id;
-        speakText(createElementAnnouncement(el));
-      } else {
-        lastSpokenRef.current = "vazio";
-        speakText("Área vazia.");
-      }
-    },
-    onPanResponderMove: (evt, gestureState) => {
-      const { moveX, moveY } = gestureState;
-      const element = findElementAtPositionPrecise(moveX, moveY);
+  // ✅ PanResponder STUB para web (não faz nada mas evita crash)
+  const panResponder =
+    Platform.OS === "web"
+      ? { panHandlers: {} }
+      : require("react-native").PanResponder.create({
+          onStartShouldSetPanResponder: () =>
+            isVoiceMode && !magnifier.isActive,
+          onMoveShouldSetPanResponder: () => isVoiceMode && !magnifier.isActive,
+          onPanResponderGrant: (evt: any) => {
+            const { pageX, pageY } = evt.nativeEvent;
+            const el = findElementAtPositionPrecise(pageX, pageY);
+            if (el) {
+              lastSpokenRef.current = el.id;
+              speakText(createElementAnnouncement(el));
+            } else {
+              lastSpokenRef.current = "vazio";
+              speakText("Área vazia.");
+            }
+          },
+          onPanResponderMove: (evt: any, gestureState: any) => {
+            const { moveX, moveY } = gestureState;
+            const element = findElementAtPositionPrecise(moveX, moveY);
 
-      if (element && element.id !== lastSpokenRef.current) {
-        lastSpokenRef.current = element.id;
-        speakText(createElementAnnouncement(element));
-      } else if (!element && lastSpokenRef.current !== "vazio") {
-        lastSpokenRef.current = "vazio";
-        speakText("Área vazia.");
-      }
-    },
-    onPanResponderRelease: () => {
-      lastSpokenRef.current = "";
-    },
-  });
+            if (element && element.id !== lastSpokenRef.current) {
+              lastSpokenRef.current = element.id;
+              speakText(createElementAnnouncement(element));
+            } else if (!element && lastSpokenRef.current !== "vazio") {
+              lastSpokenRef.current = "vazio";
+              speakText("Área vazia.");
+            }
+          },
+          onPanResponderRelease: () => {
+            lastSpokenRef.current = "";
+          },
+        });
 
-  /* -------------------- lupa: update, getElementsUnderMagnifier, announce -------------------- */
+  // =====================================================
+  // LUPA
+  // =====================================================
 
   const toggleMagnifierMode = useCallback(() => {
     const newMode = !magnifier.isActive;
@@ -449,6 +472,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
       zoomFocus: null,
     }));
     lastMagnifiedElementIdRef.current = null;
+
     if (newMode)
       speakText("Lupa ativada. Arraste para ampliar e ler o conteúdo.");
     else speakText("Lupa desativada");
@@ -481,7 +505,13 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
         lastMagnifiedElementIdRef.current = null;
       }
     },
-    [width, height, findElementAtPositionPrecise, speakText]
+    [
+      width,
+      height,
+      findElementAtPositionPrecise,
+      speakText,
+      createElementAnnouncement,
+    ]
   );
 
   const getElementsUnderMagnifier = useCallback(
@@ -530,38 +560,44 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     return magnifier.currentElement ? [magnifier.currentElement] : [];
   }, [magnifier.isActive, magnifier.currentElement]);
 
-  const magnifierPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => magnifier.isActive,
-    onMoveShouldSetPanResponder: () => magnifier.isActive,
-    onPanResponderGrant: (evt) => {
-      if (!magnifier.isActive) return;
-      setMagnifier((prev) => ({ ...prev, zoomFocus: null }));
-      const { pageX, pageY } = evt.nativeEvent;
-      updateMagnifierPosition(pageX, pageY);
-    },
-    onPanResponderMove: (evt, gestureState) => {
-      if (!magnifier.isActive) return;
-      updateMagnifierPosition(gestureState.moveX, gestureState.moveY);
-    },
-    onPanResponderRelease: (evt) => {
-      if (!magnifier.isActive) return;
-      const { pageX, pageY } = evt.nativeEvent;
-      const elements = getElementsUnderMagnifier(
-        pageX,
-        pageY,
-        MAGNIFIER_RADIUS
-      );
-      const top = elements[0] ?? null;
-      setMagnifier((prev) => ({ ...prev, zoomFocus: top }));
-      if (top) {
-        speakText(`Lupa focada em: ${top.text}`);
-      } else {
-        speakText("Lupa liberada: nenhum elemento focado.");
-      }
-    },
-  });
+  // ✅ Magnifier PanResponder STUB para web
+  const magnifierPanResponder =
+    Platform.OS === "web"
+      ? { panHandlers: {} }
+      : require("react-native").PanResponder.create({
+          onStartShouldSetPanResponder: () => magnifier.isActive,
+          onMoveShouldSetPanResponder: () => magnifier.isActive,
+          onPanResponderGrant: (evt: any) => {
+            if (!magnifier.isActive) return;
+            setMagnifier((prev) => ({ ...prev, zoomFocus: null }));
+            const { pageX, pageY } = evt.nativeEvent;
+            updateMagnifierPosition(pageX, pageY);
+          },
+          onPanResponderMove: (evt: any, gestureState: any) => {
+            if (!magnifier.isActive) return;
+            updateMagnifierPosition(gestureState.moveX, gestureState.moveY);
+          },
+          onPanResponderRelease: (evt: any) => {
+            if (!magnifier.isActive) return;
+            const { pageX, pageY } = evt.nativeEvent;
+            const elements = getElementsUnderMagnifier(
+              pageX,
+              pageY,
+              MAGNIFIER_RADIUS
+            );
+            const top = elements[0] ?? null;
+            setMagnifier((prev) => ({ ...prev, zoomFocus: top }));
+            if (top) {
+              speakText(`Lupa focada em: ${top.text}`);
+            } else {
+              speakText("Lupa liberada: nenhum elemento focado.");
+            }
+          },
+        });
 
-  /* -------------------- cleanup -------------------- */
+  // =====================================================
+  // CLEANUP
+  // =====================================================
 
   useEffect(() => {
     return () => {
@@ -572,7 +608,9 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
     };
   }, []);
 
-  /* -------------------- contexto -------------------- */
+  // =====================================================
+  // CONTEXTO
+  // =====================================================
 
   const contextValue: AccessibilityContextType = {
     isVoiceMode,

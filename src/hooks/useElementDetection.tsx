@@ -1,5 +1,4 @@
-// src/hooks/useElementDetection.tsx
-
+// src/hooks/useElementDetection.tsx (Cross-Platform Fix)
 import { useCallback, useRef, useEffect } from "react";
 import { findNodeHandle, UIManager, Platform } from "react-native";
 import { TextExtractor, ElementInfo } from "../utils/textExtractor";
@@ -17,8 +16,10 @@ export interface DetectedElement extends ElementInfo {
 
 export const useElementDetection = () => {
   const detectedElementsRef = useRef<Map<string, DetectedElement>>(new Map());
-  // ✅ CORREÇÃO: Usar ReturnType para compatibilidade cross-platform
-  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ✅ FIX: Tipo cross-platform
+  const scanTimeoutRef = useRef<number | NodeJS.Timeout | null>(null);
+
   const measureQueueRef = useRef<
     Array<{
       component: any;
@@ -28,9 +29,6 @@ export const useElementDetection = () => {
   >([]);
   const isProcessingQueueRef = useRef<boolean>(false);
 
-  /**
-   * Processa fila de medições para evitar sobrecarga
-   */
   const processQueue = useCallback(async () => {
     if (isProcessingQueueRef.current || measureQueueRef.current.length === 0) {
       return;
@@ -50,16 +48,12 @@ export const useElementDetection = () => {
         }
       }
 
-      // Pequena pausa para não bloquear a UI
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
     isProcessingQueueRef.current = false;
   }, []);
 
-  /**
-   * Função interna para escanear componente
-   */
   const scanComponentInternal = useCallback(
     (component: any, componentRef: any): Promise<DetectedElement | null> => {
       return new Promise((resolve) => {
@@ -69,7 +63,6 @@ export const useElementDetection = () => {
         }
 
         try {
-          // Para web, usar getBoundingClientRect se disponível
           if (
             Platform.OS === "web" &&
             componentRef.current.getBoundingClientRect
@@ -93,7 +86,6 @@ export const useElementDetection = () => {
             return;
           }
 
-          // Para React Native nativo
           const nodeHandle = findNodeHandle(componentRef.current);
           if (!nodeHandle) {
             resolve(null);
@@ -138,9 +130,6 @@ export const useElementDetection = () => {
     []
   );
 
-  /**
-   * Escaneia um componente específico com fila de processamento
-   */
   const scanComponent = useCallback(
     (component: any, componentRef: any): Promise<DetectedElement | null> => {
       return new Promise((resolve) => {
@@ -151,9 +140,6 @@ export const useElementDetection = () => {
     [processQueue]
   );
 
-  /**
-   * Escaneia recursivamente uma árvore de componentes
-   */
   const scanComponentTree = useCallback(
     async (
       rootComponent: any,
@@ -170,20 +156,17 @@ export const useElementDetection = () => {
       ) => {
         if (depth > maxDepth || !component) return;
 
-        // Evitar loops infinitos
         const componentKey = component._owner
           ? component._owner.key
           : Math.random();
         if (visited.has(componentKey)) return;
         visited.add(componentKey);
 
-        // Escanear o componente atual
         const element = await scanComponent(component, ref);
         if (element) {
           elements.push(element);
         }
 
-        // Escanear children se existirem
         if (component && component.props && component.props.children) {
           const children = Array.isArray(component.props.children)
             ? component.props.children
@@ -203,9 +186,6 @@ export const useElementDetection = () => {
     [scanComponent]
   );
 
-  /**
-   * Registra um elemento específico
-   */
   const registerElement = useCallback(
     async (
       component: any,
@@ -228,21 +208,14 @@ export const useElementDetection = () => {
     [scanComponent]
   );
 
-  /**
-   * Remove um elemento da detecção
-   */
   const unregisterElement = useCallback((id: string) => {
     detectedElementsRef.current.delete(id);
   }, []);
 
-  /**
-   * Encontra elemento em uma posição específica com algoritmo otimizado
-   */
   const findElementAtPosition = useCallback(
     (x: number, y: number): DetectedElement | null => {
       const candidates: DetectedElement[] = [];
 
-      // Primeiro filtro: elementos que contêm o ponto
       for (const element of detectedElementsRef.current.values()) {
         const { x: elemX, y: elemY, width, height } = element;
 
@@ -259,7 +232,6 @@ export const useElementDetection = () => {
       if (candidates.length === 0) return null;
       if (candidates.length === 1) return candidates[0];
 
-      // Segundo filtro: elemento com maior prioridade e menor área
       let bestMatch = candidates[0];
       let bestScore = calculateElementScore(bestMatch, x, y);
 
@@ -278,9 +250,6 @@ export const useElementDetection = () => {
     []
   );
 
-  /**
-   * Calcula score para seleção de elemento (maior score = melhor match)
-   */
   const calculateElementScore = (
     element: DetectedElement,
     x: number,
@@ -293,12 +262,10 @@ export const useElementDetection = () => {
       Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
     );
 
-    // Score baseado em prioridade, área inversa e proximidade do centro
-    let score = element.priority * 100; // Prioridade tem maior peso
-    score += 1000 / Math.max(area, 1); // Área menor = score maior
-    score -= distanceFromCenter; // Próximo do centro = score maior
+    let score = element.priority * 100;
+    score += 1000 / Math.max(area, 1);
+    score -= distanceFromCenter;
 
-    // Bonus para elementos interativos
     if (element.isInteractive) {
       score += 50;
     }
@@ -306,18 +273,12 @@ export const useElementDetection = () => {
     return score;
   };
 
-  /**
-   * Retorna todos os elementos detectados ordenados por prioridade
-   */
   const getAllElements = useCallback((): DetectedElement[] => {
     return Array.from(detectedElementsRef.current.values()).sort(
       (a, b) => b.priority - a.priority
     );
   }, []);
 
-  /**
-   * Retorna elementos em uma área específica
-   */
   const getElementsInArea = useCallback(
     (
       startX: number,
@@ -347,12 +308,9 @@ export const useElementDetection = () => {
     []
   );
 
-  /**
-   * Limpa elementos antigos (mais de 30 segundos)
-   */
   const cleanupOldElements = useCallback(() => {
     const now = Date.now();
-    const maxAge = 30000; // 30 segundos
+    const maxAge = 30000;
 
     for (const [id, element] of detectedElementsRef.current.entries()) {
       if (now - element.lastUpdated > maxAge) {
@@ -361,33 +319,27 @@ export const useElementDetection = () => {
     }
   }, []);
 
-  /**
-   * Limpa todos os elementos detectados
-   */
   const clearElements = useCallback(() => {
     detectedElementsRef.current.clear();
     measureQueueRef.current = [];
   }, []);
 
-  /**
-   * Força uma nova varredura e limpeza
-   */
   const refreshElements = useCallback(() => {
     cleanupOldElements();
 
     if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
+      if (typeof scanTimeoutRef.current === "number") {
+        clearTimeout(scanTimeoutRef.current);
+      } else {
+        clearTimeout(scanTimeoutRef.current as NodeJS.Timeout);
+      }
     }
 
     scanTimeoutRef.current = setTimeout(() => {
-      // Log para debug
       console.log(`Elementos detectados: ${detectedElementsRef.current.size}`);
-    }, 100);
+    }, 100) as any;
   }, [cleanupOldElements]);
 
-  /**
-   * Atualiza posição de um elemento existente
-   */
   const updateElementPosition = useCallback(
     async (elementId: string, componentRef: any): Promise<boolean> => {
       const existingElement = detectedElementsRef.current.get(elementId);
@@ -415,14 +367,17 @@ export const useElementDetection = () => {
     [scanComponentInternal]
   );
 
-  // Limpeza periódica
   useEffect(() => {
-    const cleanupInterval = setInterval(cleanupOldElements, 10000); // A cada 10 segundos
+    const cleanupInterval = setInterval(cleanupOldElements, 10000);
 
     return () => {
       clearInterval(cleanupInterval);
       if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
+        if (typeof scanTimeoutRef.current === "number") {
+          clearTimeout(scanTimeoutRef.current);
+        } else {
+          clearTimeout(scanTimeoutRef.current as NodeJS.Timeout);
+        }
       }
     };
   }, [cleanupOldElements]);

@@ -1,10 +1,11 @@
+// src/components/MagnifierLens.tsx (Web Compatible)
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
   Dimensions,
   Animated,
-  PanResponder,
+  Platform,
   GestureResponderEvent,
 } from "react-native";
 import ViewShot from "react-native-view-shot";
@@ -18,6 +19,11 @@ interface MagnifierLensProps {
 
 const MagnifierLens: React.FC<MagnifierLensProps> = ({ viewShotRef }) => {
   const { magnifier } = useAccessibility();
+
+  // ✅ Se for web, desabilita completamente
+  if (Platform.OS === "web") {
+    return null;
+  }
 
   const [viewShotUri, setViewShotUri] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
@@ -46,6 +52,9 @@ const MagnifierLens: React.FC<MagnifierLensProps> = ({ viewShotRef }) => {
       console.error("Erro ao capturar a tela.", error);
     }
   }, [viewShotRef, opacity]);
+
+  // ✅ Usar PanResponder apenas no mobile
+  const PanResponder = require("react-native").PanResponder;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -132,9 +141,7 @@ const MagnifierLens: React.FC<MagnifierLensProps> = ({ viewShotRef }) => {
       ]}
       {...panResponder.panHandlers}
     >
-           {" "}
       <View style={styles.lens}>
-               {" "}
         {viewShotUri && (
           <Animated.Image
             source={{ uri: viewShotUri }}
@@ -142,9 +149,8 @@ const MagnifierLens: React.FC<MagnifierLensProps> = ({ viewShotRef }) => {
             style={animatedImageStyle}
           />
         )}
-             {" "}
       </View>
-            <View style={styles.centerCrosshair} />   {" "}
+      <View style={styles.centerCrosshair} />
     </Animated.View>
   );
 };

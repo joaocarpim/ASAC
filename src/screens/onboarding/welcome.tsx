@@ -7,34 +7,44 @@ import {
   Image,
   TouchableOpacity,
   StatusBar,
+  Dimensions,
 } from "react-native";
-
-// 1. IMPORTAÇÃO DOS TIPOS (ajuste o caminho se necessário)
 import { RootStackScreenProps } from "../../navigation/types";
 
-// O caminho para o logo pode precisar de ajuste
 const logo = require("../../assets/images/logo.png");
+const { width, height } = Dimensions.get("window");
 
-// 2. APLICAÇÃO DO TIPO NAS PROPS DO COMPONENTE
 export default function WelcomeScreen({
   navigation,
 }: RootStackScreenProps<"Welcome">) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFC700" />
+
+      {/* Logo Section */}
       <View style={styles.logoContainer}>
         <Image source={logo} style={styles.logo} />
         <Text style={styles.logoText}>ASAC</Text>
+        <Text style={styles.tagline}>Aprendendo juntos</Text>
       </View>
-      <Text style={styles.description}>
-        Aplicativo educacional voltado aos assistidos da ASAC
-      </Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("TutorialStep1")} // Navegação segura
-      >
-        <Text style={styles.buttonText}>Comece já</Text>
-      </TouchableOpacity>
+
+      {/* Description Section */}
+      <View style={styles.descriptionContainer}>
+        <Text style={styles.description}>
+          Aplicativo educacional voltado aos assistidos da ASAC
+        </Text>
+      </View>
+
+      {/* Button Section */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("Tutorial")}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.buttonText}>Começar</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -43,50 +53,69 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFC700",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 20,
-    paddingVertical: 40,
+    paddingHorizontal: 24,
   },
   logoContainer: {
+    flex: 2,
     alignItems: "center",
+    justifyContent: "center",
+    paddingTop: height * 0.08,
   },
   logo: {
-    width: 350,
-    height: 350,
-    marginTop:10,
+    width: width * 0.55,
+    height: width * 0.55,
     resizeMode: "contain",
   },
   logoText: {
-    fontSize: 58,
+    fontSize: 52,
     fontWeight: "bold",
     color: "#000080",
+    marginTop: 16,
+    letterSpacing: 4,
+  },
+  tagline: {
+    fontSize: 16,
+    color: "#000080",
+    opacity: 0.7,
+    marginTop: 8,
+    fontWeight: "600",
+  },
+  descriptionContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
   },
   description: {
-    fontSize: 22,
+    fontSize: 18,
     color: "#000080",
     textAlign: "center",
-    fontWeight: "bold",
-    marginHorizontal: 30,
-    marginTop: -50,
+    fontWeight: "600",
+    lineHeight: 26,
+  },
+  buttonContainer: {
+    flex: 0.8,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingBottom: 40,
   },
   button: {
     backgroundColor: "#191970",
-    paddingVertical: 25,
+    paddingVertical: 18,
     paddingHorizontal: 60,
-    borderRadius: 16,
+    borderRadius: 30,
+    width: "85%",
     alignItems: "center",
-    justifyContent: "center",
-    width: "80%",
-    elevation: 5,
+    elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "bold",
+    letterSpacing: 1,
   },
 });

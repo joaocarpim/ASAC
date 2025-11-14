@@ -14,54 +14,52 @@ type StatItemProps = {
   delay?: number;
 };
 
-export const StatItem = ({
-  icon,
-  value,
-  label,
-  color = "#FFFFFF",
-  delay = 0,
-}: StatItemProps) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+export const StatItem = React.memo(
+  ({ icon, value, label, color = "#FFFFFF", delay = 0 }: StatItemProps) => {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 4,
-        tension: 40,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, scaleAnim, delay]);
+    useEffect(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          delay,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [fadeAnim, scaleAnim, delay]);
 
-  return (
-    <Animated.View
-      style={[
-        styles.statItem,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
-      <MaterialCommunityIcons name={icon} size={32} color={color} />
-      <AccessibleText baseSize={18} style={styles.statValue}>
-        {value}
-      </AccessibleText>
-      <AccessibleText baseSize={11} style={styles.statLabel}>
-        {label}
-      </AccessibleText>
-    </Animated.View>
-  );
-};
+    return (
+      <Animated.View
+        style={[
+          styles.statItem,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <MaterialCommunityIcons name={icon} size={32} color={color} />
+        <AccessibleText baseSize={18} style={styles.statValue}>
+          {value}
+        </AccessibleText>
+        <AccessibleText baseSize={11} style={styles.statLabel}>
+          {label}
+        </AccessibleText>
+      </Animated.View>
+    );
+  }
+);
+
+StatItem.displayName = "StatItem";
 
 const styles = StyleSheet.create({
   statItem: {

@@ -1,5 +1,4 @@
-// src/screens/session/LearningPathScreen.tsx
-
+// src/screens/session/LearningPathScreen.tsx (CORRIGIDO E LIMPO)
 import React, { useState } from "react";
 import {
   View,
@@ -9,13 +8,14 @@ import {
   TouchableOpacity,
   Alert,
   StatusBar,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { LEARNING_PATH_SESSIONS } from "../../navigation/learningPathData";
 import { useContrast } from "../../hooks/useContrast";
-import { useSettings } from "../../hooks/useSettings"; // ✅ Importar useSettings
+import { useSettings } from "../../hooks/useSettings";
 import { RootStackParamList } from "../../navigation/types";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -31,7 +31,6 @@ type NavigationProps = NativeStackNavigationProp<
 
 export default function LearningPathScreen() {
   const { theme } = useContrast();
-  // ✅ Integrar configurações de acessibilidade
   const { fontSizeMultiplier, isBoldTextEnabled, isDyslexiaFontEnabled } =
     useSettings();
   const styles = createStyles(
@@ -44,14 +43,17 @@ export default function LearningPathScreen() {
 
   const [userProgress] = useState(MOCK_USER_PROGRESS);
 
-  const panGesture = Gesture.Pan().onEnd((event) => {
-    if (
-      event.translationX > 80 &&
-      Math.abs(event.translationX) > Math.abs(event.translationY)
-    ) {
-      navigation.navigate("Home");
-    }
-  });
+  const panGesture =
+    Platform.OS !== "web"
+      ? Gesture.Pan().onEnd((event) => {
+          if (
+            event.translationX > 80 &&
+            Math.abs(event.translationX) > Math.abs(event.translationY)
+          ) {
+            navigation.navigate("Home");
+          }
+        })
+      : undefined;
 
   const renderSessionCard = ({
     item: session,
@@ -66,7 +68,6 @@ export default function LearningPathScreen() {
       ? `${(progress.accuracy * 100).toFixed(0)}% de acerto`
       : "Não iniciado";
 
-    // ✅ Criar label de acessibilidade completo para o TalkBack
     const accessibilityLabel = `${session.title}. ${session.description}. Status: ${accuracyText}. ${isLocked ? "Sessão bloqueada." : "Toque duas vezes para iniciar."}`;
 
     const handlePress = () => {
@@ -120,28 +121,32 @@ export default function LearningPathScreen() {
     );
   };
 
-  return (
-    <GestureDetector gesture={panGesture}>
-      <View style={styles.container}>
-        <StatusBar
-          barStyle={theme.statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <Text style={styles.headerTitle} accessibilityRole="header">
-          Jornada do Aprendiz
-        </Text>
-        <FlatList
-          data={LEARNING_PATH_SESSIONS}
-          renderItem={renderSessionCard}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-        />
-      </View>
-    </GestureDetector>
+  const renderContent = () => (
+    <View style={styles.container}>
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
+      <Text style={styles.headerTitle} accessibilityRole="header">
+        Jornada do Aprendiz
+      </Text>
+      <FlatList
+        data={LEARNING_PATH_SESSIONS}
+        renderItem={renderSessionCard}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+      />
+    </View>
   );
+
+  if (Platform.OS !== "web" && panGesture) {
+    return (
+      <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
+    );
+  }
+  return renderContent();
 }
 
-// ✅ Estilos agora recebem as configurações de acessibilidade
 const createStyles = (
   theme: any,
   fontMultiplier: number,

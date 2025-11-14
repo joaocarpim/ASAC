@@ -15,17 +15,21 @@
       "auth": {
         "asac2f4153aa": {}
       },
-      "function": {
-        "AdminRegisterUser": {
-          "deploymentBucketName": "amplify-asac-dev-11020-deployment",
-          "s3Key": "amplify-builds/AdminRegisterUser-3565366e324a445a3735-build.zip"
-        }
-      },
       "storage": {
         "s3112eaa39": {}
       },
       "api": {
         "asac": {}
+      },
+      "function": {
+        "adminDeleteUser": {
+          "deploymentBucketName": "amplify-asac-dev-11020-deployment",
+          "s3Key": "amplify-builds/adminDeleteUser-466d67474353456a514c-build.zip"
+        },
+        "adminRegisterUser": {
+          "deploymentBucketName": "amplify-asac-dev-11020-deployment",
+          "s3Key": "amplify-builds/adminRegisterUser-3938756a6142454a7174-build.zip"
+        }
       }
     }
   }

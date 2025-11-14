@@ -54,26 +54,21 @@ export default function ScreenHeader({
 
   return (
     <View style={styles.header}>
-           {" "}
       <AccessibleButton
         onPress={handleBackPress}
         style={styles.iconButton}
         // ✅ ALTERADO: De 'accessibilityText' para 'accessibilityLabel'
         accessibilityLabel={backButtonAccessibilityLabel}
       >
-               {" "}
         <MaterialCommunityIcons
           name="arrow-left"
           size={30}
           color={theme.text}
         />
-             {" "}
       </AccessibleButton>
-           {" "}
       <AccessibleHeader level={1} style={styles.title}>
-                {title}     {" "}
+        {title}
       </AccessibleHeader>
-           {" "}
       {rightIcon ? (
         <AccessibleButton
           onPress={onRightIconPress}
@@ -83,18 +78,15 @@ export default function ScreenHeader({
             rightButtonAccessibilityLabel || `Botão ${rightIcon}`
           }
         >
-                   {" "}
           <MaterialCommunityIcons
             name={rightIcon}
             size={30}
             color={theme.text}
           />
-                 {" "}
         </AccessibleButton>
       ) : (
         <View style={styles.iconButton} />
       )}
-         {" "}
     </View>
   );
 }
