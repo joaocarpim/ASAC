@@ -44,6 +44,9 @@ export default function AdminRegisterUserScreen({
   };
 
   const handleRegister = async () => {
+    console.log("🚀 Iniciando registro...");
+
+    // Validações
     if (!name.trim() || !email.trim() || !password.trim()) {
       setModalInfo({
         visible: true,
@@ -68,30 +71,72 @@ export default function AdminRegisterUserScreen({
 
     try {
       const client = generateClient();
-      console.log("📤 Enviando requisição GraphQL...");
 
-      const result: any = await client.graphql({
-        query: adminRegisterUser,
-        variables: {
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          password: password,
-        },
-        authMode: "userPool",
-      });
+      const variables = {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password: password,
+      };
 
-      console.log(
-        "📥 Resposta GraphQL completa:",
-        JSON.stringify(result, null, 2)
-      );
+      console.log("📤 Enviando GraphQL com:", variables);
 
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join("; "));
+      // TENTATIVA 1: Com authMode userPool
+      let result: any;
+      try {
+        result = await client.graphql({
+          query: adminRegisterUser,
+          variables: variables,
+          authMode: "userPool",
+        });
+        console.log("✅ Sucesso com userPool");
+      } catch (userPoolError: any) {
+        console.log("⚠️ Falhou com userPool, tentando com iam...");
+
+        // TENTATIVA 2: Com authMode iam
+        try {
+          result = await client.graphql({
+            query: adminRegisterUser,
+            variables: variables,
+            authMode: "iam",
+          });
+          console.log("✅ Sucesso com iam");
+        } catch (iamError: any) {
+          console.log("⚠️ Falhou com iam, tentando sem authMode...");
+
+          // TENTATIVA 3: Sem authMode (usa o padrão)
+          result = await client.graphql({
+            query: adminRegisterUser,
+            variables: variables,
+          });
+          console.log("✅ Sucesso sem authMode explícito");
+        }
       }
 
+      console.log("📥 Resposta recebida:", result);
+
+      // Verificar erros GraphQL
+      if (result.errors && result.errors.length > 0) {
+        console.error("❌ Erros GraphQL:", result.errors);
+
+        // Tentar expandir o primeiro erro
+        const firstError = result.errors[0];
+        console.error(
+          "Primeiro erro completo:",
+          JSON.stringify(firstError, null, 2)
+        );
+
+        const errorMessage = firstError.message || "Erro no servidor GraphQL";
+        throw new Error(errorMessage);
+      }
+
+      // Verificar se há dados
       if (!result.data?.adminRegisterUser) {
+        console.error("❌ Sem dados na resposta");
         throw new Error("Resposta vazia da Lambda.");
       }
+
+      // Parse da resposta
+      console.log("🔧 Parseando resposta:", result.data.adminRegisterUser);
 
       let lambdaResponse: {
         success: boolean;
@@ -101,47 +146,67 @@ export default function AdminRegisterUserScreen({
 
       try {
         lambdaResponse = JSON.parse(result.data.adminRegisterUser);
-        console.log("📦 Resposta Lambda parseada:", lambdaResponse);
+        console.log("✅ Resposta parseada:", lambdaResponse);
       } catch (parseError) {
-        console.error("❌ Falha ao parsear resposta da Lambda:", parseError);
+        console.error("❌ Erro ao parsear:", parseError);
         throw new Error("Resposta inválida da Lambda.");
       }
 
+      // Processar resultado
       if (lambdaResponse.success) {
+        console.log("🎉 Registro bem-sucedido!");
+
         setModalInfo({
           visible: true,
           type: "success",
           title: "✅ Sucesso",
           message: `Assistido cadastrado!\n\n${name}\n${email}`,
         });
+
         setName("");
         setEmail("");
         setPassword("");
       } else {
+        console.error("❌ Lambda retornou erro:", lambdaResponse.error);
+
         let errorMessage =
           lambdaResponse.error || lambdaResponse.message || "Erro desconhecido";
 
+        // Tratar erros comuns
         if (errorMessage.includes("UsernameExistsException")) {
-          errorMessage = "Este email já está cadastrado no Cognito.";
+          errorMessage = "Este email já está cadastrado.";
         } else if (errorMessage.includes("DynamoDB")) {
-          errorMessage =
-            "Erro ao salvar dados no banco. Tente novamente mais tarde.";
+          errorMessage = "Erro ao salvar no banco de dados.";
         } else if (errorMessage.includes("password")) {
-          errorMessage = "Senha inválida. Deve ter no mínimo 8 caracteres.";
+          errorMessage = "Senha inválida. Mínimo 8 caracteres.";
         }
 
         throw new Error(errorMessage);
       }
     } catch (error: any) {
-      console.error("❌ Erro ao registrar usuário:", error);
+      console.error("❌ ERRO FINAL:", error);
+
+      // Tentar extrair mensagem útil
+      let errorMessage = "Não foi possível registrar o assistido.";
+
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.errors && error.errors.length > 0) {
+        // Expandir manualmente o objeto de erro
+        const err = error.errors[0];
+        console.error("Tentando acessar propriedades do erro:");
+        console.error("- message:", err.message);
+        console.error("- errorType:", err.errorType);
+        console.error("- errorInfo:", err.errorInfo);
+
+        errorMessage = err.message || err.errorInfo || errorMessage;
+      }
 
       setModalInfo({
         visible: true,
         type: "error",
         title: "Erro no Cadastro",
-        message:
-          error.message ||
-          "Não foi possível registrar o assistido.\nVerifique os dados e tente novamente.",
+        message: errorMessage,
       });
     } finally {
       setLoading(false);

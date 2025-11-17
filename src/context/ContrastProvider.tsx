@@ -1,8 +1,15 @@
-// src/context/ContrastProvider.tsx
+// src/context/ContrastProvider.tsx CORRIGIDO
 
-import React, { createContext, useState, useEffect, ReactNode, useContext } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+} from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ContrastContextData, ContrastMode } from "../types/contrast";
+// ✅ Importando 'Theme' para tipar o 'theme'
+import { ContrastContextData, ContrastMode, Theme } from "../types/contrast";
 import { themes } from "../theme";
 import { ActivityIndicator, View } from "react-native";
 
@@ -14,7 +21,9 @@ interface ContrastProviderProps {
   children: ReactNode;
 }
 
-export const ContrastProvider: React.FC<ContrastProviderProps> = ({ children }) => {
+export const ContrastProvider: React.FC<ContrastProviderProps> = ({
+  children,
+}) => {
   const [contrastMode, setContrastMode] = useState<ContrastMode>("blue_yellow");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -44,28 +53,32 @@ export const ContrastProvider: React.FC<ContrastProviderProps> = ({ children }) 
     }
   };
 
-  const theme = themes[contrastMode];
+  // ✅ Tipando o 'theme'
+  const theme: Theme = themes[contrastMode];
 
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
+        {/* Adicionando cor ao loading para ele ser visível */}
+        <ActivityIndicator size="large" color={themes[contrastMode].text} />
       </View>
     );
   }
 
   return (
-    <ContrastContext.Provider value={{ contrastMode, theme, changeContrastMode }}>
+    <ContrastContext.Provider
+      value={{ contrastMode, theme, changeContrastMode }}
+    >
       {children}
     </ContrastContext.Provider>
   );
 };
 
-// ✅ Aqui está o hook que estava faltando
-export function useContrastTheme() {
+// ✅ CORREÇÃO: Padronizando o nome do hook para 'useContrast'
+export function useContrast() {
   const context = useContext(ContrastContext);
   if (!context) {
-    throw new Error("useContrastTheme must be used within a ContrastProvider");
+    throw new Error("useContrast must be used within a ContrastProvider");
   }
   return context;
 }

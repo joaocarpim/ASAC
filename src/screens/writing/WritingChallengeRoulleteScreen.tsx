@@ -1,3 +1,5 @@
+// src/screens/writing/WritingChallengeRoulleteScreen.tsx (CORRIGIDO)
+
 import React, { useState } from "react";
 import { StyleSheet, ActivityIndicator, View } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -12,7 +14,7 @@ import {
   AccessibleButton,
 } from "../../components/AccessibleComponents";
 
-// Sua lista de palavras
+// ... (resto do seu código, MASTER_WORD_LIST, shuffleArray, etc.) ...
 const MASTER_WORD_LIST = [
   "BOLA",
   "GATO",
@@ -64,9 +66,8 @@ const MASTER_WORD_LIST = [
   "SETE",
   "TRES",
   "VAI",
-]; // 50 palavras
+];
 
-// Função para embaralhar a lista
 function shuffleArray(array: string[]) {
   let currentIndex = array.length,
     randomIndex;
@@ -81,7 +82,6 @@ function shuffleArray(array: string[]) {
   return array;
 }
 
-// Armazena a lista embaralhada fora do componente para persistir
 let sessionWordList: string[] = [];
 
 type ScreenProps = NativeStackScreenProps<
@@ -191,7 +191,9 @@ const createStyles = (
       backgroundColor: theme.background,
       alignItems: "center",
       justifyContent: "center",
-      padding: 125,
+      // ✅ CORREÇÃO AQUI:
+      paddingVertical: 125, // Mantém o espaçamento vertical
+      paddingHorizontal: 20, // Define um espaçamento horizontal razoável
     },
     title: {
       fontSize: 24 * fontMultiplier,

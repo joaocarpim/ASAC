@@ -1,6 +1,9 @@
+// src/store/authStore.tsx
+
 import { create } from "zustand";
 import { fetchAuthSession, signOut as amplifySignOut } from "aws-amplify/auth";
 import { getUserById } from "../services/progressService";
+import { useModalStore } from "./useModalStore";
 
 export type User = {
   userId: string;
@@ -33,21 +36,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
 
+  // =====================================================
+  // 🔍 Verificar sessão atual (Cognito + DynamoDB)
+  // =====================================================
   checkUser: async () => {
     try {
-      const session = await fetchAuthSession();
+      // 👉 Pega a sessão atual (apenas tokens; o erro 400 do identity pool é “cosmético”)
+      const session: any = await fetchAuthSession();
 
       let idPayload: any = {};
       let accessPayload: any = {};
 
-      if ((session as any)?.tokens?.idToken?.payload) {
-        idPayload = (session as any).tokens.idToken.payload;
-        accessPayload = (session as any).tokens.accessToken?.payload ?? {};
+      if (session?.tokens?.idToken?.payload) {
+        idPayload = session.tokens.idToken.payload;
+        accessPayload = session.tokens.accessToken?.payload ?? {};
       } else {
-        idPayload = (session as any).idToken ?? {};
-        accessPayload = (session as any).accessToken ?? {};
+        // fallback para versões antigas / outras formas
+        idPayload = session?.idToken ?? {};
+        accessPayload = session?.accessToken ?? {};
       }
 
+      // sub / username / email
       const sub = String(idPayload.sub ?? idPayload["cognito:username"] ?? "");
       const rawEmail = idPayload.email ?? "";
       const emailStr =
@@ -55,71 +64,91 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const usernameFromEmail = emailStr.includes("@")
         ? emailStr.split("@")[0]
         : emailStr;
+
       const username = String(
         idPayload["cognito:username"] ?? usernameFromEmail ?? ""
       );
       const email = String(emailStr ?? "");
 
+      // grupos (Admins?)
       const groups =
         ((accessPayload["cognito:groups"] ??
           idPayload["cognito:groups"] ??
           []) as string[]) ?? [];
       const isAdmin = Array.isArray(groups) && groups.includes("Admins");
 
+      // Se não tem sub, considera não logado
       if (!sub) {
         set({ user: null, isLoading: false });
         return;
       }
 
       console.log(
-        `[authStore] Logado como ${email} (Admin: ${isAdmin}). Buscando no DB...`
+        `[authStore] ✅ Sessão válida no Cognito para ${email} (Admin: ${isAdmin})`
+      );
+      console.log(
+        `[authStore] 🔍 Buscando usuário correspondente no DynamoDB...`
       );
 
       let dbUser: any = null;
+
       try {
-        // ✅ Simplesmente busca o usuário - não tenta criar automaticamente
+        // =====================================================
+        // 🔎 Tenta buscar o usuário no DynamoDB (tabela User)
+        // =====================================================
         dbUser = await getUserById(sub);
 
-        if (dbUser) {
-          console.log(
-            "✅ [authStore] Usuário encontrado no banco:",
-            dbUser?.name
-          );
-        } else {
-          console.warn("⚠️ [authStore] Usuário não encontrado no DynamoDB.");
+        if (!dbUser) {
+          // 👉 Aqui é exatamente o caso em que o admin já deletou o user do Dynamo
           console.warn(
-            "💡 [authStore] Por favor, crie o usuário manualmente no DynamoDB ou use a tela de registro de admin."
+            "❌ [authStore] Usuário NÃO existe no DynamoDB. Considerando conta removida."
           );
 
-          // Define usuário com dados mínimos do Cognito
-          set({
-            user: {
-              userId: sub,
-              username,
-              email,
-              isAdmin,
-              name: usernameFromEmail,
-              role: isAdmin ? "Admins" : "user",
-              coins: 0,
-              points: 0,
-              modulesCompleted: [],
-              currentModule: 1,
-              precision: 0,
-              correctAnswers: 0,
-              wrongAnswers: 0,
-              timeSpent: 0,
-            },
-            isLoading: false,
-          });
+          // Faz logout global do Cognito
+          try {
+            await amplifySignOut({ global: true });
+          } catch (signOutError: any) {
+            console.warn(
+              "⚠️ [authStore] Erro ao fazer global signOut após conta removida:",
+              signOutError?.message ?? signOutError
+            );
+          }
+
+          set({ user: null, isLoading: false });
+
+          // Mostra modal informando que a conta foi removida
+          try {
+            useModalStore
+              .getState()
+              .showModal(
+                "Conta Removida",
+                "Sua conta foi excluída pela administração. Se você acha que isso foi um engano, entre em contato com a equipe responsável.",
+                false
+              );
+          } catch (modalError) {
+            console.warn(
+              "⚠️ [authStore] Não foi possível mostrar modal de conta removida:",
+              modalError
+            );
+          }
+
           return;
         }
+
+        console.log(
+          "✅ [authStore] Usuário encontrado no DynamoDB:",
+          dbUser?.name
+        );
       } catch (dbError: any) {
+        // Se der erro de rede / GraphQL / etc, não derruba o app
         console.warn(
-          "⚠️ [authStore] Erro ao buscar usuário no banco:",
-          dbError.message
+          "⚠️ [authStore] Erro ao buscar usuário no DynamoDB:",
+          dbError?.message ?? dbError
         );
 
-        // Se der erro, define com dados mínimos do Cognito
+        console.warn(
+          "💡 [authStore] Usando dados apenas do Cognito temporariamente (busca falhou)"
+        );
         set({
           user: {
             userId: sub,
@@ -142,7 +171,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      // ✅ Parse modulesCompleted se vier como string
+      // =====================================================
+      // 🔧 Parse de modulesCompleted
+      // =====================================================
       let parsedModules: number[] = [];
       if (typeof dbUser.modulesCompleted === "string") {
         try {
@@ -154,7 +185,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         parsedModules = dbUser.modulesCompleted;
       }
 
-      // ✅ Parse achievements se necessário
+      // =====================================================
+      // 🔧 Parse de achievements
+      // =====================================================
       let parsedAchievements: any[] = [];
       if (dbUser.achievements?.items) {
         parsedAchievements = dbUser.achievements.items;
@@ -162,14 +195,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         parsedAchievements = dbUser.achievements;
       }
 
+      console.log("✅ [authStore] Usuário configurado com sucesso!");
+
+      // =====================================================
+      // ✅ Monta o objeto final de usuário no store
+      // =====================================================
       set({
         user: {
           userId: sub,
-          email: email,
-          username: username,
+          email,
+          username,
           name: dbUser.name ?? usernameFromEmail,
           role: dbUser.role ?? (isAdmin ? "Admins" : "user"),
-          isAdmin: isAdmin,
+          isAdmin,
           coins: dbUser.coins ?? 0,
           points: dbUser.points ?? 0,
           modulesCompleted: parsedModules,
@@ -183,23 +221,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (e: any) {
+      // Isso inclui casos como:
+      // - usuário não logado
+      // - token expirado
+      // - identity pool não configurado (aquele 400/NotAuthorized que você vê no console)
       console.warn(
-        "⚠️ [authStore] Erro ao verificar usuário (não logado):",
-        e.message
+        "⚠️ [authStore] Usuário não autenticado ou sessão inválida:",
+        e?.message ?? e
       );
       set({ user: null, isLoading: false });
     }
   },
 
+  // =====================================================
+  // 🔄 Recarregar dados do usuário direto do DynamoDB
+  // =====================================================
   refreshUserFromDB: async () => {
     try {
       const u = get().user;
       if (!u) return;
 
-      const dbUser = await getUserById(u.userId);
-      if (!dbUser) return;
+      console.log(`[authStore] 🔄 Atualizando dados do usuário: ${u.email}`);
 
-      // ✅ Parse modulesCompleted
+      const dbUser = await getUserById(u.userId);
+      if (!dbUser) {
+        console.warn("⚠️ [authStore] Usuário não encontrado no refresh");
+        return;
+      }
+
+      // Parse modulesCompleted
       let parsedModules: number[] = [];
       if (typeof dbUser.modulesCompleted === "string") {
         try {
@@ -211,13 +261,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         parsedModules = dbUser.modulesCompleted;
       }
 
-      // ✅ Parse achievements
+      // Parse achievements
       let parsedAchievements: any[] = [];
       if (dbUser.achievements?.items) {
         parsedAchievements = dbUser.achievements.items;
       } else if (Array.isArray(dbUser.achievements)) {
         parsedAchievements = dbUser.achievements;
       }
+
+      console.log("✅ [authStore] Dados do usuário atualizados com sucesso!");
 
       set((state) => ({
         user: state.user
@@ -230,21 +282,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           : null,
       }));
     } catch (e: any) {
-      console.warn("⚠️ Erro ao atualizar dados do usuário:", e);
+      console.warn(
+        "⚠️ [authStore] Erro ao atualizar dados do usuário:",
+        e?.message ?? e
+      );
     }
   },
 
+  // =====================================================
+  // ✏️ Atualizar dados locais do usuário
+  // =====================================================
   updateUserData: (data) =>
     set((state) => ({
       user: state.user ? { ...state.user, ...data } : null,
     })),
 
+  // =====================================================
+  // 🚪 Logout
+  // =====================================================
   signOut: async () => {
+    console.log("[authStore] 🚪 Fazendo logout...");
     set({ user: null });
     try {
       await amplifySignOut({ global: true });
+      console.log("[authStore] ✅ Logout realizado com sucesso");
     } catch (e: any) {
-      console.warn("⚠️ Erro ao fazer signOut no Amplify:", e);
+      console.warn(
+        "⚠️ [authStore] Erro ao fazer signOut no Amplify:",
+        e?.message ?? e
+      );
     }
   },
 }));

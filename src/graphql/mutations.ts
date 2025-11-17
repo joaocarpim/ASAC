@@ -19,8 +19,8 @@ export const adminRegisterUser = /* GraphQL */ `mutation AdminRegisterUser(
   APITypes.AdminRegisterUserMutationVariables,
   APITypes.AdminRegisterUserMutation
 >;
-export const adminDeleteCognitoUser = /* GraphQL */ `mutation AdminDeleteCognitoUser($username: String!) {
-  adminDeleteCognitoUser(username: $username)
+export const adminDeleteCognitoUser = /* GraphQL */ `mutation AdminDeleteCognitoUser($username: String!, $userId: String) {
+  adminDeleteCognitoUser(username: $username, userId: $userId)
 }
 ` as GeneratedMutation<
   APITypes.AdminDeleteCognitoUserMutationVariables,

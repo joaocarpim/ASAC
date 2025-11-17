@@ -32,8 +32,6 @@ export type ModelUserConditionInput = {
   and?: Array< ModelUserConditionInput | null > | null,
   or?: Array< ModelUserConditionInput | null > | null,
   not?: ModelUserConditionInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
 };
 
 export type ModelStringInput = {
@@ -248,8 +246,6 @@ export type ModelAchievementConditionInput = {
   and?: Array< ModelAchievementConditionInput | null > | null,
   or?: Array< ModelAchievementConditionInput | null > | null,
   not?: ModelAchievementConditionInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
 };
 
 export type ModelIDInput = {
@@ -308,8 +304,6 @@ export type ModelProgressConditionInput = {
   and?: Array< ModelProgressConditionInput | null > | null,
   or?: Array< ModelProgressConditionInput | null > | null,
   not?: ModelProgressConditionInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
 };
 
 export type ModelBooleanInput = {
@@ -351,8 +345,6 @@ export type ModelModuleConditionInput = {
   and?: Array< ModelModuleConditionInput | null > | null,
   or?: Array< ModelModuleConditionInput | null > | null,
   not?: ModelModuleConditionInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
 };
 
 export type UpdateModuleInput = {
@@ -384,8 +376,6 @@ export type ModelLessonConditionInput = {
   and?: Array< ModelLessonConditionInput | null > | null,
   or?: Array< ModelLessonConditionInput | null > | null,
   not?: ModelLessonConditionInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
 };
 
 export type UpdateLessonInput = {
@@ -417,8 +407,6 @@ export type ModelQuestionConditionInput = {
   and?: Array< ModelQuestionConditionInput | null > | null,
   or?: Array< ModelQuestionConditionInput | null > | null,
   not?: ModelQuestionConditionInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
 };
 
 export type UpdateQuestionInput = {
@@ -447,8 +435,6 @@ export type ModelBrailleSymbolConditionInput = {
   and?: Array< ModelBrailleSymbolConditionInput | null > | null,
   or?: Array< ModelBrailleSymbolConditionInput | null > | null,
   not?: ModelBrailleSymbolConditionInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
 };
 
 export type BrailleSymbol = {
@@ -484,8 +470,6 @@ export type ModelProgressFilterInput = {
   completed?: ModelBooleanInput | null,
   completedAt?: ModelStringInput | null,
   errorDetails?: ModelStringInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
   and?: Array< ModelProgressFilterInput | null > | null,
   or?: Array< ModelProgressFilterInput | null > | null,
   not?: ModelProgressFilterInput | null,
@@ -510,8 +494,6 @@ export type ModelUserFilterInput = {
   correctAnswers?: ModelIntInput | null,
   wrongAnswers?: ModelIntInput | null,
   timeSpent?: ModelFloatInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
   and?: Array< ModelUserFilterInput | null > | null,
   or?: Array< ModelUserFilterInput | null > | null,
   not?: ModelUserFilterInput | null,
@@ -529,8 +511,6 @@ export type ModelAchievementFilterInput = {
   description?: ModelStringInput | null,
   moduleNumber?: ModelIntInput | null,
   userId?: ModelIDInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
   and?: Array< ModelAchievementFilterInput | null > | null,
   or?: Array< ModelAchievementFilterInput | null > | null,
   not?: ModelAchievementFilterInput | null,
@@ -541,8 +521,6 @@ export type ModelModuleFilterInput = {
   title?: ModelStringInput | null,
   description?: ModelStringInput | null,
   moduleNumber?: ModelIntInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
   and?: Array< ModelModuleFilterInput | null > | null,
   or?: Array< ModelModuleFilterInput | null > | null,
   not?: ModelModuleFilterInput | null,
@@ -561,8 +539,6 @@ export type ModelLessonFilterInput = {
   image?: ModelStringInput | null,
   lessonNumber?: ModelIntInput | null,
   moduleId?: ModelIDInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
   and?: Array< ModelLessonFilterInput | null > | null,
   or?: Array< ModelLessonFilterInput | null > | null,
   not?: ModelLessonFilterInput | null,
@@ -583,8 +559,6 @@ export type ModelQuestionFilterInput = {
   options?: ModelStringInput | null,
   correctAnswerIndex?: ModelIntInput | null,
   moduleId?: ModelIDInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
   and?: Array< ModelQuestionFilterInput | null > | null,
   or?: Array< ModelQuestionFilterInput | null > | null,
   not?: ModelQuestionFilterInput | null,
@@ -595,8 +569,6 @@ export type ModelBrailleSymbolFilterInput = {
   letter?: ModelStringInput | null,
   description?: ModelStringInput | null,
   imageKey?: ModelStringInput | null,
-  createdAt?: ModelStringInput | null,
-  updatedAt?: ModelStringInput | null,
   and?: Array< ModelBrailleSymbolFilterInput | null > | null,
   or?: Array< ModelBrailleSymbolFilterInput | null > | null,
   not?: ModelBrailleSymbolFilterInput | null,
@@ -620,8 +592,6 @@ export type ModelSubscriptionProgressFilterInput = {
   completed?: ModelSubscriptionBooleanInput | null,
   completedAt?: ModelSubscriptionStringInput | null,
   errorDetails?: ModelSubscriptionStringInput | null,
-  createdAt?: ModelSubscriptionStringInput | null,
-  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionProgressFilterInput | null > | null,
   or?: Array< ModelSubscriptionProgressFilterInput | null > | null,
 };
@@ -698,8 +668,6 @@ export type ModelSubscriptionUserFilterInput = {
   correctAnswers?: ModelSubscriptionIntInput | null,
   wrongAnswers?: ModelSubscriptionIntInput | null,
   timeSpent?: ModelSubscriptionFloatInput | null,
-  createdAt?: ModelSubscriptionStringInput | null,
-  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionUserFilterInput | null > | null,
   or?: Array< ModelSubscriptionUserFilterInput | null > | null,
 };
@@ -710,8 +678,6 @@ export type ModelSubscriptionAchievementFilterInput = {
   description?: ModelSubscriptionStringInput | null,
   moduleNumber?: ModelSubscriptionIntInput | null,
   userId?: ModelSubscriptionIDInput | null,
-  createdAt?: ModelSubscriptionStringInput | null,
-  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionAchievementFilterInput | null > | null,
   or?: Array< ModelSubscriptionAchievementFilterInput | null > | null,
 };
@@ -721,8 +687,6 @@ export type ModelSubscriptionModuleFilterInput = {
   title?: ModelSubscriptionStringInput | null,
   description?: ModelSubscriptionStringInput | null,
   moduleNumber?: ModelSubscriptionIntInput | null,
-  createdAt?: ModelSubscriptionStringInput | null,
-  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionModuleFilterInput | null > | null,
   or?: Array< ModelSubscriptionModuleFilterInput | null > | null,
 };
@@ -734,8 +698,6 @@ export type ModelSubscriptionLessonFilterInput = {
   image?: ModelSubscriptionStringInput | null,
   lessonNumber?: ModelSubscriptionIntInput | null,
   moduleId?: ModelSubscriptionIDInput | null,
-  createdAt?: ModelSubscriptionStringInput | null,
-  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionLessonFilterInput | null > | null,
   or?: Array< ModelSubscriptionLessonFilterInput | null > | null,
 };
@@ -746,8 +708,6 @@ export type ModelSubscriptionQuestionFilterInput = {
   options?: ModelSubscriptionStringInput | null,
   correctAnswerIndex?: ModelSubscriptionIntInput | null,
   moduleId?: ModelSubscriptionIDInput | null,
-  createdAt?: ModelSubscriptionStringInput | null,
-  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionQuestionFilterInput | null > | null,
   or?: Array< ModelSubscriptionQuestionFilterInput | null > | null,
 };
@@ -757,8 +717,6 @@ export type ModelSubscriptionBrailleSymbolFilterInput = {
   letter?: ModelSubscriptionStringInput | null,
   description?: ModelSubscriptionStringInput | null,
   imageKey?: ModelSubscriptionStringInput | null,
-  createdAt?: ModelSubscriptionStringInput | null,
-  updatedAt?: ModelSubscriptionStringInput | null,
   and?: Array< ModelSubscriptionBrailleSymbolFilterInput | null > | null,
   or?: Array< ModelSubscriptionBrailleSymbolFilterInput | null > | null,
 };
@@ -775,10 +733,11 @@ export type AdminRegisterUserMutation = {
 
 export type AdminDeleteCognitoUserMutationVariables = {
   username: string,
+  userId?: string | null,
 };
 
 export type AdminDeleteCognitoUserMutation = {
-  adminDeleteCognitoUser?: boolean | null,
+  adminDeleteCognitoUser?: string | null,
 };
 
 export type CreateUserMutationVariables = {

@@ -1,4 +1,5 @@
-// src/screens/module/AlphabetLessonScreen.tsx (COM SWIPE NAVIGATION)
+// src/screens/module/AlphabetLessonScreen.tsx (CORRIGIDO)
+
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
@@ -121,7 +122,7 @@ const CongratsCard = ({
 }) => {
   return (
     <AccessibleView
-      style={styles.contentCard}
+      style={styles.congratsCard} // ✅ Usando o novo estilo congratsCard
       accessibilityText={`Parabéns, você completou a ${item.title}! Toque duas vezes para voltar.`}
     >
       {isVisible && (
@@ -387,7 +388,9 @@ export default function AlphabetLessonScreen() {
                 <MaterialCommunityIcons
                   name="chevron-left"
                   size={32}
-                  color={currentPageIndex === 0 ? "#999" : theme.button}
+                  color={
+                    currentPageIndex === 0 ? "#999" : theme.cardText
+                  }
                 />
               </TouchableOpacity>
 
@@ -407,7 +410,7 @@ export default function AlphabetLessonScreen() {
                       : "chevron-right"
                   }
                   size={32}
-                  color={theme.button}
+                  color={theme.cardText}
                 />
               </TouchableOpacity>
             </View>
@@ -446,7 +449,7 @@ const createStyles = (
       paddingBottom: 40,
       alignItems: "center",
       flexGrow: 1,
-      justifyContent: "center",
+      justifyContent: "center", // ✅ Centraliza verticalmente o conteúdo
     },
     pageIndicator: {
       marginTop: 18,
@@ -491,9 +494,9 @@ const createStyles = (
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     contentCard: {
-      width: "100%",
+      width: "75%",
       maxWidth: 980,
-      minHeight: WINDOW_HEIGHT * 0.6,
+      minHeight: WINDOW_HEIGHT * 0.6, // Mantido para cards de conteúdo
       borderRadius: 12,
       backgroundColor: theme.card,
       elevation: 6,
@@ -503,6 +506,22 @@ const createStyles = (
       shadowRadius: 10,
       justifyContent: "center",
       alignItems: "center",
+    },
+    // ✅ NOVO ESTILO PARA O CARD DE PARABÉNS
+    congratsCard: {
+      width: "100%",
+      maxWidth: 980,
+      flex: 1, // Permite que ele cresça e centralize
+      borderRadius: 12,
+      backgroundColor: theme.card,
+      elevation: 6,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
+      justifyContent: "center", // ✅ Centraliza verticalmente o conteúdo interno
+      alignItems: "center",
+      paddingVertical: 40, // Adiciona um padding para espaçamento
     },
     cardInner: {
       padding: WINDOW_WIDTH * 0.06,
@@ -523,16 +542,16 @@ const createStyles = (
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     brailleCell: {
-      width: 160,
-      height: 240,
+      width: 120,
+      height: 180,
       borderRadius: 20,
       flexDirection: "column",
       flexWrap: "wrap",
       alignContent: "center",
       justifyContent: "space-around",
-      paddingVertical: 15,
-      paddingHorizontal: 10,
-      marginTop: 20,
+      paddingVertical: -5,
+      paddingHorizontal: -10,
+      marginTop: 10,
       borderWidth: 1,
       borderColor: "transparent",
     },
@@ -543,9 +562,9 @@ const createStyles = (
       alignItems: "center",
     },
     dot: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: 50,
+      height: 50,
+      borderRadius: 25,
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 2,
@@ -556,13 +575,13 @@ const createStyles = (
       opacity: 0.2,
     },
     dotActive: {
-      backgroundColor: theme.button,
-      borderColor: theme.buttonText,
+      backgroundColor: theme.background, // Amarelo
+      borderColor: theme.text, // Azul
     },
     dotNumber: {
       fontSize: 14 * fontMultiplier,
-      color: theme.cardText,
-      opacity: 0.5,
+      color: theme.text, // Azul
+      opacity: 0.7,
       fontWeight: "bold",
     },
     congratsTitle: {

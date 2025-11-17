@@ -1,4 +1,5 @@
-// src/screens/progress/ProgressScreen.tsx
+// src/screens/progress/ProgressScreen.tsx (CORRIGIDO)
+
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
@@ -19,7 +20,6 @@ import { listProgresses, getUser } from "../../graphql/queries";
 import { useContrast } from "../../hooks/useContrast";
 import { AccessibleText } from "../../components/AccessibleComponents";
 
-// ✅ 1. IMPORTAR useSettings E O TIPO Theme
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 
@@ -53,7 +53,6 @@ const ProgressScreenComponent = ({
 
   const headerFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ 2. CHAMAR O useSettings() HOOK
   const {
     fontSizeMultiplier,
     isBoldTextEnabled,
@@ -62,7 +61,6 @@ const ProgressScreenComponent = ({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  // ✅ 3. PASSAR OS VALORES DOS SETTINGS PARA A FUNÇÃO DE ESTILOS
   const styles = createStyles(
     theme,
     fontSizeMultiplier,
@@ -84,7 +82,6 @@ const ProgressScreenComponent = ({
       console.log("--- INICIANDO BUSCA DE PROGRESSO ---");
 
       // Buscando dados frescos do usuário (pontos)
-      console.log("👤 Buscando dados frescos do usuário (pontos)...");
       try {
         const userQueryWithBuster = `
           # CacheBuster: ${Date.now()}-${Math.random()}
@@ -98,7 +95,6 @@ const ProgressScreenComponent = ({
 
         const freshUser = userResult.data?.getUser;
         if (freshUser) {
-          console.log(`[LOG] Pontos atualizados: ${freshUser.points}`);
           setUserPoints(freshUser.points ?? 0);
         }
       } catch (userError) {
@@ -129,20 +125,9 @@ const ProgressScreenComponent = ({
         nextToken = result?.data?.listProgresses?.nextToken || null;
       } while (nextToken);
 
-      console.log(
-        `[LOG] Total de registros encontrados: ${allProgress.length}`
-      );
-
       const attemptedProgress = allProgress.filter(
         (p) => p.timeSpent && p.timeSpent > 0
       );
-
-      console.log(
-        `[LOG] Registros "tentados" (timeSpent > 0): ${attemptedProgress.length}`
-      );
-      if (attemptedProgress.length === 0) {
-        console.log("[LOG] Nenhum módulo tentado encontrado.");
-      }
 
       const latestByModule: Record<number, any> = {};
 
@@ -182,13 +167,6 @@ const ProgressScreenComponent = ({
         }))
         .sort((a, b) => a.moduleNumber - b.moduleNumber);
 
-      console.log("--- DADOS FINAIS QUE SERÃO MOSTRADOS NA TELA ---");
-      latestProgress.forEach((p) => {
-        console.log(
-          ` → Módulo ${p.moduleNumber}: Nota ${p.accuracy}% (ID: ${p.id})`
-        );
-      });
-
       setModuleProgress(latestProgress);
 
       const totals = latestProgress.reduce(
@@ -206,9 +184,6 @@ const ProgressScreenComponent = ({
       const avgAccuracy =
         count > 0 ? Math.round(totals.sumAccuracy / count) : 0;
 
-      console.log("--- RESUMO GERAL ---");
-      console.log(` Precisão média: ${avgAccuracy}%`);
-
       setTotalCorrect(totals.sumCorrect);
       setTotalWrong(totals.sumWrong);
       setTotalTime(totals.sumTime);
@@ -224,13 +199,11 @@ const ProgressScreenComponent = ({
       setModuleProgress([]);
     } finally {
       setLoading(false);
-      console.log("--- BUSCA FINALIZADA ---");
     }
   }, [user?.userId, headerFadeAnim]);
 
   useFocusEffect(
     useCallback(() => {
-      console.log("📱 Tela de Progresso focada - Recarregando dados...");
       fetchProgressData();
     }, [fetchProgressData])
   );
@@ -278,23 +251,27 @@ const ProgressScreenComponent = ({
             styles.summaryCard,
             {
               opacity: headerFadeAnim,
-              backgroundColor: theme.card,
+              backgroundColor: theme.card, // Fundo Azul (Correto)
             },
           ]}
         >
+          {/* ✅ CORREÇÃO 1: Título do card trocado para 'theme.cardText' */}
           <AccessibleText
             baseSize={20}
-            style={[styles.sectionTitle, { color: theme.text }]}
+            style={[styles.sectionTitle, { color: theme.cardText }]} // Era theme.text
           >
             📊 Resumo Geral
           </AccessibleText>
+
+          {/* ✅ CORREÇÃO 2: Subtítulo do card trocado para 'theme.cardText' */}
           <AccessibleText
             baseSize={12}
-            style={[styles.sectionSubtitle, { color: theme.text }]}
+            style={[styles.sectionSubtitle, { color: theme.cardText }]} // Era theme.text
           >
             Baseado nas últimas tentativas de cada módulo
           </AccessibleText>
 
+          {/* Os StatItems usam cores próprias, então estão corretos */}
           <View style={styles.statsGrid}>
             <StatItem
               icon="target"
@@ -341,6 +318,7 @@ const ProgressScreenComponent = ({
           </View>
         </Animated.View>
 
+        {/* Esta seção está no fundo amarelo, então 'theme.text' (azul) está CORRETO aqui */}
         <View style={styles.section}>
           <AccessibleText
             baseSize={20}
@@ -355,6 +333,7 @@ const ProgressScreenComponent = ({
             Última tentativa de cada módulo — toque para ver mais detalhes
           </AccessibleText>
 
+          {/* ❗️ O ERRO ESTÁ NO ARQUIVO ModuleCard.tsx ❗️ */}
           {moduleProgress.length > 0 ? (
             moduleProgress.map((p, index) => (
               <ModuleCard
@@ -401,12 +380,11 @@ export default function ProgressScreen(
   return <ProgressScreenComponent {...props} />;
 }
 
-// ✅ 4. CONVERTER StyleSheet.create EM UMA FUNÇÃO createStyles
 const createStyles = (
   theme: Theme,
-  fontMultiplier: number, // fontMultiplier não estava sendo usado, mas mantido
-  isBold: boolean, // isBold não estava sendo usado, mas mantido
-  lineHeight: number, // lineHeight não estava sendo usado, mas mantido
+  fontMultiplier: number,
+  isBold: boolean,
+  lineHeight: number,
   letterSpacing: number,
   isDyslexiaFont: boolean
 ) =>
@@ -432,26 +410,22 @@ const createStyles = (
     sectionTitle: {
       fontWeight: "bold",
       marginBottom: 4,
-      // Aplicar configurações de fonte
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
     sectionSubtitle: {
       marginBottom: 16,
-      // Aplicar configurações de fonte
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
     sectionTitleDark: {
       fontWeight: "bold",
       marginBottom: 4,
-      // Aplicar configurações de fonte
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
     sectionSubtitleDark: {
       marginBottom: 16,
-      // Aplicar configurações de fonte
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
@@ -468,7 +442,6 @@ const createStyles = (
     emptyText: {
       marginTop: 16,
       textAlign: "center",
-      // Aplicar configurações de fonte
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },

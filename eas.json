@@ -3,6 +3,7 @@
     "version": ">= 7.6.0",
     "appVersionSource": "remote"
   },
+
   "build": {
     "production": {
       "android": {
@@ -20,6 +21,7 @@
       }
     }
   },
+
   "submit": {
     "production": {}
   }

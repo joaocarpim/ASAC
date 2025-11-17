@@ -38,7 +38,7 @@ import { useNotificationQueueStore } from "../../store/useNotificationQueueStore
    =========================== */
 const BOX_SIZE = 75;
 const FEATURE_BUTTON_WIDTH = 165;
-const FEATURE_BUTTON_HEIGHT = 110;
+const FEATURE_BUTTON_HEIGHT = 120;
 
 const createStyles = (
   theme: Theme,

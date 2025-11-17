@@ -24,11 +24,11 @@
       "function": {
         "adminDeleteUser": {
           "deploymentBucketName": "amplify-asac-dev-11020-deployment",
-          "s3Key": "amplify-builds/adminDeleteUser-466d67474353456a514c-build.zip"
+          "s3Key": "amplify-builds/adminDeleteUser-626974644d43516a6a37-build.zip"
         },
         "adminRegisterUser": {
           "deploymentBucketName": "amplify-asac-dev-11020-deployment",
-          "s3Key": "amplify-builds/adminRegisterUser-3938756a6142454a7174-build.zip"
+          "s3Key": "amplify-builds/adminRegisterUser-436d4a48516c765a6850-build.zip"
         }
       }
     }

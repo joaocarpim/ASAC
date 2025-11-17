@@ -1,5 +1,4 @@
 // src/components/modals/CompletionModal.tsx
-
 import React, { useEffect, useRef } from "react";
 import {
   View,
@@ -16,14 +15,12 @@ import { useContrast } from "../../hooks/useContrast";
 import { Audio } from "expo-av";
 
 export function CompletionModal() {
-  const { isOpen, title, message, hideModal } = useModalStore();
+  // ✅ 1. Ler o novo estado 'playSound'
+  const { isOpen, title, message, playSound, hideModal } = useModalStore();
   const { theme } = useContrast();
 
-  // Animações
   const rotateAnim = useRef(new Animated.Value(0)).current;
-  // ✅ 1. Novo valor animado para o modal (escala e opacidade)
   const modalAnim = useRef(new Animated.Value(0)).current;
-
   const sound = useRef<Audio.Sound | null>(null);
 
   // Efeito para carregar o som (só uma vez)
@@ -48,28 +45,30 @@ export function CompletionModal() {
   // Efeito para tocar o som e animar (quando o modal abrir)
   useEffect(() => {
     if (isOpen) {
-      // ✅ 2. Disparar a animação de "chegada" (pop-in com "spring")
+      // Animação de "chegada"
       Animated.spring(modalAnim, {
         toValue: 1,
-        stiffness: 120, // Rigidez da mola
-        damping: 10, // Amortecimento
-        mass: 0.8, // "Peso"
+        stiffness: 120,
+        damping: 10,
+        mass: 0.8,
         useNativeDriver: true,
-      }).start(); // Inicia a animação do modal
+      }).start();
 
-      // Toca o som
-      const playSound = async () => {
-        try {
-          await sound.current?.setPositionAsync(0);
-          await sound.current?.playAsync();
-          console.log("[CompletionModal] 🔊 Som tocado.");
-        } catch (error) {
-          console.warn("[CompletionModal] ⚠️ Erro ao tocar som:", error);
-        }
-      };
-      playSound();
+      // ✅ 2. Tocar o som SOMENTE se 'playSound' for true
+      if (playSound) {
+        const playSoundAsync = async () => {
+          try {
+            await sound.current?.setPositionAsync(0);
+            await sound.current?.playAsync();
+            console.log("[CompletionModal] 🔊 Som tocado.");
+          } catch (error) {
+            console.warn("[CompletionModal] ⚠️ Erro ao tocar som:", error);
+          }
+        };
+        playSoundAsync();
+      }
 
-      // Inicia a animação de "balançar" o sino
+      // Animação de "balançar" o sino
       Animated.loop(
         Animated.sequence([
           Animated.timing(rotateAnim, {
@@ -106,45 +105,39 @@ export function CompletionModal() {
         ])
       ).start();
     } else {
-      // ✅ 3. Animação de "saída" (fade-out rápido)
+      // Animação de "saída"
       Animated.timing(modalAnim, {
         toValue: 0,
-        duration: 150, // Duração rápida
+        duration: 150,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start();
-
-      // Para e reseta a animação do sino
       rotateAnim.stopAnimation();
       rotateAnim.setValue(0);
     }
-  }, [isOpen, rotateAnim, modalAnim]); // Adicionado modalAnim às dependências
+  }, [isOpen, rotateAnim, modalAnim, playSound]); // ✅ 3. Adicionar 'playSound'
 
-  // Interpola a animação do sino
   const rotation = rotateAnim.interpolate({
     inputRange: [-1, 1],
     outputRange: ["-15deg", "15deg"],
   });
-
-  // ✅ 4. Interpolações para o modal (escala e opacidade)
   const modalScale = modalAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.9, 1], // Começa com 90% do tamanho e vai para 100%
+    outputRange: [0.9, 1],
   });
   const modalOpacity = modalAnim.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [0, 0.7, 1], // Fade in suave
+    outputRange: [0, 0.7, 1],
   });
 
   return (
     <Modal
       transparent={true}
       visible={isOpen}
-      animationType="fade" // O "fade" é para o fundo escuro (overlay)
+      animationType="fade"
       onRequestClose={hideModal}
     >
       <View style={styles.overlay}>
-        {/* ✅ 5. Aplicar os estilos animados ao conteúdo do modal */}
         <Animated.View
           style={[
             styles.modalContent,
@@ -159,13 +152,13 @@ export function CompletionModal() {
             <MaterialCommunityIcons
               name="bell-ring-outline"
               size={48}
-              color={theme.text}
+              color={theme.cardText} // Corrigido (baseado no seu arquivo)
             />
           </Animated.View>
-
-          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-          <Text style={[styles.message, { color: theme.text }]}>{message}</Text>
-
+          <Text style={[styles.title, { color: theme.cardText }]}>{title}</Text>
+          <Text style={[styles.message, { color: theme.cardText }]}>
+            {message}
+          </Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.button }]}
             onPress={hideModal}
@@ -180,7 +173,7 @@ export function CompletionModal() {
   );
 }
 
-// ... (seus estilos permanecem os mesmos)
+// ... (Estilos permanecem os mesmos)
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,

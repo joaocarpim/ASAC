@@ -2,6 +2,7 @@
     API_ASAC_GRAPHQLAPIENDPOINTOUTPUT
     API_ASAC_GRAPHQLAPIIDOUTPUT
     API_ASAC_GRAPHQLAPIKEYOUTPUT
+    API_ASAC_USERTABLE_NAME
     AUTH_ASAC2F4153AA_USERPOOLID
     ENV
     REGION
@@ -14,12 +15,17 @@ const {
   AdminGetUserCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
+
 const REGION = process.env.REGION || "us-east-1";
 const USER_POOL_ID = process.env.AUTH_ASAC2F4153AA_USERPOOLID;
-const GRAPHQL_URL = process.env.API_ASAC_GRAPHQLAPIENDPOINTOUTPUT;
-const API_KEY = process.env.API_ASAC_GRAPHQLAPIKEYOUTPUT;
+const TABLE_NAME =
+  process.env.API_ASAC_USERTABLE_NAME || "User-2tmx3fickjczzii57s6dpbavxm-dev";
 
 const cognito = new CognitoIdentityProviderClient({ region: REGION });
+const dynamoClient = new DynamoDBClient({ region: REGION });
+const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 exports.handler = async (event) => {
   console.log("📩 Evento AppSync recebido:", JSON.stringify(event, null, 2));
@@ -38,7 +44,9 @@ exports.handler = async (event) => {
     }
     const username = trimmedEmail.toLowerCase();
 
-    // 1. Criar usuário no Cognito
+    // ============================================
+    // 1. CRIAR USUÁRIO NO COGNITO
+    // ============================================
     try {
       await cognito.send(
         new AdminCreateUserCommand({
@@ -62,7 +70,9 @@ exports.handler = async (event) => {
       console.log("⚠️ Usuário já existe, definindo senha permanente.");
     }
 
-    // 2. Definir senha permanente
+    // ============================================
+    // 2. DEFINIR SENHA PERMANENTE
+    // ============================================
     await cognito.send(
       new AdminSetUserPasswordCommand({
         UserPoolId: USER_POOL_ID,
@@ -73,7 +83,9 @@ exports.handler = async (event) => {
     );
     console.log("🔑 Senha permanente definida:", username);
 
-    // 3. Obter o 'sub' (ID) do usuário
+    // ============================================
+    // 3. OBTER SUB DO USUÁRIO
+    // ============================================
     const getUserResp = await cognito.send(
       new AdminGetUserCommand({ UserPoolId: USER_POOL_ID, Username: username })
     );
@@ -86,94 +98,60 @@ exports.handler = async (event) => {
       throw new Error("Falha ao obter o ID (sub) do usuário no Cognito.");
     console.log("🆔 Sub Cognito do novo usuário:", userSub);
 
-    // 4. Criar no DynamoDB
-    if (GRAPHQL_URL && userSub) {
-      if (!API_KEY)
-        throw new Error("API_ASAC_GRAPHQLAPIKEYOUTPUT não definida.");
+    // ============================================
+    // 4. CRIAR NO DYNAMODB DIRETAMENTE (SEM GRAPHQL!)
+    // ============================================
+    const timestamp = new Date().toISOString();
 
-      const mutation = `
-        mutation CreateUser($input: CreateUserInput!) {
-          createUser(input: $input) { 
-            id 
-            name 
-            email 
-            role 
-            coins
-            points
-          }
-        }
-      `;
+    const userItem = {
+      id: userSub,
+      __typename: "User",
+      name: trimmedName,
+      email: username,
+      role: "user",
+      coins: 0,
+      points: 0,
+      modulesCompleted: [], // Array vazio de Int
+      currentModule: 1,
+      precision: 0, // Float
+      correctAnswers: 0,
+      wrongAnswers: 0,
+      timeSpent: 0, // Float
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
 
-      // ✅ CORREÇÃO: Baseado no schema.graphql
-      const createUserInput = {
-        id: userSub,
-        name: trimmedName,
-        email: username,
-        role: "user",
-        coins: 0,
-        points: 0,
-        modulesCompleted: [], // ✅ Array vazio de Int
-        currentModule: 1,
-        precision: 0.0, // ✅ Float
-        correctAnswers: 0,
-        wrongAnswers: 0,
-        timeSpent: 0.0, // ✅ Float
-      };
+    console.log(
+      "💾 Salvando usuário no DynamoDB:",
+      JSON.stringify(userItem, null, 2)
+    );
 
-      try {
-        console.log(
-          "📡 Enviando requisição GraphQL com input:",
-          JSON.stringify(createUserInput, null, 2)
-        );
-
-        // ✅ CORREÇÃO: Usar o token do admin que chamou a Lambda
-        const authToken = event.identity?.claims
-          ? event.request?.headers?.authorization || ""
-          : "";
-
-        const response = await fetch(GRAPHQL_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: authToken, // ✅ Usa o token do Admin
-          },
-          body: JSON.stringify({
-            query: mutation,
-            variables: { input: createUserInput },
-          }),
-        });
-
-        const gqlJson = await response.json();
-
-        console.log(
-          "📥 Resposta GraphQL completa:",
-          JSON.stringify(gqlJson, null, 2)
-        );
-
-        if (gqlJson.errors) {
-          console.error(
-            "⚠️ Erro GraphQL:",
-            JSON.stringify(gqlJson.errors, null, 2)
-          );
-          const firstErrorMessage =
-            gqlJson.errors[0].message || "Erro desconhecido no DynamoDB";
-          throw new Error(`Falha ao inserir no DynamoDB: ${firstErrorMessage}`);
-        }
-
-        console.log(
-          "✅ Usuário gravado no DynamoDB:",
-          gqlJson.data?.createUser
-        );
-      } catch (fetchError) {
-        console.error("❌ Erro ao chamar GraphQL:", fetchError);
-        throw new Error(`Erro no fetch do GraphQL: ${fetchError.message}`);
+    try {
+      await docClient.send(
+        new PutCommand({
+          TableName: TABLE_NAME,
+          Item: userItem,
+          ConditionExpression: "attribute_not_exists(id)", // Evita duplicação
+        })
+      );
+      console.log("✅ Usuário gravado no DynamoDB com sucesso!");
+    } catch (dynamoError) {
+      if (dynamoError.name === "ConditionalCheckFailedException") {
+        console.warn("⚠️ Usuário já existe no DynamoDB, continuando...");
+      } else {
+        console.error("❌ Erro ao salvar no DynamoDB:", dynamoError);
+        throw new Error(`Falha ao inserir no DynamoDB: ${dynamoError.message}`);
       }
     }
 
+    // ============================================
+    // 5. RETORNAR SUCESSO
+    // ============================================
     const result = {
       success: true,
       message: "Usuário criado com sucesso.",
       sub: userSub,
+      user: userItem,
     };
     console.log("✅ Retornando resultado:", result);
     return JSON.stringify(result);
@@ -182,3 +160,6 @@ exports.handler = async (event) => {
     throw new Error(error.message || "Erro interno ao criar usuário");
   }
 };
+
+
+//TESTE LAMBDA DYNAMO

@@ -1,20 +1,23 @@
 {
   "expo": {
     "name": "asac",
-    "slug": "asac",
-    "owner": "asacapp",
+    "slug": "asacapp",
+    "owner": "danielfatec",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
+
     "splash": {
       "image": "./src/assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "ios": {
       "supportsTablet": true
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
@@ -23,12 +26,14 @@
       "package": "com.joao_carpim.asacbrilleapp",
       "versionCode": 1
     },
+
     "web": {
       "favicon": "./src/assets/favicon.png"
     },
+
     "extra": {
       "eas": {
-        "projectId": "8f2b33ff-21ab-4aec-86c7-33e5d7e61fa5"
+        "projectId": "5a1a3ca3-1910-485f-a2f9-6319e34db447"
       },
       "aws": {
         "aws_project_region": "us-east-1",
@@ -36,10 +41,12 @@
         "aws_appsync_region": "us-east-1",
         "aws_appsync_authenticationType": "AMAZON_COGNITO_USER_POOLS",
         "aws_appsync_apiKey": "da2-bd27jwfofvf5ldshzssk7wufsm",
+
         "aws_cognito_identity_pool_id": "us-east-1:68b91f88-44a7-4083-9cce-d3c0ce795dd2",
         "aws_cognito_region": "us-east-1",
         "aws_user_pools_id": "us-east-1_00uu9Yg4p",
         "aws_user_pools_web_client_id": "3imrsqbj2nral6o47uerq3u5qp",
+
         "aws_user_files_s3_bucket": "asacf2d64dd682824f0a9d23969cf8cd6bf211020-dev",
         "aws_user_files_s3_bucket_region": "us-east-1"
       }

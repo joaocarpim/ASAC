@@ -35,9 +35,6 @@ type User
   progress: [Progress] @hasMany(indexName: "byUser", fields: ["id"])
 }
 
-# =========================================
-# === Conquistas (Achievements) ===
-# =========================================
 type Achievement
   @model
   @auth(
@@ -63,9 +60,6 @@ type Achievement
   user: User @belongsTo(fields: ["userId"])
 }
 
-# =========================================
-# === Progresso do Usuário ===
-# =========================================
 type Progress
   @model
   @auth(
@@ -99,9 +93,6 @@ type Progress
   errorDetails: AWSJSON
 }
 
-# =========================================
-# === Módulo ===
-# =========================================
 type Module
   @model
   @auth(
@@ -125,9 +116,6 @@ type Module
   progress: [Progress] @hasMany(indexName: "byModule", fields: ["id"])
 }
 
-# =========================================
-# === Lições (Lessons) ===
-# =========================================
 type Lesson
   @model
   @auth(
@@ -150,9 +138,6 @@ type Lesson
   module: Module @belongsTo(fields: ["moduleId"])
 }
 
-# =========================================
-# === Questões (Questions) ===
-# =========================================
 type Question
   @model
   @auth(
@@ -174,9 +159,6 @@ type Question
   module: Module @belongsTo(fields: ["moduleId"])
 }
 
-# =G========================================
-# === Símbolos Braille ===
-# =========================================
 type BrailleSymbol
   @model
   @auth(
@@ -200,13 +182,12 @@ type BrailleSymbol
 # === Mutations personalizadas ===
 # =========================================
 type Mutation {
-  # Mutation para registrar novo usuário
   adminRegisterUser(name: String!, email: String!, password: String!): String
-    @function(name: "AdminRegisterUser-${env}")
+    @function(name: "adminRegisterUser-${env}")
     @auth(rules: [{ allow: groups, groups: ["Admins"] }])
 
-  # ✅ CORRIGIDO: Mutation para apagar usuário do Cognito
-  adminDeleteCognitoUser(username: String!): Boolean
-    @function(name: "adminDeleteUser-${env}") # <--- ✨ CORREÇÃO FEITA AQUI
+  # 🔥 Deleta usuário no Cognito (e opcionalmente Dynamo) via Lambda
+  adminDeleteCognitoUser(username: String!, userId: String): AWSJSON
+    @function(name: "adminDeleteUser-${env}")
     @auth(rules: [{ allow: groups, groups: ["Admins"] }])
 }

@@ -1,42 +1,6 @@
+// App.tsx CORRIGIDO FINAL
+
 import "react-native-gesture-handler";
-
-import { Amplify } from "aws-amplify";
-import { Hub } from "aws-amplify/utils";
-import amplifyConfig from "./src/config/amplify-config";
-
-// Configuração do Amplify
-// Em produção (EAS Build), usa as variáveis de ambiente do eas.json
-// Em desenvolvimento, usa o amplifyconfig.json
-if (process.env.NODE_ENV === "production") {
-  const productionConfig = {
-    aws_project_region: process.env.AWS_PROJECT_REGION || "us-east-1",
-    aws_appsync_graphqlEndpoint: process.env.AWS_APPSYNC_GRAPHQL_ENDPOINT || "https://izr4ayivprhodgqzf3gm6ijwh4.appsync-api.us-east-1.amazonaws.com/graphql",
-    aws_appsync_region: process.env.AWS_PROJECT_REGION || "us-east-1",
-    aws_appsync_authenticationType: process.env.AWS_APPSYNC_AUTH_TYPE || "AMAZON_COGNITO_USER_POOLS",
-    aws_appsync_apiKey: process.env.AWS_APPSYNC_API_KEY || "da2-bd27jwfofvf5ldshzssk7wufsm",
-    aws_cognito_identity_pool_id: "us-east-1:68b91f88-44a7-4083-9cce-d3c0ce795dd2",
-    aws_cognito_region: "us-east-1",
-    aws_user_pools_id: process.env.AWS_USER_POOLS_ID || "us-east-1_00uu9Yg4p",
-    aws_user_pools_web_client_id: process.env.AWS_USER_POOLS_WEB_CLIENT_ID || "3imrsqbj2nral6o47uerq3u5qp",
-    oauth: {},
-    aws_cognito_username_attributes: ["EMAIL"],
-    aws_cognito_social_providers: [],
-    aws_cognito_signup_attributes: ["EMAIL"],
-    aws_cognito_mfa_configuration: "OFF",
-    aws_cognito_mfa_types: ["SMS"],
-    aws_cognito_password_protection_settings: {
-      passwordPolicyMinLength: 8,
-      passwordPolicyCharacters: []
-    },
-    aws_cognito_verification_mechanisms: ["EMAIL"],
-    aws_user_files_s3_bucket: process.env.AWS_USER_FILES_S3_BUCKET || "asacf2d64dd682824f0a9d23969cf8cd6bf211020-dev",
-    aws_user_files_s3_bucket_region: process.env.AWS_USER_FILES_S3_BUCKET_REGION || "us-east-1"
-  };
-  Amplify.configure(productionConfig);
-} else {
-  Amplify.configure(amplifyConfig);
-}
-
 import React, { useEffect, useRef } from "react";
 import { View, ActivityIndicator, StatusBar, StyleSheet } from "react-native";
 import {
@@ -44,32 +8,45 @@ import {
   useNavigationContainerRef,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-
-import ViewShot from "react-native-view-shot";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import ViewShot from "react-native-view-shot";
 import { useFonts } from "expo-font";
 
-// Store & Contextos
+// ===============================
+// 🔐 AMPLIFY CONFIG
+// ===============================
+import "./src/config/amplify-config";
+import { Hub } from "aws-amplify/utils";
 import { useAuthStore } from "./src/store/authStore";
-import {
-  ContrastProvider,
-  useContrastTheme,
-} from "./src/context/ContrastProvider";
+
+// ===============================
+// CONTEXTOS
+// ===============================
+import { ContrastProvider, useContrast } from "./src/context/ContrastProvider";
 import {
   AccessibilityProvider,
   useAccessibility,
 } from "./src/context/AccessibilityProvider";
 import { SettingsProvider as AccessibilitySettingsProvider } from "./src/context/SettingsProvider";
 
+// ===============================
+// OBSERVERS
+// ===============================
 import { moduleCompletionSubject } from "./src/services/ModuleCompletionSubject";
 import { notificationObserver } from "./src/observers/NotificationObserver";
 import { CompletionModal } from "./src/components/modal/CompletionModal";
 
-// Rotas / Tipos
+// ===============================
+// ROTAS & TIPOS
+// ===============================
 import { RootStackParamList } from "./src/navigation/types";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Telas
+import IncorrectAnswersScreen from "./src/screens/main/IncorrectAnswersScreen";
+
+// ===============================
+// TELAS
+// ===============================
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStepScreen";
 import LoginScreen from "./src/screens/auth/LoginScreen";
@@ -89,49 +66,54 @@ import ModuleQuizScreen from "./src/screens/module/ModuleQuizScreen";
 import ModuleResultScreen from "./src/screens/module/ModuleResultScreen";
 import LearningPathScreen from "./src/screens/session/LearningPathScreen";
 import BraillePracticeScreen from "./src/screens/session/BraillePracticeScreen";
-import IncorrectAnswersScreen from "./src/screens/main/IncorrectAnswersScreen";
 import AlphabetSectionsScreen from "./src/screens/session/AlphabetSectionsScreen";
 import AlphabetLessonScreen from "./src/screens/session/AlphabetLessonScreen";
 import AdminDashboardScreen from "./src/screens/admin/AdminDashboardScreen";
 import AdminUserDetailScreen from "./src/screens/admin/AdminUserDetailScreen";
 import AdminIncorrectAnswersScreen from "./src/screens/admin/AdminIncorrectAnswersScreen";
 import AdminRegisterUserScreen from "./src/screens/admin/AdminRegisterUserScreen";
-
-// Writing Challenge
 import WritingChallengeIntroScreen from "./src/screens/writing/WritingChallengeIntroScreen";
 import WritingChallengeRoulleteScreen from "./src/screens/writing/WritingChallengeRoulleteScreen";
 import WritingChallengeGameScreen from "./src/screens/writing/WritingChallengeGameScreen";
 import WritingChallengeSuccessScreen from "./src/screens/writing/WritingChallengeSuccessScreen";
-
-// Contractions
 import ContractionsHomeScreen from "./src/screens/contractions/ContractionsHomeScreen";
 import ContractionsLessonScreen from "./src/screens/contractions/ContractionsLessonScreen";
 import ContractionsRoulleteScreen from "./src/screens/contractions/ContractionsRoulleteScreen";
 import ContractionsGameScreen from "./src/screens/contractions/ContractionsGameScreen";
 import ContractionsSuccessScreen from "./src/screens/contractions/ContractionsSuccessScreen";
 
-/* ===========================================
-   APP NAVIGATION (ORGANIZADO)
-=========================================== */
+/* ============================================================
+  📱 APP NAVIGATION
+============================================================ */
 function AppNavigation() {
-  const { theme } = useContrastTheme();
-  const { user, isLoading, checkUser, signOut } = useAuthStore();
+  const navigationRef = useNavigationContainerRef();
+
+  const { theme } = useContrast();
+  const { user, isLoading, checkUser } = useAuthStore();
+
   const { panResponder, magnifier, magnifierPanResponder } = useAccessibility();
 
-  const navigationRef = useNavigationContainerRef();
   const viewShotRef = useRef(null);
 
-  // Auth observer
+  // 🔐 Listener do Auth — SEM LOOP
   useEffect(() => {
-    checkUser();
+    checkUser(); // carrega sessão ao abrir app
+
     const sub = Hub.listen("auth", ({ payload }) => {
-      if (["signedIn", "tokenRefresh"].includes(payload.event)) checkUser();
-      if (payload.event === "signedOut") signOut();
+      if (payload?.event === "signedIn") {
+        checkUser();
+      }
+      if (payload?.event === "tokenRefresh") {
+        checkUser();
+      }
+
+      // ⚠️ Nunca chamar signOut() aqui!
     });
+
     return () => sub();
   }, []);
 
-  // Notification observer
+  // 🔔 Observer de completions
   useEffect(() => {
     moduleCompletionSubject.subscribe(notificationObserver);
     return () => moduleCompletionSubject.unsubscribe(notificationObserver);
@@ -147,27 +129,32 @@ function AppNavigation() {
             : panResponder.panHandlers)}
         >
           <StatusBar
-            barStyle="light-content"
+            barStyle={theme.statusBarStyle}
             backgroundColor={theme.background}
           />
 
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {isLoading ? (
+            {/* LOADING */}
+            {isLoading && (
               <Stack.Screen name="Loading">
                 {() => (
-                  <View style={styles.loading}>
+                  <View
+                    style={[
+                      styles.loading,
+                      { backgroundColor: theme.background },
+                    ]}
+                  >
                     <ActivityIndicator size="large" color={theme.text} />
                   </View>
                 )}
               </Stack.Screen>
-            ) : !user ? (
-              /* ROTAS PÚBLICAS */
+            )}
+
+            {/* PUBLIC ROUTES */}
+            {!isLoading && !user && (
               <>
                 <Stack.Screen name="Welcome" component={WelcomeScreen} />
-                <Stack.Screen
-                  name="Tutorial"
-                  component={TutorialStep1Screen}
-                />
+                <Stack.Screen name="Tutorial" component={TutorialStep1Screen} />
                 <Stack.Screen name="Login" component={LoginScreen} />
                 <Stack.Screen
                   name="ForgotPassword"
@@ -186,8 +173,10 @@ function AppNavigation() {
                   component={NewPasswordScreen}
                 />
               </>
-            ) : user.isAdmin ? (
-              /* ROTAS ADMIN */
+            )}
+
+            {/* ADMIN ROUTES */}
+            {!isLoading && user?.isAdmin && (
               <>
                 <Stack.Screen
                   name="AdminDashboard"
@@ -206,8 +195,10 @@ function AppNavigation() {
                   component={AdminRegisterUserScreen}
                 />
               </>
-            ) : (
-              /* ROTAS NORMAIS */
+            )}
+
+            {/* NORMAL USER ROUTES */}
+            {!isLoading && user && !user.isAdmin && (
               <>
                 <Stack.Screen name="Home" component={HomeScreen} />
                 <Stack.Screen name="Ranking" component={RankingScreen} />
@@ -254,8 +245,6 @@ function AppNavigation() {
                   name="AlphabetLesson"
                   component={AlphabetLessonScreen}
                 />
-
-                {/* Writing Challenge */}
                 <Stack.Screen
                   name="WritingChallengeIntro"
                   component={WritingChallengeIntroScreen}
@@ -272,8 +261,6 @@ function AppNavigation() {
                   name="WritingChallengeSuccess"
                   component={WritingChallengeSuccessScreen}
                 />
-
-                {/* Contractions */}
                 <Stack.Screen
                   name="ContractionsHome"
                   component={ContractionsHomeScreen}
@@ -303,9 +290,9 @@ function AppNavigation() {
   );
 }
 
-/* ===========================================
-   APP ROOT
-=========================================== */
+/* ===============================
+  ROOT WRAPPER
+=============================== */
 export default function App() {
   const [fontsLoaded] = useFonts({
     "OpenDyslexic-Regular": require("./assets/fonts/OpenDyslexic-Regular.otf"),
@@ -329,6 +316,9 @@ export default function App() {
   );
 }
 
+// ===============================
+// STYLES
+// ===============================
 const styles = StyleSheet.create({
   loading: {
     flex: 1,

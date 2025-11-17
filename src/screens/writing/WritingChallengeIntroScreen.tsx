@@ -1,4 +1,6 @@
-import React from "react";
+// src/screens/writing/WritingChallengeIntroScreen.tsx (CORRIGIDO)
+
+import React, { useState } from "react";
 import { StyleSheet, View, ActivityIndicator, Platform } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -65,10 +67,8 @@ export default function WritingChallengeIntroScreen({
         Desafio de Escrita
       </AccessibleHeader>
 
-      <AccessibleText
-        style={[styles.description, { marginHorizontal: -50 }]}
-        baseSize={18}
-      >
+      {/* A prop 'style' com marginHorizontal foi removida daqui */}
+      <AccessibleText style={styles.description} baseSize={18}>
         Gire a roleta para sortear uma palavra e teste sua velocidade de escrita
         em Braille!
       </AccessibleText>
@@ -109,7 +109,9 @@ const createStyles = (
       backgroundColor: theme.background,
       alignItems: "center",
       justifyContent: "center",
-      padding: 125,
+      // ✅ CORREÇÃO AQUI:
+      paddingVertical: 125, // Mantém o espaçamento vertical
+      paddingHorizontal: 20, // Define um espaçamento horizontal razoável
     },
     title: {
       fontSize: 28 * fontMultiplier,
@@ -130,6 +132,7 @@ const createStyles = (
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
       lineHeight: 18 * fontMultiplier * lineHeightMultiplier,
       letterSpacing,
+      // ✅ CORREÇÃO AQUI: marginHorizontal: -50 removido
     },
 
     loadingContainer: {

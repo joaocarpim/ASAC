@@ -12,44 +12,34 @@ import {
   Platform,
   Dimensions,
 } from "react-native";
+
 import { RootStackScreenProps } from "../../navigation/types";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
+
 import {
   AccessibleView,
   AccessibleHeader,
   AccessibleText,
 } from "../../components/AccessibleComponents";
+
 import { useAccessibility } from "../../context/AccessibilityProvider";
-import {
-  Gesture,
-  GestureDetector,
-  Directions,
-} from "react-native-gesture-handler";
 import { useSettings } from "../../hooks/useSettings";
+
 import { DEFAULT_MODULES, ModuleContent } from "../../navigation/moduleTypes";
 
-const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
+import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
+
+const { width: WINDOW_WIDTH } = Dimensions.get("window");
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string") return false;
   const hex = color.replace("#", "");
-  if (hex.length < 3) return false;
-
-  let r, g, b;
-  if (hex.length === 3) {
-    r = parseInt(hex[0] + hex[0], 16);
-    g = parseInt(hex[1] + hex[1], 16);
-    b = parseInt(hex[2] + hex[2], 16);
-  } else if (hex.length === 6) {
-    r = parseInt(hex.substring(0, 2), 16);
-    g = parseInt(hex.substring(2, 4), 16);
-    b = parseInt(hex.substring(4, 6), 16);
-  } else {
-    return false;
-  }
-
+  if (hex.length !== 6) return false;
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
   const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
   return luminance < 149;
 }
@@ -59,12 +49,14 @@ export default function ModuleContentScreen({
   navigation,
 }: RootStackScreenProps<"ModuleContent">) {
   const { moduleId } = route.params;
+
   const [moduleData, setModuleData] = useState<ModuleContent | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const { theme } = useContrast();
   const { speakText } = useAccessibility();
+
   const {
     fontSizeMultiplier,
     isBoldTextEnabled,
@@ -82,71 +74,46 @@ export default function ModuleContentScreen({
     isDyslexiaFontEnabled
   );
 
+  const { panResponder, gestureWrapper } = useSwipeNavigation({
+    onSwipeLeft: () => {
+      if (
+        moduleData &&
+        currentPageIndex < (moduleData.sections?.length ?? 0) - 1
+      ) {
+        setCurrentPageIndex((prev) => prev + 1);
+      } else {
+        navigation.navigate("ModulePreQuiz", { moduleId });
+      }
+    },
+    onSwipeRight: () => {
+      if (currentPageIndex > 0) {
+        setCurrentPageIndex((prev) => prev - 1);
+      } else {
+        navigation.navigate("Home");
+      }
+    },
+  });
+
   useEffect(() => {
-    setIsLoading(true);
-    const loadModuleContent = () => {
-      const numericModuleId = parseInt(String(moduleId), 10);
-      const content = DEFAULT_MODULES.find(
-        (m: ModuleContent) => m.moduleId === numericModuleId
-      );
-      setModuleData(content || null);
-      setIsLoading(false);
-    };
-    loadModuleContent();
+    const id = parseInt(String(moduleId), 10);
+    const content = DEFAULT_MODULES.find((m) => m.moduleId === id);
+    setModuleData(content || null);
+    setIsLoading(false);
   }, [moduleId]);
 
   useEffect(() => {
     if (!isLoading && moduleData && speakText) {
       const section = moduleData.sections?.[currentPageIndex];
-      if (section)
+      if (section) {
         speakText(
-          `Página ${currentPageIndex + 1}: ${section.title}. ${section.content}`
+          `Página ${currentPageIndex + 1}. ${section.title}. ${section.content}`
         );
+      }
     }
-  }, [currentPageIndex, moduleData, isLoading, speakText]);
-
-  const handlePrevious = () => {
-    if (currentPageIndex > 0) {
-      setCurrentPageIndex((prev) => prev - 1);
-    } else {
-      // ✅ Swipe na primeira página volta para Home
-      navigation.navigate("Home");
-    }
-  };
-
-  const handleNextPage = () => {
-    if (
-      moduleData &&
-      currentPageIndex < (moduleData.sections?.length ?? 0) - 1
-    ) {
-      setCurrentPageIndex((prev) => prev + 1);
-    } else {
-      navigation.navigate("ModulePreQuiz", { moduleId });
-    }
-  };
-
-  // ✅ Gestos funcionam apenas em mobile
-  const flingLeft =
-    Platform.OS !== "web"
-      ? Gesture.Fling().direction(Directions.LEFT).onEnd(handleNextPage)
-      : undefined;
-
-  const flingRight =
-    Platform.OS !== "web"
-      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handlePrevious)
-      : undefined;
-
-  const composedGestures =
-    Platform.OS !== "web" && flingLeft && flingRight
-      ? Gesture.Race(flingLeft, flingRight)
-      : undefined;
+  }, [currentPageIndex, moduleData, isLoading]);
 
   const currentSection = moduleData?.sections?.[currentPageIndex];
   const totalPages = moduleData?.sections?.length ?? 1;
-  const pageNumber = currentPageIndex + 1;
-  const mainAccessibilityText = currentSection
-    ? `Página ${pageNumber} de ${totalPages}. ${currentSection.title}. Conteúdo: ${currentSection.content}. Deslize para a esquerda para avançar, ou para a direita para voltar.`
-    : `Nenhuma lição encontrada para ${moduleData?.title || "este módulo"}.`;
 
   const statusBarStyle = isColorDark(theme.background)
     ? "light-content"
@@ -155,7 +122,7 @@ export default function ModuleContentScreen({
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={(theme as any).cardText ?? "#000"} />
+        <ActivityIndicator color={"#FFFFFF"} size="large" />
       </View>
     );
   }
@@ -163,20 +130,22 @@ export default function ModuleContentScreen({
   if (!moduleData) {
     return (
       <View style={styles.contentContainer}>
-        <Text style={styles.errorText}>Conteúdo do módulo não encontrado.</Text>
+        <Text style={styles.errorText}>Conteúdo não encontrado.</Text>
       </View>
     );
   }
 
-  const renderContent = () => (
-    <View style={styles.container}>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
+  const content = (
+    <View style={styles.container} {...panResponder}>
+      <StatusBar barStyle={statusBarStyle} />
       <ScreenHeader title={moduleData.title || "Módulo"} />
 
       <ScrollView contentContainerStyle={styles.scrollWrapper}>
         <AccessibleView
           style={styles.contentCard}
-          accessibilityText={mainAccessibilityText}
+          accessibilityText={`Página ${currentPageIndex + 1}. ${
+            currentSection?.title ?? ""
+          }`}
         >
           <View style={styles.cardInner}>
             {currentSection ? (
@@ -184,39 +153,41 @@ export default function ModuleContentScreen({
                 <AccessibleHeader level={2} style={styles.contentTitle}>
                   {currentSection.order}. {currentSection.title}
                 </AccessibleHeader>
+
                 <AccessibleText baseSize={16} style={styles.contentBody}>
                   {currentSection.content}
                 </AccessibleText>
               </>
             ) : (
-              <View style={styles.contentCenter}>
-                <Text style={[styles.contentBody, styles.emptyText]}>
-                  Nenhuma seção encontrada.
-                </Text>
-              </View>
+              <Text selectable={false} style={styles.emptyText}>
+                Nenhum conteúdo.
+              </Text>
             )}
           </View>
         </AccessibleView>
 
-        <Text style={styles.pageIndicator}>
-          {pageNumber} / {totalPages}
+        <Text selectable={false} style={styles.pageIndicator}>
+          {currentPageIndex + 1} / {totalPages}
         </Text>
       </ScrollView>
     </View>
   );
 
-  // ✅ Envolver com GestureDetector apenas em mobile
-  if (Platform.OS !== "web" && composedGestures) {
+  if (gestureWrapper && Platform.OS !== "web") {
+    const { GestureDetector } = require("react-native-gesture-handler");
     return (
-      <GestureDetector gesture={composedGestures}>
-        {renderContent()}
-      </GestureDetector>
+      <GestureDetector gesture={gestureWrapper}>{content}</GestureDetector>
     );
   }
 
-  return renderContent();
+  return content;
 }
 
+//
+// ========================================================
+// 🎨 ESTILOS — TEXTO FORÇADO BRANCO E BLOQUEAR SELEÇÃO
+// ========================================================
+//
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -226,40 +197,44 @@ const getStyles = (
   isDyslexiaFontEnabled: boolean
 ) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.background },
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+
     loadingContainer: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: theme.background,
     },
+
     contentContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
       padding: 20,
     },
+
     errorText: {
       fontSize: 18 * fontMultiplier,
+      color: "#FFFFFF",
       textAlign: "center",
-      color: (theme as any).cardText ?? theme.text,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      userSelect: "none",
     },
+
     scrollWrapper: {
-      paddingHorizontal: WINDOW_WIDTH * 0.05,
-      paddingTop: 18,
-      paddingBottom: 40,
+      paddingHorizontal: 20,
+      paddingVertical: 30,
       alignItems: "center",
-      flexGrow: 1,
-      justifyContent: "center",
     },
+
     contentCard: {
       width: "100%",
-      maxWidth: 980,
-      minHeight: WINDOW_HEIGHT * 0.5,
-      borderRadius: 12,
-      backgroundColor: (theme as any).card ?? "#fff",
+      maxWidth: 900,
+      borderRadius: 16,
+      paddingVertical: 24,
+      backgroundColor: theme.card,
+      userSelect: "none",
       ...Platform.select({
+        web: { boxShadow: "0 8px 24px rgba(0,0,0,0.12)" },
         ios: {
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 6 },
@@ -267,44 +242,42 @@ const getStyles = (
           shadowRadius: 10,
         },
         android: { elevation: 6 },
-        web: { boxShadow: "0 8px 20px rgba(0,0,0,0.12)" },
       }),
-      justifyContent: "center",
     },
-    cardInner: {
-      padding: WINDOW_WIDTH * 0.06,
-    },
+
+    cardInner: { paddingHorizontal: 24 },
+
     contentTitle: {
-      fontSize: 20 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "700",
+      fontSize: 22 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "600",
       marginBottom: 12,
-      color: (theme as any).cardText ?? theme.text,
-      textAlign: "left",
+      color: "#FFFFFF",
+      userSelect: "none",
+      letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
+
     contentBody: {
       fontSize: 16 * fontMultiplier,
-      lineHeight: Math.round(22 * lineHeightMultiplier * fontMultiplier),
-      color: (theme as any).cardText ?? theme.text,
-      textAlign: "left",
+      lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
+      color: "#FFFFFF",
+      userSelect: "none",
+      letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-    contentCenter: {
-      paddingVertical: 24,
-      alignItems: "center",
-      justifyContent: "center",
-    },
+
     emptyText: {
-      fontSize: 16 * fontMultiplier,
-      color: theme.text,
-      opacity: 0.85,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      fontSize: 16,
+      color: "#FFFFFF",
+      textAlign: "center",
+      userSelect: "none",
     },
+
     pageIndicator: {
-      marginTop: 18,
-      color: (theme as any).cardText ?? theme.text,
-      opacity: 0.85,
-      fontSize: 13 * fontMultiplier,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      marginTop: 16,
+      fontSize: 14,
+      color: "#FFFFFF",
+      opacity: 0.9,
+      userSelect: "none",
     },
   });

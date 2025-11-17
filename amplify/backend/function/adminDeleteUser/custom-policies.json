@@ -1,6 +1,10 @@
 [
   {
-    "Action": ["cognito-idp:AdminDeleteUser", "cognito-idp:AdminGetUser"],
+    "Action": [
+      "cognito-idp:AdminDeleteUser",
+      "cognito-idp:AdminGetUser",
+      "cognito-idp:ListUsers"
+    ],
     "Resource": [
       {
         "Fn::Sub": [
@@ -14,6 +18,48 @@
             },
             "userPoolId": {
               "Ref": "authasac2f4153aaUserPoolId"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Action": [
+      "dynamodb:DeleteItem",
+      "dynamodb:Query",
+      "dynamodb:GetItem",
+      "dynamodb:Scan"
+    ],
+    "Resource": [
+      {
+        "Fn::Sub": [
+          "arn:aws:dynamodb:${region}:${account}:table/User-${env}",
+          {
+            "region": {
+              "Ref": "AWS::Region"
+            },
+            "account": {
+              "Ref": "AWS::AccountId"
+            },
+            "env": {
+              "Ref": "env"
+            }
+          }
+        ]
+      },
+      {
+        "Fn::Sub": [
+          "arn:aws:dynamodb:${region}:${account}:table/User-${env}/index/*",
+          {
+            "region": {
+              "Ref": "AWS::Region"
+            },
+            "account": {
+              "Ref": "AWS::AccountId"
+            },
+            "env": {
+              "Ref": "env"
             }
           }
         ]

@@ -1,4 +1,3 @@
-// src/components/progress/ModuleCard.tsx
 import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import {
   View,
@@ -10,7 +9,6 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AccessibleText } from "../AccessibleComponents";
 
-// ✅ 1. IMPORTAR useSettings E O TIPO Theme
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 
@@ -24,7 +22,7 @@ type ModuleCardProps = {
   timeSpent: number;
   onPress: () => void;
   index: number;
-  theme: any; // Mantido como 'any' como no seu arquivo
+  theme: any; // Mantido como 'any' para bater com seu código
   updatedAt?: string;
 };
 
@@ -44,7 +42,6 @@ export const ModuleCard = React.memo(
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
-    // ✅ 2. CHAMAR O useSettings() HOOK
     const {
       fontSizeMultiplier,
       isBoldTextEnabled,
@@ -53,7 +50,6 @@ export const ModuleCard = React.memo(
       isDyslexiaFontEnabled,
     } = useSettings();
 
-    // ✅ 3. PASSAR OS VALORES DOS SETTINGS PARA A FUNÇÃO DE ESTILOS
     const styles = createStyles(
       theme,
       fontSizeMultiplier,
@@ -166,7 +162,7 @@ export const ModuleCard = React.memo(
         }}
       >
         <TouchableOpacity
-          style={[styles.moduleCard, { backgroundColor: theme.card }]}
+          style={[styles.moduleCard, { backgroundColor: theme.card }]} // Fundo Azul
           onPress={onPress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
@@ -174,37 +170,44 @@ export const ModuleCard = React.memo(
         >
           <View style={styles.moduleHeader}>
             <View style={styles.moduleHeaderLeft}>
+              {/* ✅ CORREÇÃO DO BADGE (Fundo Branco, Texto Azul) */}
               <View
                 style={[
                   styles.moduleNumberBadge,
-                  { backgroundColor: theme.text },
+                  { backgroundColor: theme.cardText }, // Era theme.text (azul)
                 ]}
               >
                 <AccessibleText
                   baseSize={22}
-                  style={[styles.moduleNumberText, { color: theme.card }]}
+                  style={[styles.moduleNumberText, { color: theme.text }]} // Era theme.card (azul)
                 >
                   {moduleNumber}
                 </AccessibleText>
               </View>
+
               <View>
+                {/* ✅ CORREÇÃO 1 (Texto Branco) */}
                 <AccessibleText
                   baseSize={20}
-                  style={[styles.moduleTitle, { color: theme.text }]}
+                  style={[styles.moduleTitle, { color: theme.cardText }]} // Era theme.text
                 >
                   Módulo {moduleNumber}
                 </AccessibleText>
+
+                {/* ✅ CORREÇÃO 2 (Texto Branco) */}
                 <AccessibleText
                   baseSize={13}
-                  style={[styles.moduleSubtitle, { color: theme.text }]}
+                  style={[styles.moduleSubtitle, { color: theme.cardText }]} // Era theme.text
                 >
                   {totalQuestions}{" "}
                   {totalQuestions === 1 ? "questão" : "questões"}
                 </AccessibleText>
+
                 {formattedDate && (
+                  /* ✅ CORREÇÃO 3 (Texto Branco) */
                   <AccessibleText
                     baseSize={11}
-                    style={[styles.dateText, { color: theme.text }]}
+                    style={[styles.dateText, { color: theme.cardText }]} // Era theme.text
                   >
                     Última tentativa: {formattedDate}
                   </AccessibleText>
@@ -238,9 +241,10 @@ export const ModuleCard = React.memo(
                 size={18}
                 color={accuracyInfo.color}
               />
+              {/* ✅ CORREÇÃO 4 (Texto Branco) */}
               <AccessibleText
                 baseSize={14}
-                style={[styles.accuracyLabel, { color: theme.text }]}
+                style={[styles.accuracyLabel, { color: theme.cardText }]} // Era theme.text
               >
                 {accuracyInfo.text}
               </AccessibleText>
@@ -262,15 +266,17 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#4CAF50"
                 />
+                {/* ✅ CORREÇÃO 5 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.text }]}
+                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
                 >
                   {correctAnswers}
                 </AccessibleText>
+                {/* ✅ CORREÇÃO 6 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.text }]}
+                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
                 >
                   Acertos
                 </AccessibleText>
@@ -282,15 +288,17 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#F44336"
                 />
+                {/* ✅ CORREÇÃO 7 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.text }]}
+                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
                 >
                   {wrongAnswers}
                 </AccessibleText>
+                {/* ✅ CORREÇÃO 8 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.text }]}
+                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
                 >
                   Erros
                 </AccessibleText>
@@ -302,15 +310,17 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#2196F3"
                 />
+                {/* ✅ CORREÇÃO 9 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.text }]}
+                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
                 >
                   {formattedTime}
                 </AccessibleText>
+                {/* ✅ CORREÇÃO 10 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.text }]}
+                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
                 >
                   Tempo
                 </AccessibleText>
@@ -322,15 +332,17 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#9C27B0"
                 />
+                {/* ✅ CORREÇÃO 11 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.text }]}
+                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
                 >
                   {accuracy}%
                 </AccessibleText>
+                {/* ✅ CORREÇÃO 12 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.text }]}
+                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
                 >
                   Precisão
                 </AccessibleText>
@@ -339,18 +351,20 @@ export const ModuleCard = React.memo(
           </ScrollView>
 
           <View style={[styles.moduleFooter, { borderTopColor: theme.border }]}>
+            {/* ✅ CORREÇÃO 13 (Texto Branco) */}
             <AccessibleText
               baseSize={14}
-              style={[styles.viewDetailsText, { color: theme.text }]}
+              style={[styles.viewDetailsText, { color: theme.cardText }]} // Era theme.text
             >
               {wrongAnswers > 0
                 ? "Ver erros detalhados"
                 : "Desempenho perfeito!"}
             </AccessibleText>
+            {/* ✅ CORREÇÃO 14 (Ícone Branco) */}
             <MaterialCommunityIcons
               name="chevron-right"
               size={20}
-              color={theme.text}
+              color={theme.cardText} // Era theme.text
             />
           </View>
         </TouchableOpacity>
@@ -361,12 +375,11 @@ export const ModuleCard = React.memo(
 
 ModuleCard.displayName = "ModuleCard";
 
-// ✅ 4. CONVERTER StyleSheet.create EM UMA FUNÇÃO createStyles
 const createStyles = (
-  theme: Theme, // Tipo 'any' mudado para 'Theme'
-  fontMultiplier: number, // fontMultiplier não estava sendo usado, mas mantido
-  isBold: boolean, // isBold não estava sendo usado, mas mantido
-  lineHeight: number, // lineHeight não estava sendo usado, mas mantido
+  theme: Theme,
+  fontMultiplier: number,
+  isBold: boolean,
+  lineHeight: number,
   letterSpacing: number,
   isDyslexiaFont: boolean
 ) =>
@@ -402,12 +415,12 @@ const createStyles = (
     },
     moduleNumberText: {
       fontWeight: "bold",
-      fontSize: 14, // O AccessibleText irá multiplicar
+      fontSize: 14,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     moduleTitle: {
       fontWeight: "bold",
-      fontSize: 16, // O AccessibleText irá multiplicar
+      fontSize: 16,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
@@ -419,7 +432,7 @@ const createStyles = (
     dateText: {
       marginTop: 2,
       opacity: 0.7,
-      fontSize: 12, // O AccessibleText irá multiplicar
+      fontSize: 12,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
@@ -442,7 +455,7 @@ const createStyles = (
     accuracyText: {
       color: "#FFFFFF",
       fontWeight: "bold",
-      fontSize: 12, // O AccessibleText irá multiplicar
+      fontSize: 12,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     accuracyLabelContainer: {
@@ -452,7 +465,7 @@ const createStyles = (
     },
     accuracyLabel: {
       fontWeight: "600",
-      fontSize: 12, // O AccessibleText irá multiplicar
+      fontSize: 12,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
@@ -475,13 +488,13 @@ const createStyles = (
     },
     statBoxValue: {
       fontWeight: "bold",
-      fontSize: 12, // O AccessibleText irá multiplicar
+      fontSize: 12,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
     statBoxLabel: {
       fontWeight: "500",
-      fontSize: 10, // O AccessibleText irá multiplicar
+      fontSize: 10,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },
@@ -495,7 +508,7 @@ const createStyles = (
     },
     viewDetailsText: {
       fontWeight: "600",
-      fontSize: 12, // O AccessibleText irá multiplicar
+      fontSize: 12,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       letterSpacing: letterSpacing,
     },

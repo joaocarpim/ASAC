@@ -1,10 +1,11 @@
-// src/screens/contractions/ContractionsGameScreen.tsx
+// src/screens/contractions/ContractionsGameScreen.tsx (CORREÇÃO DE CONTRASTE)
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   TouchableOpacity,
   Vibration,
-  View, // ✅ View IMPORTADA
+  View,
   Animated,
   Platform,
   StatusBar,
@@ -23,6 +24,7 @@ import {
   AccessibleButton,
 } from "../../components/AccessibleComponents";
 
+// ... (loadSounds e BRAILLE_MAP) ...
 let soundCorrect: Audio.Sound | null = null;
 let soundIncorrect: Audio.Sound | null = null;
 async function loadSounds() {
@@ -159,9 +161,8 @@ export default function ContractionsGameScreen({
     return (
       <TouchableOpacity
         style={[
-          styles.dot,
-          // ✅ CORREÇÃO DE ESTILO
-          isPressed && styles.dotPressed,
+          styles.dot, // Estilo base (inativo)
+          isPressed && styles.dotPressed, // Estilo extra (ativo)
         ]}
         onPress={() => handleDotToggle(number)}
         accessibilityLabel={`Ponto ${number}`}
@@ -171,7 +172,6 @@ export default function ContractionsGameScreen({
   };
 
   return (
-    // ✅ CORREÇÃO: "Botão dentro de botão"
     <View style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
         <MaterialCommunityIcons
@@ -248,8 +248,7 @@ const createStyles = (
       flex: 1,
       backgroundColor: theme.background,
       alignItems: "center",
-      paddingTop:
-        Platform.OS === "android" ? StatusBar.currentHeight : 0 + 40,
+      paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0 + 40,
     },
     backButton: {
       position: "absolute",
@@ -296,18 +295,22 @@ const createStyles = (
       justifyContent: "space-around",
       height: "100%",
     },
+    // ✅ CORREÇÃO DE CONTRASTE (PONTO INATIVO)
     dot: {
       width: 60,
       height: 60,
       borderRadius: 30,
-      backgroundColor: theme.background,
+      backgroundColor: theme.card, // Cor do fundo (azul)
       borderWidth: 2,
-      borderColor: theme.button ?? "#191970",
+      borderColor: theme.cardText, // Borda branca
       marginVertical: 10,
+      opacity: 0.3, // Aparência de "buraco"
     },
+    // ✅ CORREÇÃO DE CONTRASTE (PONTO ATIVO)
     dotPressed: {
-      backgroundColor: theme.button ?? "#191970",
-      borderColor: theme.buttonText ?? "#FFFFFF",
+      backgroundColor: theme.background, // Cor de destaque (amarelo)
+      borderColor: theme.text, // Borda azul
+      opacity: 1, // Opacidade total
     },
     checkButton: {
       flexDirection: "row",
@@ -323,7 +326,6 @@ const createStyles = (
     checkButtonText: {
       color: theme.buttonText ?? "#FFFFFF",
       fontSize: 18 * fontMultiplier,
-      // ✅ CORREÇÃO: Erro de tipo do fontWeight
       fontWeight: (isBold ? "bold" : "700") as "bold" | "700",
       marginLeft: 10,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,

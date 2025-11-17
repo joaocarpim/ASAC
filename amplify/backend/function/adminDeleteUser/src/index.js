@@ -1,5 +1,6 @@
 /* Amplify Params - DO NOT EDIT
   AUTH_ASAC2F4153AA_USERPOOLID
+  API_ASAC_USERTABLE_NAME
   ENV
   REGION
 Amplify Params - DO NOT EDIT */
@@ -7,166 +8,170 @@ Amplify Params - DO NOT EDIT */
 const {
   CognitoIdentityProviderClient,
   AdminDeleteUserCommand,
+  ListUsersCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
-// ========================================
-// CONFIGURAÇÃO
-// ========================================
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const {
+  DynamoDBDocumentClient,
+  DeleteCommand,
+  QueryCommand,
+} = require("@aws-sdk/lib-dynamodb");
+
 const REGION = process.env.REGION || process.env.AWS_REGION;
 const USER_POOL_ID = process.env.AUTH_ASAC2F4153AA_USERPOOLID;
+const USER_TABLE_NAME = process.env.API_ASAC_USERTABLE_NAME;
 
-// Validação de variáveis de ambiente
-if (!REGION || !USER_POOL_ID) {
-  console.error("❌ [INIT] Variáveis de ambiente faltando:", {
-    REGION,
-    USER_POOL_ID,
-    ENV: process.env.ENV,
-    ALL_ENV: Object.keys(process.env),
-  });
-}
+const cognitoClient = new CognitoIdentityProviderClient({ region: REGION });
+const dynamoClient = new DynamoDBClient({ region: REGION });
+const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const cognito = new CognitoIdentityProviderClient({ region: REGION });
+// =============================================================
+// 🔥 FUNÇÃO PRINCIPAL
+// =============================================================
+exports.handler = async (event) => {
+  console.log("📥 EVENT:", JSON.stringify(event, null, 2));
 
-// ========================================
-// HANDLER PRINCIPAL
-// ========================================
-/**
- * @type {import('@types/aws-lambda').AppSyncResolverHandler}
- *
- * Deleta um usuário do Cognito User Pool
- *
- * @param {Object} event - Evento do AppSync
- * @param {Object} event.arguments - Argumentos da mutation
- * @param {string} event.arguments.username - Email/username do usuário
- * @returns {Promise<boolean>} true se deletado com sucesso
- */
-exports.handler = async (event, context) => {
-  // Log do contexto para debug
-  console.log("🔧 [CONTEXT] Request ID:", context.requestId);
-  console.log("🔧 [CONTEXT] Function Name:", context.functionName);
-
-  // Log completo do evento
-  console.log("📩 [EVENT] Evento AppSync recebido:");
-  console.log(JSON.stringify(event, null, 2));
-
-  // Log das variáveis de ambiente (sem expor dados sensíveis)
-  console.log("🔧 [CONFIG] Configuração da Lambda:");
-  console.log({
-    REGION: REGION,
-    USER_POOL_ID: USER_POOL_ID
-      ? `${USER_POOL_ID.substring(0, 20)}...`
-      : "UNDEFINED",
-    ENV: process.env.ENV,
-  });
-
-  // ========================================
-  // VALIDAÇÃO DE INPUT
-  // ========================================
-  const { username } = event.arguments || {};
+  const { username, userId } = event.arguments || {};
 
   if (!username) {
-    console.error("❌ [VALIDATION] Username não fornecido");
-    console.error("📦 [VALIDATION] Arguments recebidos:", event.arguments);
-    throw new Error("O parâmetro 'username' (email do usuário) é obrigatório.");
+    const resp = {
+      success: false,
+      error: "username (email) é obrigatório",
+    };
+    console.log("⚠️ Resposta:", JSON.stringify(resp));
+    return JSON.stringify(resp);
   }
 
-  if (typeof username !== "string" || username.trim() === "") {
-    console.error("❌ [VALIDATION] Username inválido:", username);
-    throw new Error("O 'username' deve ser uma string não vazia.");
+  // =============================================================
+  // 🔥 ETAPA 1 — Buscar SUB real no Cognito
+  // =============================================================
+  console.log("🔍 Buscando usuário no Cognito pelo email:", username);
+
+  let cognitoUsername = null;
+
+  try {
+    const listCommand = new ListUsersCommand({
+      UserPoolId: USER_POOL_ID,
+      Filter: `email = "${username}"`,
+      Limit: 1,
+    });
+
+    const listResult = await cognitoClient.send(listCommand);
+    console.log("📦 Resultado ListUsers:", JSON.stringify(listResult, null, 2));
+
+    if (listResult.Users && listResult.Users.length > 0) {
+      cognitoUsername = listResult.Users[0].Username;
+      console.log("✅ Encontrado no Cognito → SUB:", cognitoUsername);
+    } else {
+      console.log("⚠️ Nenhum usuário encontrado no Cognito com esse email");
+    }
+  } catch (err) {
+    console.error("❌ ERRO buscando usuário no Cognito:", err);
   }
 
-  console.log(`🎯 [VALIDATION] Username validado: ${username}`);
+  // =============================================================
+  // 🔥 ETAPA 2 — Deletar no Cognito (Só se achou o SUB)
+  // =============================================================
+  let cognitoDeleted = false;
 
-  // ========================================
-  // VALIDAÇÃO DE CONFIGURAÇÃO
-  // ========================================
-  if (!USER_POOL_ID) {
-    console.error("❌ [CONFIG] USER_POOL_ID não configurado");
-    throw new Error(
-      "Configuração incorreta: USER_POOL_ID não está definido nas variáveis de ambiente."
+  if (cognitoUsername) {
+    try {
+      const deleteCmd = new AdminDeleteUserCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: cognitoUsername,
+      });
+
+      await cognitoClient.send(deleteCmd);
+      console.log("🔥 Usuário deletado do Cognito com sucesso!");
+
+      cognitoDeleted = true;
+    } catch (err) {
+      console.error("❌ Falha ao deletar do Cognito:", err);
+    }
+  } else {
+    console.log(
+      "⚠️ Cognito: não foi possível deletar porque não encontramos o usuário"
     );
   }
 
-  if (!REGION) {
-    console.error("❌ [CONFIG] REGION não configurado");
-    throw new Error(
-      "Configuração incorreta: REGION não está definido nas variáveis de ambiente."
+  // =============================================================
+  // 🔥 ETAPA 3 — Buscar userId pelo email (se não veio)
+  // =============================================================
+  let finalUserId = userId ?? null;
+
+  if (!finalUserId) {
+    try {
+      console.log("🔍 Buscando userId no DynamoDB pelo email:", username);
+
+      const queryRes = await docClient.send(
+        new QueryCommand({
+          TableName: USER_TABLE_NAME,
+          IndexName: "byEmail",
+          KeyConditionExpression: "email = :email",
+          ExpressionAttributeValues: {
+            ":email": username,
+          },
+        })
+      );
+
+      console.log(
+        "📦 Resultado Query byEmail:",
+        JSON.stringify(queryRes, null, 2)
+      );
+
+      if (queryRes.Items?.length) {
+        finalUserId = queryRes.Items[0].id;
+        console.log("🔐 userId encontrado no Dynamo:", finalUserId);
+      } else {
+        console.log(
+          "⚠️ Nenhum registro de usuário encontrado no DynamoDB para esse email"
+        );
+      }
+    } catch (err) {
+      console.error("❌ ERRO buscando userId no DynamoDB:", err);
+    }
+  }
+
+  // =============================================================
+  // 🔥 ETAPA 4 — Deletar do DynamoDB (caso queira que a Lambda faça)
+  // =============================================================
+  let dynamoDeleted = false;
+
+  if (finalUserId) {
+    try {
+      console.log("🗑️ Deletando usuário do DynamoDB:", finalUserId);
+
+      await docClient.send(
+        new DeleteCommand({
+          TableName: USER_TABLE_NAME,
+          Key: { id: finalUserId },
+        })
+      );
+      console.log("🗑️ Deletado do DynamoDB com sucesso:", finalUserId);
+      dynamoDeleted = true;
+    } catch (err) {
+      console.error("❌ Erro ao deletar do DynamoDB:", err);
+    }
+  } else {
+    console.log(
+      "⚠️ DynamoDB: não foi possível deletar porque não temos o userId"
     );
   }
 
-  // ========================================
-  // PREPARAÇÃO DO COMANDO
-  // ========================================
-  const deleteParams = {
-    UserPoolId: USER_POOL_ID,
-    Username: username.trim(), // Remove espaços em branco
+  // =============================================================
+  // 🔥 RESPOSTA FINAL
+  // =============================================================
+  const response = {
+    success: true,
+    deletedFromCognito: cognitoDeleted,
+    deletedFromDynamoDB: dynamoDeleted,
+    cognitoUsername,
+    userId: finalUserId,
   };
 
-  console.log("🔥 [COGNITO] Preparando comando AdminDeleteUser");
-  console.log(
-    "📦 [COGNITO] Parâmetros:",
-    JSON.stringify(deleteParams, null, 2)
-  );
+  console.log("✅ RESPOSTA FINAL:", JSON.stringify(response, null, 2));
 
-  // ========================================
-  // EXECUÇÃO DA DELEÇÃO
-  // ========================================
-  try {
-    console.log(`⏳ [COGNITO] Enviando comando para deletar: ${username}`);
-    console.time("cognito-delete-duration");
-
-    const result = await cognito.send(new AdminDeleteUserCommand(deleteParams));
-
-    console.timeEnd("cognito-delete-duration");
-    console.log(`✅ [COGNITO] Usuário ${username} deletado com sucesso!`);
-    console.log(
-      "📊 [COGNITO] Resposta do Cognito:",
-      JSON.stringify(result, null, 2)
-    );
-
-    // Retorna true para indicar sucesso
-    return true;
-  } catch (error) {
-    // ========================================
-    // TRATAMENTO DE ERROS
-    // ========================================
-    console.error("❌❌❌ [ERROR] Erro ao deletar usuário do Cognito");
-    console.error("🔴 [ERROR] Username tentado:", username);
-    console.error("🔴 [ERROR] Nome do erro:", error.name);
-    console.error("🔴 [ERROR] Mensagem:", error.message);
-    console.error("🔴 [ERROR] Código:", error.$metadata?.httpStatusCode);
-    console.error("🔴 [ERROR] Stack completo:", error.stack);
-
-    // Tratamento de erros específicos
-    if (error.name === "UserNotFoundException") {
-      const errorMsg = `Usuário '${username}' não encontrado no Cognito. Pode já ter sido deletado.`;
-      console.error("⚠️ [ERROR]", errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    if (error.name === "NotAuthorizedException") {
-      const errorMsg =
-        "Lambda não tem permissão para deletar usuários. Verifique custom-policies.json";
-      console.error("🔒 [ERROR]", errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    if (error.name === "InvalidParameterException") {
-      const errorMsg = `Parâmetros inválidos. Verifique se o UserPoolId está correto: ${USER_POOL_ID}`;
-      console.error("🔧 [ERROR]", errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    if (error.name === "TooManyRequestsException") {
-      const errorMsg =
-        "Muitas requisições ao Cognito. Tente novamente em alguns segundos.";
-      console.error("⏱️ [ERROR]", errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    // Erro genérico
-    const errorMsg = `Falha ao deletar usuário do Cognito: ${error.message || "Erro desconhecido"}`;
-    console.error("💥 [ERROR]", errorMsg);
-    throw new Error(errorMsg);
-  }
+  // AppSync com retorno AWSJSON espera string
+  return JSON.stringify(response);
 };

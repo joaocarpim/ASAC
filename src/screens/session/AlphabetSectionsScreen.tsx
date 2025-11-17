@@ -1,5 +1,6 @@
-// src/screens/module/AlphabetSectionsScreen.tsx (COM DEBUG)
-import React, { useMemo } from "react"; // <--- CORREÇÃO AQUI
+// src/screens/module/AlphabetSectionsScreen.tsx (CORRIGIDO)
+
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -44,12 +45,16 @@ export default function AlphabetSectionsScreen() {
             })
             .onUpdate((event) => {
               console.log(
-                `📍 [AlphabetSections] Pan update - X: ${event.translationX.toFixed(0)}, Y: ${event.translationY.toFixed(0)}`
+                `📍 [AlphabetSections] Pan update - X: ${event.translationX.toFixed(
+                  0
+                )}, Y: ${event.translationY.toFixed(0)}`
               );
             })
             .onEnd((event) => {
               console.log(
-                `✅ [AlphabetSections] Gesture finalizado - X: ${event.translationX.toFixed(0)}, Y: ${event.translationY.toFixed(0)}`
+                `✅ [AlphabetSections] Gesture finalizado - X: ${event.translationX.toFixed(
+                  0
+                )}, Y: ${event.translationY.toFixed(0)}`
               );
 
               if (
@@ -98,15 +103,16 @@ export default function AlphabetSectionsScreen() {
           handlePress();
         }}
       >
+        {/* ✅ CORREÇÃO AQUI */}
         <MaterialCommunityIcons
           name={session.icon}
-          size={40}
-          color={theme.text}
+          size={32}
+          // Corrigido de theme.text para theme.cardText
+          color={theme.cardText}
           importantForAccessibility="no"
         />
         <View style={styles.cardTextContainer}>
           <Text style={styles.cardTitle}>{session.title}</Text>
-          <Text style={styles.cardDescription}>{session.description}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -130,7 +136,6 @@ export default function AlphabetSectionsScreen() {
 
   console.log(`🎨 [AlphabetSections] Platform: ${Platform.OS}`);
 
-  // ✅ Só usar GestureDetector em mobile
   if (Platform.OS !== "web" && panGesture) {
     return (
       <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
@@ -155,9 +160,9 @@ const createStyles = (
     },
     card: {
       backgroundColor: theme.card,
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 16,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 12,
       flexDirection: "row",
       alignItems: "center",
       elevation: 3,
@@ -166,18 +171,11 @@ const createStyles = (
       shadowOpacity: 0.22,
       shadowRadius: 2.22,
     },
-    cardTextContainer: { flex: 1, marginLeft: 16 },
+    cardTextContainer: { flex: 1, marginLeft: 12 },
     cardTitle: {
-      fontSize: 18 * fontMultiplier,
+      fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       color: theme.cardText,
-      fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
-    cardDescription: {
-      fontSize: 14 * fontMultiplier,
-      color: theme.cardText,
-      opacity: 0.8,
-      marginTop: 4,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
   });

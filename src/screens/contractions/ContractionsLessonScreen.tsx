@@ -1,4 +1,5 @@
-// src/screens/contractions/ContractionsLessonScreen.tsx
+// src/screens/contractions/ContractionsLessonScreen.tsx (CORRIGIDO)
+
 import React, { useState, useRef } from "react";
 import {
   StyleSheet,
@@ -9,7 +10,7 @@ import {
   Platform,
   StatusBar,
   ViewToken,
-  ScrollView, // <-- Reintroduzido para uso
+  ScrollView,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -46,11 +47,8 @@ const IntroCard = ({
   styles: ReturnType<typeof createStyles>;
   fontMultiplier: number;
 }) => (
-  // cardScrollView é o item do FlatList
   <View style={styles.cardScrollView}>
-    {/* card é o container visual com bordas */}
     <View style={styles.card}>
-      {/* ScrollView permite o conteúdo interno rolar se for muito grande */}
       <ScrollView contentContainerStyle={styles.cardContentContainer}>
         <MaterialCommunityIcons
           name="lightbulb-on-outline"
@@ -130,12 +128,10 @@ const ContractionCard = ({
   <View style={styles.cardScrollView}>
     <View style={styles.card}>
       <ScrollView contentContainerStyle={styles.cardContentContainer}>
-        {/* Palavra no topo */}
         <AccessibleText style={styles.cardWord} baseSize={40}>
           {item.word}
         </AccessibleText>
 
-        {/* Tipo da contração */}
         <View style={styles.typeBadge}>
           <AccessibleText style={styles.typeBadgeText} baseSize={13}>
             {item.type}
@@ -144,12 +140,10 @@ const ContractionCard = ({
 
         <View style={styles.divider} />
 
-        {/* Descrição */}
         <AccessibleText style={styles.cardDescription} baseSize={15}>
           {item.description}
         </AccessibleText>
 
-        {/* Célula Braille centralizada */}
         <View style={styles.brailleContainer}>
           <BrailleCell
             dots={item.dots}
@@ -158,7 +152,6 @@ const ContractionCard = ({
           />
         </View>
 
-        {/* Lista de pontos abaixo */}
         <View style={styles.dotListContainer}>
           <AccessibleText style={styles.dotListTitle} baseSize={15}>
             Pontos ativos:
@@ -181,7 +174,6 @@ const ContractionCard = ({
           </View>
         </View>
 
-        {/* Dica de uso */}
         {item.word.length > 1 && (
           <View style={styles.tipContainer}>
             <MaterialCommunityIcons
@@ -326,7 +318,6 @@ export default function ContractionsLessonScreen({ navigation }: ScreenProps) {
         />
       </TouchableOpacity>
 
-      {/* Esta View força o FlatList a ocupar o espaço central */}
       <View style={styles.contentArea}>
         <FlatList
           ref={flatListRef}
@@ -358,7 +349,6 @@ export default function ContractionsLessonScreen({ navigation }: ScreenProps) {
         />
       </View>
 
-      {/* Navegação (Agora fixa no rodapé) */}
       <View style={styles.navigationContainer}>
         <TouchableOpacity
           style={[
@@ -399,7 +389,6 @@ export default function ContractionsLessonScreen({ navigation }: ScreenProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Botão Finalizar (Agora fixo no rodapé) */}
       <AccessibleButton
         style={styles.button}
         onPress={handleFinishLesson}
@@ -431,7 +420,6 @@ const createStyles = (
     container: {
       flex: 1,
       backgroundColor: theme.background,
-      // paddingTop removido, o backButton é absoluto
     },
     backButton: {
       position: "absolute",
@@ -440,25 +428,23 @@ const createStyles = (
       zIndex: 10,
       padding: 8,
     },
-    // Esta área centraliza o FlatList e ocupa o espaço flexível
     contentArea: {
       flex: 1,
-      justifyContent: "center", // Centraliza o card verticalmente
+      justifyContent: "center",
     },
     flatListContent: {
-      alignItems: "center", // Alinha os cards (útil se o contentArea não centralizasse)
+      alignItems: "center",
       paddingVertical: 10,
     },
-    // Container do item do FlatList (o "slide")
+    // ✅ CORREÇÃO AQUI
     cardScrollView: {
       width: CARD_WIDTH,
       marginHorizontal: (width - CARD_WIDTH) / 2,
-      maxHeight: height * 0.7, // <-- Define uma altura MÁXIMA para o card
+      height: height * 0.7, // 👈 Alterado de maxHeight para height
     },
-    // O card visual (com bg e bordas)
     card: {
       width: "100%",
-      flex: 1, // <-- Faz o card preencher a altura do cardScrollView
+      flex: 1,
       backgroundColor: theme.card,
       borderRadius: 20,
       elevation: 6,
@@ -466,14 +452,12 @@ const createStyles = (
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 8,
-      overflow: "hidden", // <-- Importante para o ScrollView com borderRadius
-      // padding e alignItems removidos daqui
+      overflow: "hidden",
     },
-    // Novo estilo para o contentContainer do ScrollView interno
     cardContentContainer: {
       paddingHorizontal: 20,
       paddingVertical: 15,
-      alignItems: "center", // Centraliza o conteúdo *dentro* do ScrollView
+      alignItems: "center",
     },
     headerIcon: {
       marginBottom: 8,
@@ -538,7 +522,9 @@ const createStyles = (
       color: theme.cardText,
       opacity: 0.85,
       lineHeight: 19 * fontMultiplier * lineHeightMultiplier,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      fontFamily: isDyslexiaFontEnabled
+        ? "OpenDyslexiaFont-Regular"
+        : undefined,
     },
     brailleContainer: {
       width: "100%",

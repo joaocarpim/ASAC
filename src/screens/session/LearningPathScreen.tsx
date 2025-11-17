@@ -1,4 +1,5 @@
-// src/screens/session/LearningPathScreen.tsx (CORRIGIDO E LIMPO)
+// src/screens/session/LearningPathScreen.tsx (CORRIGIDO)
+
 import React, { useState } from "react";
 import {
   View,
@@ -64,11 +65,19 @@ export default function LearningPathScreen() {
   }) => {
     const isLocked = false;
     const progress = userProgress.find((p) => p.sessionId === session.id);
+
     const accuracyText = progress
+      ? `${(progress.accuracy * 100).toFixed(0)}%`
+      : "Não iniciado";
+    const accuracyAccessibilityText = progress
       ? `${(progress.accuracy * 100).toFixed(0)}% de acerto`
       : "Não iniciado";
 
-    const accessibilityLabel = `${session.title}. ${session.description}. Status: ${accuracyText}. ${isLocked ? "Sessão bloqueada." : "Toque duas vezes para iniciar."}`;
+    const accessibilityLabel = `${session.title}. ${
+      session.description
+    }. Status: ${accuracyAccessibilityText}. ${
+      isLocked ? "Sessão bloqueada." : "Toque duas vezes para iniciar."
+    }`;
 
     const handlePress = () => {
       if (isLocked) {
@@ -92,17 +101,16 @@ export default function LearningPathScreen() {
         accessible={true}
         accessibilityLabel={accessibilityLabel}
       >
+        {/* ✅ CORREÇÃO AQUI */}
         <MaterialCommunityIcons
           name={session.icon}
-          size={40}
-          color={isLocked ? "#888" : theme.text}
+          size={32}
+          // Corrigido de theme.text para theme.cardText
+          color={isLocked ? "#888" : theme.cardText}
         />
         <View style={styles.cardTextContainer}>
           <Text style={[styles.cardTitle, isLocked && styles.textLocked]}>
             {session.title}
-          </Text>
-          <Text style={[styles.cardDescription, isLocked && styles.textLocked]}>
-            {session.description}
           </Text>
           <Text style={[styles.cardProgress, isLocked && styles.textLocked]}>
             {accuracyText}
@@ -167,9 +175,9 @@ const createStyles = (
     listContainer: { paddingHorizontal: 16, paddingBottom: 20 },
     card: {
       backgroundColor: theme.card,
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 16,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 12,
       flexDirection: "row",
       alignItems: "center",
       elevation: 3,
@@ -179,25 +187,25 @@ const createStyles = (
       shadowRadius: 2.22,
     },
     cardLocked: { backgroundColor: "#e0e0e0", elevation: 0 },
-    cardTextContainer: { flex: 1, marginLeft: 16 },
+    cardTextContainer: { flex: 1, marginLeft: 12 },
     cardTitle: {
-      fontSize: 18 * fontMultiplier,
+      fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       color: theme.cardText,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
     cardDescription: {
-      fontSize: 14 * fontMultiplier,
+      fontSize: 13 * fontMultiplier,
       color: theme.cardText,
       opacity: 0.8,
-      marginTop: 4,
+      marginTop: 2,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
     cardProgress: {
       fontSize: 12 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       color: theme.button ?? "#007bff",
-      marginTop: 8,
+      marginTop: 4,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
     textLocked: { color: "#888" },

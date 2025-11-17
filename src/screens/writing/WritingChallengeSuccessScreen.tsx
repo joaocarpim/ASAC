@@ -1,3 +1,5 @@
+// src/screens/writing/WritingChallengeSuccessScreen.tsx (CORRIGIDO)
+
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -123,7 +125,9 @@ const createStyles = (
       backgroundColor: theme.background,
       alignItems: "center",
       justifyContent: "center",
-      padding: 100,
+      // ✅ CORREÇÃO AQUI:
+      paddingVertical: 100, // Mantém o espaçamento vertical
+      paddingHorizontal: 20, // Define um espaçamento horizontal razoável
     },
     title: {
       fontSize: 36 * fontMultiplier,

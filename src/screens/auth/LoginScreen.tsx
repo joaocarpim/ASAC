@@ -206,24 +206,7 @@ export default function LoginScreen({
             secureTextEntry
             value={requireNewPassword ? newPassword : password}
             onChangeText={requireNewPassword ? setNewPassword : setPassword}
-          />
-
-          {!requireNewPassword && (
-            <View style={styles.linksContainer}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate("ForgotPassword")}
-              >
-                <Text style={styles.linkText}>Recuperar Senha</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate("ConfirmSignUp", { email: email.trim() })
-                }
-              >
-                <Text style={styles.linkText}>Confirmar Conta</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          />          
         </View>
 
         <TouchableOpacity
