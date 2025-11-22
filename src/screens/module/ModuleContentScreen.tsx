@@ -122,7 +122,7 @@ export default function ModuleContentScreen({
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={"#FFFFFF"} size="large" />
+        <ActivityIndicator color={theme.text} size="large" />
       </View>
     );
   }
@@ -137,7 +137,7 @@ export default function ModuleContentScreen({
 
   const content = (
     <View style={styles.container} {...panResponder}>
-      <StatusBar barStyle={statusBarStyle} />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
       <ScreenHeader title={moduleData.title || "Módulo"} />
 
       <ScrollView contentContainerStyle={styles.scrollWrapper}>
@@ -185,7 +185,7 @@ export default function ModuleContentScreen({
 
 //
 // ========================================================
-// 🎨 ESTILOS — TEXTO FORÇADO BRANCO E BLOQUEAR SELEÇÃO
+// 🎨 ESTILOS CORRIGIDOS (CORES DE CONTRASTE)
 // ========================================================
 //
 const getStyles = (
@@ -211,11 +211,15 @@ const getStyles = (
 
     contentContainer: {
       padding: 20,
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
     },
 
     errorText: {
       fontSize: 18 * fontMultiplier,
-      color: "#FFFFFF",
+      color: theme.text, // ✅ CORRIGIDO
       textAlign: "center",
       userSelect: "none",
     },
@@ -231,8 +235,11 @@ const getStyles = (
       maxWidth: 900,
       borderRadius: 16,
       paddingVertical: 24,
-      backgroundColor: theme.card,
+      backgroundColor: theme.card, // ✅ Fundo do card
       userSelect: "none",
+      // Borda sutil para contraste extra
+      borderWidth: 1,
+      borderColor: "rgba(0,0,0,0.05)",
       ...Platform.select({
         web: { boxShadow: "0 8px 24px rgba(0,0,0,0.12)" },
         ios: {
@@ -251,7 +258,8 @@ const getStyles = (
       fontSize: 22 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       marginBottom: 12,
-      color: "#FFFFFF",
+      // ✅ CORRIGIDO: Usa cardText (cor legível sobre o card)
+      color: theme.cardText,
       userSelect: "none",
       letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
@@ -260,7 +268,8 @@ const getStyles = (
     contentBody: {
       fontSize: 16 * fontMultiplier,
       lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
-      color: "#FFFFFF",
+      // ✅ CORRIGIDO: Usa cardText (cor legível sobre o card)
+      color: theme.cardText,
       userSelect: "none",
       letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
@@ -268,7 +277,7 @@ const getStyles = (
 
     emptyText: {
       fontSize: 16,
-      color: "#FFFFFF",
+      color: theme.cardText, // ✅ CORRIGIDO
       textAlign: "center",
       userSelect: "none",
     },
@@ -276,8 +285,10 @@ const getStyles = (
     pageIndicator: {
       marginTop: 16,
       fontSize: 14,
-      color: "#FFFFFF",
+      // ✅ CORRIGIDO: Usa text (cor legível sobre o background da tela)
+      color: theme.text,
       opacity: 0.9,
+      fontWeight: "bold",
       userSelect: "none",
     },
   });

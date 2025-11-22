@@ -1,6 +1,15 @@
 // src/screens/contractions/ContractionsHomeScreen.tsx
+
 import React, { useState, useCallback } from "react";
-import { StyleSheet, Platform, StatusBar, View } from "react-native"; // ✅ View IMPORTADA
+import {
+  StyleSheet,
+  Platform,
+  StatusBar,
+  View,
+  Modal,
+  TouchableOpacity,
+  Text, // ✅ ADICIONADO AQUI (Isso corrige o erro)
+} from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -10,7 +19,6 @@ import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 import {
-  AccessibleView, // Ainda usamos para os filhos
   AccessibleText,
   AccessibleButton,
   AccessibleHeader,
@@ -44,8 +52,8 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
 
   const [isChallengeUnlocked, setIsChallengeUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showLockModal, setShowLockModal] = useState(false);
 
-  // Verifica o status da lição sempre que a tela entra em foco
   useFocusEffect(
     useCallback(() => {
       const checkLessonStatus = async () => {
@@ -54,8 +62,8 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
           const status = await AsyncStorage.getItem(LESSON_COMPLETED_KEY);
           setIsChallengeUnlocked(status === "true");
         } catch (e) {
-          console.error("Failed to fetch lesson status from async storage", e);
-          setIsChallengeUnlocked(false); // Mantém bloqueado em caso de erro
+          console.error("Failed to fetch lesson status", e);
+          setIsChallengeUnlocked(false);
         } finally {
           setIsLoading(false);
         }
@@ -64,9 +72,21 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
     }, [])
   );
 
+  const handleChallengePress = () => {
+    if (isChallengeUnlocked) {
+      navigation.navigate("ContractionsRoullete");
+    } else {
+      setShowLockModal(true);
+    }
+  };
+
   return (
-    // ✅ CORREÇÃO AQUI: Mudado de AccessibleView para View
     <View style={styles.container}>
+      <StatusBar
+        barStyle={theme.statusBarStyle}
+        backgroundColor={theme.background}
+      />
+
       <MaterialCommunityIcons
         name="school-outline"
         size={100 * fontSizeMultiplier}
@@ -96,16 +116,19 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
         </AccessibleText>
       </AccessibleButton>
 
-      {/* Botão de Desafio (condicional) */}
+      {/* Botão de Desafio */}
       <AccessibleButton
         style={[
           styles.button,
           styles.challengeButton,
           !isChallengeUnlocked && styles.buttonDisabled,
         ]}
-        onPress={() => navigation.navigate("ContractionsRoullete")}
-        disabled={!isChallengeUnlocked || isLoading}
-        accessibilityText={`Desafio de Escrita. ${isChallengeUnlocked ? "Toque para jogar." : "Bloqueado. Complete a lição primeiro."}`}
+        onPress={handleChallengePress}
+        accessibilityText={`Desafio de Escrita. ${
+          isChallengeUnlocked
+            ? "Toque para jogar."
+            : "Bloqueado. Toque para saber como desbloquear."
+        }`}
       >
         {!isChallengeUnlocked && (
           <MaterialCommunityIcons
@@ -118,6 +141,46 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
           Desafio de Escrita
         </AccessibleText>
       </AccessibleButton>
+
+      {/* Modal de Bloqueio */}
+      <Modal
+        visible={showLockModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLockModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MaterialCommunityIcons
+              name="lock-alert"
+              size={60}
+              color={theme.text}
+              style={{ marginBottom: 15 }}
+            />
+            <AccessibleHeader level={2} style={styles.modalTitle}>
+              Acesso Bloqueado
+            </AccessibleHeader>
+
+            {/* O erro estava aqui, agora corrigido com a importação de Text */}
+            <AccessibleText style={styles.modalText} baseSize={16}>
+              Para acessar o Desafio de Escrita, você precisa primeiro concluir
+              a lição{" "}
+              <Text style={{ fontWeight: "bold" }}>"Aprender Conteúdo"</Text>{" "}
+              até o final.
+            </AccessibleText>
+
+            <AccessibleButton
+              style={styles.modalButton}
+              onPress={() => setShowLockModal(false)}
+              accessibilityText="Fechar aviso"
+            >
+              <AccessibleText style={styles.modalButtonText} baseSize={18}>
+                Entendi
+              </AccessibleText>
+            </AccessibleButton>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -175,10 +238,61 @@ const createStyles = (
       marginLeft: 10,
     },
     challengeButton: {
-      backgroundColor: "#006400", // Um verde para diferenciar
+      backgroundColor: "#006400",
     },
     buttonDisabled: {
-      backgroundColor: theme.card, // Cor de desabilitado
-      opacity: 0.6,
+      backgroundColor: theme.card,
+      opacity: 0.7,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: theme.card,
+      width: "100%",
+      maxWidth: 400,
+      padding: 25,
+      borderRadius: 20,
+      alignItems: "center",
+      elevation: 10,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 5,
+      borderWidth: 2,
+      borderColor: theme.text + "20",
+    },
+    modalTitle: {
+      fontSize: 24 * fontMultiplier,
+      fontWeight: "bold",
+      color: theme.cardText,
+      marginBottom: 15,
+      textAlign: "center",
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    modalText: {
+      fontSize: 18 * fontMultiplier,
+      color: theme.cardText,
+      textAlign: "center",
+      marginBottom: 25,
+      lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    modalButton: {
+      backgroundColor: theme.button,
+      paddingVertical: 12,
+      paddingHorizontal: 40,
+      borderRadius: 25,
+      width: "100%",
+      alignItems: "center",
+    },
+    modalButtonText: {
+      color: theme.buttonText,
+      fontWeight: "bold",
+      fontSize: 18 * fontMultiplier,
     },
   });

@@ -1,6 +1,4 @@
-// src/screens/progress/ProgressScreen.tsx (CORRIGIDO)
-
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -8,7 +6,6 @@ import {
   StatusBar,
   ActivityIndicator,
   Animated,
-  TouchableOpacity,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
@@ -19,10 +16,10 @@ import { generateClient } from "aws-amplify/api";
 import { listProgresses, getUser } from "../../graphql/queries";
 import { useContrast } from "../../hooks/useContrast";
 import { AccessibleText } from "../../components/AccessibleComponents";
-
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 
+// Certifique-se de que o StatItem está criado no caminho correto
 import { StatItem } from "../../components/progress/StatItem";
 import { ModuleCard } from "../../components/progress/ModuleCard";
 
@@ -36,12 +33,65 @@ type ProgressItem = {
   updatedAt: string;
 };
 
-// Componente principal da tela
+// ✅ CONFIGURAÇÃO DE CORES CORRIGIDA
+const getThemeColors = (mode: string) => {
+  // Cores padrão dos ícones (Coloridos sempre)
+  const defaultIcons = {
+    avg: "#FFC107", // Amarelo
+    correct: "#4CAF50", // Verde
+    wrong: "#F44336", // Vermelho
+    time: "#2196F3", // Azul
+    modules: "#9C27B0", // Roxo
+    points: "#FF9800", // Laranja
+  };
+
+  switch (mode) {
+    case "sepia":
+      return {
+        text: "#3E2723", // Marrom Escuro (Legível no bege)
+        itemBg: "rgba(62, 39, 35, 0.1)",
+        iconColors: defaultIcons, // Mantém colorido
+      };
+    case "grayscale":
+    case "white_black":
+      return {
+        text: "#000000", // Preto (Legível no branco/cinza)
+        itemBg: "rgba(0, 0, 0, 0.1)", // Cinza escuro transparente
+        iconColors: defaultIcons, // ✅ Mantém ícones COLORIDOS mesmo no monocromático
+      };
+    case "blue_yellow":
+      return {
+        text: "#FFFFFF", // Branco (Legível no Azul Escuro)
+        itemBg: "rgba(255, 255, 255, 0.15)",
+        iconColors: {
+          // No tema azul, usamos cores neon vibrantes
+          avg: "#FFD700",
+          correct: "#00FF00",
+          wrong: "#FF4444",
+          time: "#00FFFF",
+          modules: "#FF00FF",
+          points: "#FFFF00",
+        },
+      };
+    default:
+      // Modo noturno / padrão
+      return {
+        text: "#FFFFFF",
+        itemBg: "rgba(255, 255, 255, 0.1)",
+        iconColors: defaultIcons,
+      };
+  }
+};
+
 const ProgressScreenComponent = ({
   navigation,
 }: RootStackScreenProps<"Progress">) => {
   const user = useAuthStore((state) => state.user);
-  const { theme } = useContrast();
+  const { theme, contrastMode } = useContrast();
+
+  // ✅ Carrega as cores baseadas na lógica acima
+  const colors = getThemeColors(contrastMode);
+
   const [moduleProgress, setModuleProgress] = useState<ProgressItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,9 +129,7 @@ const ProgressScreenComponent = ({
     setLoading(true);
     try {
       const client = generateClient();
-      console.log("--- INICIANDO BUSCA DE PROGRESSO ---");
 
-      // Buscando dados frescos do usuário (pontos)
       try {
         const userQueryWithBuster = `
           # CacheBuster: ${Date.now()}-${Math.random()}
@@ -98,7 +146,7 @@ const ProgressScreenComponent = ({
           setUserPoints(freshUser.points ?? 0);
         }
       } catch (userError) {
-        console.error("❌ Erro ao buscar dados frescos do usuário:", userError);
+        console.error("❌ Erro ao buscar dados do usuário:", userError);
       }
 
       let allProgress: any[] = [];
@@ -251,74 +299,88 @@ const ProgressScreenComponent = ({
             styles.summaryCard,
             {
               opacity: headerFadeAnim,
-              backgroundColor: theme.card, // Fundo Azul (Correto)
+              backgroundColor: theme.card,
+              borderWidth: 1,
+              borderColor: theme.text + "20",
             },
           ]}
         >
-          {/* ✅ CORREÇÃO 1: Título do card trocado para 'theme.cardText' */}
+          {/* Título do Resumo: Usa cor do tema (geralmente contrastante com o fundo) */}
           <AccessibleText
             baseSize={20}
-            style={[styles.sectionTitle, { color: theme.cardText }]} // Era theme.text
+            style={[styles.sectionTitle, { color: colors.text }]}
           >
             📊 Resumo Geral
           </AccessibleText>
 
-          {/* ✅ CORREÇÃO 2: Subtítulo do card trocado para 'theme.cardText' */}
           <AccessibleText
             baseSize={12}
-            style={[styles.sectionSubtitle, { color: theme.cardText }]} // Era theme.text
+            style={[
+              styles.sectionSubtitle,
+              { color: colors.text, opacity: 0.8 },
+            ]}
           >
             Baseado nas últimas tentativas de cada módulo
           </AccessibleText>
 
-          {/* Os StatItems usam cores próprias, então estão corretos */}
           <View style={styles.statsGrid}>
             <StatItem
               icon="target"
               value={`${avgAccuracy}%`}
               label="Precisão Média"
-              color="#FFC107"
+              iconColor={colors.iconColors.avg} // Colorido
+              textColor={colors.text} // Preto ou Branco dependendo do tema
+              backgroundColor={colors.itemBg}
               delay={0}
             />
             <StatItem
               icon="check-all"
               value={totalCorrect.toString()}
               label="Total Acertos"
-              color="#4CAF50"
+              iconColor={colors.iconColors.correct} // Colorido
+              textColor={colors.text}
+              backgroundColor={colors.itemBg}
               delay={100}
             />
             <StatItem
               icon="close-circle"
               value={totalWrong.toString()}
               label="Total Erros"
-              color="#F44336"
+              iconColor={colors.iconColors.wrong} // Colorido
+              textColor={colors.text}
+              backgroundColor={colors.itemBg}
               delay={200}
             />
             <StatItem
               icon="clock-time-eight-outline"
               value={formatTime(totalTime)}
               label="Tempo Total"
-              color="#2196F3"
+              iconColor={colors.iconColors.time} // Colorido
+              textColor={colors.text}
+              backgroundColor={colors.itemBg}
               delay={300}
             />
             <StatItem
               icon="book-open-variant"
               value={moduleProgress.length.toString()}
               label="Módulos Feitos"
-              color="#9C27B0"
+              iconColor={colors.iconColors.modules} // Colorido
+              textColor={colors.text}
+              backgroundColor={colors.itemBg}
               delay={400}
             />
             <StatItem
               icon="trophy"
               value={userPoints.toLocaleString("pt-BR")}
               label="Pontos"
-              color="#FF9800"
+              iconColor={colors.iconColors.points} // Colorido
+              textColor={colors.text}
+              backgroundColor={colors.itemBg}
               delay={500}
             />
           </View>
         </Animated.View>
 
-        {/* Esta seção está no fundo amarelo, então 'theme.text' (azul) está CORRETO aqui */}
         <View style={styles.section}>
           <AccessibleText
             baseSize={20}
@@ -333,7 +395,6 @@ const ProgressScreenComponent = ({
             Última tentativa de cada módulo — toque para ver mais detalhes
           </AccessibleText>
 
-          {/* ❗️ O ERRO ESTÁ NO ARQUIVO ModuleCard.tsx ❗️ */}
           {moduleProgress.length > 0 ? (
             moduleProgress.map((p, index) => (
               <ModuleCard

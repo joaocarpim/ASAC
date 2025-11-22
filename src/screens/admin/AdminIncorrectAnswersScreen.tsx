@@ -1,4 +1,4 @@
-// src/screens/admin/AdminIncorrectAnswersScreen.tsx (Corrigido)
+// src/screens/admin/AdminIncorrectAnswersScreen.tsx (Corrigido - Última Tentativa)
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -15,9 +15,9 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useFocusEffect } from "@react-navigation/native";
 import { generateClient } from "aws-amplify/api";
 import { listProgresses } from "../../graphql/queries";
-import { useContrast } from "../../hooks/useContrast"; // ✅ Importa o hook de contraste
+import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
-import { useSettings } from "../../hooks/useSettings"; // ✅ Importa o hook de acessibilidade
+import { useSettings } from "../../hooks/useSettings";
 
 type IncorrectAnswer = {
   id: string;
@@ -30,10 +30,9 @@ type IncorrectAnswer = {
 
 type IncorrectAnswerCardProps = {
   item: IncorrectAnswer;
-  styles: ReturnType<typeof createStyles>; // ✅ Passa os estilos
+  styles: ReturnType<typeof createStyles>;
 };
 
-// ✅ Função helper para o StatusBar
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string" || !color.startsWith("#"))
     return false;
@@ -69,18 +68,12 @@ const IncorrectAnswerCard = ({ item, styles }: IncorrectAnswerCardProps) => (
 export default function AdminIncorrectAnswersScreen({
   route,
 }: RootStackScreenProps<"AdminIncorrectAnswers">) {
-  // ======================================================
-  // ✅ CORREÇÃO (Bug 1): Recebe o moduleNumber
-  // ======================================================
   const { userId, moduleNumber } = route.params;
   const [incorrectAnswers, setIncorrectAnswers] = useState<IncorrectAnswer[]>(
     []
   );
   const [loading, setLoading] = useState(true);
 
-  // ======================================================
-  // ✅ Hooks de Acessibilidade e Tema Adicionados
-  // ======================================================
   const { theme } = useContrast();
   const {
     fontSizeMultiplier,
@@ -102,50 +95,51 @@ export default function AdminIncorrectAnswersScreen({
   const statusBarStyle = isColorDark(theme.background)
     ? "light-content"
     : "dark-content";
-  // ======================================================
 
   const fetchIncorrectAnswers = useCallback(async () => {
     setLoading(true);
     try {
       const client = generateClient();
 
-      // ======================================================
-      // ✅ CORREÇÃO (Bug 1): Busca apenas o módulo selecionado
-      // ======================================================
+      // Busca todos os progressos para este módulo
       const result: any = await client.graphql({
         query: listProgresses,
         variables: {
           filter: {
             userId: { eq: userId },
-            moduleNumber: { eq: moduleNumber }, // Filtra pelo módulo
+            moduleNumber: { eq: moduleNumber },
           },
         },
         authMode: "userPool",
       });
 
-      const progressList = result?.data?.listProgresses?.items || [];
+      const rawProgressList = result?.data?.listProgresses?.items || [];
+
+      // ✅ FILTRAGEM: Ordenar por data (mais recente primeiro) e pegar apenas o primeiro
+      const sortedProgress = rawProgressList.sort((a: any, b: any) => {
+        const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+        return dateB - dateA; // Decrescente
+      });
+
+      // Pega apenas a tentativa mais recente
+      const latestProgress =
+        sortedProgress.length > 0 ? [sortedProgress[0]] : [];
+
       console.log(
-        `📊 Admin Errors: Raw progress list (Módulo ${moduleNumber}):`,
-        JSON.stringify(progressList, null, 2)
+        `📊 Admin Errors: Filtrado para a última tentativa (de ${rawProgressList.length} para ${latestProgress.length})`
       );
 
       const aggregatedErrors: IncorrectAnswer[] = [];
 
-      progressList.forEach((progress: any) => {
+      latestProgress.forEach((progress: any) => {
         const errorData = progress.errorDetails;
 
-        if (!errorData) {
-          console.log(
-            `  ⚠️ Módulo ${moduleNumber}: errorDetails é null/undefined`
-          );
-          return;
-        }
+        if (!errorData) return;
 
         let errors: any[] = [];
         if (typeof errorData === "string") {
-          if (errorData.trim() === "" || errorData === "[]") {
-            return;
-          }
+          if (errorData.trim() === "" || errorData === "[]") return;
           try {
             const parsed = JSON.parse(errorData);
             errors = Array.isArray(parsed) ? parsed : [parsed];
@@ -160,16 +154,12 @@ export default function AdminIncorrectAnswersScreen({
         }
 
         errors = errors.filter((err) => err && typeof err === "object");
-        console.log(
-          `  ✅ Módulo ${moduleNumber}: ${errors.length} erros encontrados`,
-          errors
-        );
 
         errors.forEach((err: any, idx: number) => {
           aggregatedErrors.push({
             id: `${progress.id}-${idx}`,
             moduleNumber,
-            questionNumber: err.questionId ?? `${idx + 1}`, // ✅ Usa o ID da questão
+            questionNumber: err.questionId ?? `${idx + 1}`,
             questionText:
               err.questionText ?? err.question ?? "Pergunta não disponível",
             userAnswer:
@@ -191,7 +181,6 @@ export default function AdminIncorrectAnswersScreen({
         return numA - numB;
       });
 
-      console.log(`🎯 Total de erros agregados: ${aggregatedErrors.length}`);
       setIncorrectAnswers(aggregatedErrors);
     } catch (error) {
       console.error("❌ Erro ao buscar erros:", error);
@@ -199,7 +188,7 @@ export default function AdminIncorrectAnswersScreen({
     } finally {
       setLoading(false);
     }
-  }, [userId, moduleNumber]); // ✅ Adiciona moduleNumber como dependência
+  }, [userId, moduleNumber]);
 
   useFocusEffect(
     useCallback(() => {
@@ -240,7 +229,7 @@ export default function AdminIncorrectAnswersScreen({
             />
             <Text style={styles.emptyText}>Nenhum erro encontrado</Text>
             <Text style={styles.emptySubtext}>
-              O usuário não errou questões neste módulo.
+              O usuário não errou questões na última tentativa deste módulo.
             </Text>
           </View>
         )}
@@ -249,9 +238,6 @@ export default function AdminIncorrectAnswersScreen({
   );
 }
 
-// ======================================================
-// ✅ Estilos agora são dinâmicos (Bug 3)
-// ======================================================
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -299,7 +285,7 @@ const createStyles = (
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     card: {
-      backgroundColor: theme.card, // ✅ CORRIGIDO
+      backgroundColor: theme.card,
       borderRadius: 12,
       marginBottom: 10,
       overflow: "hidden",
@@ -308,10 +294,10 @@ const createStyles = (
     questionNumber: {
       fontSize: 22 * fontMultiplier,
       fontWeight: "bold",
-      color: theme.cardText, // ✅ CORRIGIDO
+      color: theme.cardText,
       marginRight: 10,
       borderWidth: 2,
-      borderColor: theme.cardText, // ✅ CORRIGIDO
+      borderColor: theme.cardText,
       borderRadius: 20,
       width: 40,
       height: 40,
@@ -320,19 +306,19 @@ const createStyles = (
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     questionText: {
-      color: theme.cardText, // ✅ CORRIGIDO
+      color: theme.cardText,
       fontSize: 16 * fontMultiplier,
       flex: 1,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       lineHeight: 16 * fontMultiplier * lineHeight,
     },
     answerContainer: {
-      backgroundColor: theme.background, // ✅ CORRIGIDO
+      backgroundColor: theme.background,
       padding: 15,
     },
     label: {
       fontSize: 12 * fontMultiplier,
-      color: theme.text, // ✅ CORRIGIDO
+      color: theme.text,
       opacity: 0.7,
       fontWeight: "bold",
       marginTop: 8,

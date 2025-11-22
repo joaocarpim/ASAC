@@ -1,6 +1,7 @@
 // src/screens/contractions/ContractionsSuccessScreen.tsx
-import React, { useEffect } from "react";
-import { StyleSheet, Platform, StatusBar, View } from "react-native"; // ✅ View IMPORTADA
+
+import React, { useEffect, useState } from "react";
+import { StyleSheet, Platform, StatusBar, View } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { Audio } from "expo-av";
@@ -9,27 +10,10 @@ import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 import {
-  AccessibleView,
   AccessibleText,
   AccessibleHeader,
   AccessibleButton,
 } from "../../components/AccessibleComponents";
-
-let soundHappy: Audio.Sound | null = null;
-
-async function loadHappySound() {
-  try {
-    if (!soundHappy) {
-      const { sound } = await Audio.Sound.createAsync(
-        require("../../../assets/som/happy.mp3") // Caminho do som
-      );
-      soundHappy = sound;
-    }
-    await soundHappy?.replayAsync();
-  } catch (error) {
-    console.log("Erro ao carregar som de sucesso", error);
-  }
-}
 
 type ScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -40,7 +24,8 @@ export default function ContractionsSuccessScreen({
   route,
   navigation,
 }: ScreenProps) {
-  const { word } = route.params;
+  // Se 'word' não for passado (ex: vindo do menu), usa um valor padrão
+  const word = route.params?.word || "Parabéns!";
 
   const { theme } = useContrast();
   const {
@@ -60,22 +45,40 @@ export default function ContractionsSuccessScreen({
     letterSpacing
   );
 
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
   useEffect(() => {
-    loadHappySound();
+    const playSound = async () => {
+      try {
+        // ✅ Caminho corrigido para sair de screens/contractions/
+        const { sound: soundObject } = await Audio.Sound.createAsync(
+          require("../../../assets/som/happy.mp3")
+        );
+        setSound(soundObject);
+        await soundObject.playAsync();
+      } catch (error) {
+        console.log("Erro ao carregar som de sucesso", error);
+      }
+    };
+
+    playSound();
+
     return () => {
-      soundHappy?.unloadAsync();
-      soundHappy = null;
+      sound?.unloadAsync();
     };
   }, []);
 
   return (
-    // ✅ CORREÇÃO AQUI: Mudado de AccessibleView para View
     <View style={styles.container}>
-      <ConfettiCannon count={200} origin={{ x: -10, y: 0 }} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
+      <ConfettiCannon count={200} origin={{ x: -10, y: 0 }} fadeOut={true} />
+
       <AccessibleHeader style={styles.title}>Parabéns! 🥳</AccessibleHeader>
+
       <AccessibleText style={styles.subtitle} baseSize={18}>
         Você escreveu a contração para:
       </AccessibleText>
+
       <AccessibleText style={styles.word} baseSize={40}>
         {word}
       </AccessibleText>
@@ -124,6 +127,7 @@ const createStyles = (
       fontWeight: isBold ? "bold" : "700",
       color: theme.text,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      textAlign: "center",
     },
     subtitle: {
       fontSize: 18 * fontMultiplier,
@@ -131,6 +135,7 @@ const createStyles = (
       opacity: 0.9,
       marginTop: 30,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      textAlign: "center",
     },
     word: {
       fontSize: 40 * fontMultiplier,
@@ -139,6 +144,7 @@ const createStyles = (
       letterSpacing: letterSpacing + 4,
       marginVertical: 10,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      textAlign: "center",
     },
     buttonPrimary: {
       backgroundColor: theme.button ?? "#191970",
@@ -147,6 +153,7 @@ const createStyles = (
       borderRadius: 30,
       marginTop: 40,
       elevation: 3,
+      alignItems: "center",
     },
     buttonTextPrimary: {
       color: theme.buttonText ?? "#FFFFFF",
@@ -157,6 +164,7 @@ const createStyles = (
     buttonSecondary: {
       marginTop: 20,
       padding: 10,
+      alignItems: "center",
     },
     buttonTextSecondary: {
       color: theme.text,

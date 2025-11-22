@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#191970",
     borderRadius: 12,
     padding: 20,
-    // top: 15, // ❌ REMOVIDO: Este 'top' estava bagunçando o layout
+    top: 15, 
     marginBottom: 20,
   },
   cardRow: {

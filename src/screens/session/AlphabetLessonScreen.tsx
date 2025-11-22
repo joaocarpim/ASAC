@@ -1,4 +1,4 @@
-// src/screens/module/AlphabetLessonScreen.tsx (CORRIGIDO)
+// src/screens/module/AlphabetLessonScreen.tsx (CORRIGIDO E FORMATADO)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -41,6 +41,7 @@ const getDotDescription = (dots: number[]): string => {
   return `Pontos ${sorted.join(", ")} e ${last} levantados.`;
 };
 
+// ✅ COMPONENTE DE CELA BRAILLE CORRIGIDO (LAYOUT DE COLUNAS)
 const BrailleCell = ({
   dots,
   styles,
@@ -48,24 +49,26 @@ const BrailleCell = ({
   dots: number[];
   styles: ReturnType<typeof createStyles>;
 }) => {
-  const dotOrder = [1, 4, 2, 5, 3, 6];
+  const renderDot = (dotNum: number) => {
+    const isActive = dots.includes(dotNum);
+    return (
+      <View key={dotNum} style={styles.dotContainer}>
+        <View
+          style={[styles.dot, isActive ? styles.dotActive : styles.dotInactive]}
+        >
+          <Text style={styles.dotNumber}>{dotNum}</Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.brailleCell} accessibilityElementsHidden={true}>
-      {dotOrder.map((dotNum) => {
-        const isActive = dots.includes(dotNum);
-        return (
-          <View key={dotNum} style={styles.dotContainer}>
-            <View
-              style={[
-                styles.dot,
-                isActive ? styles.dotActive : styles.dotInactive,
-              ]}
-            >
-              <Text style={styles.dotNumber}>{dotNum}</Text>
-            </View>
-          </View>
-        );
-      })}
+      {/* Coluna da Esquerda: Pontos 1, 2, 3 */}
+      <View style={styles.brailleColumn}>{[1, 2, 3].map(renderDot)}</View>
+
+      {/* Coluna da Direita: Pontos 4, 5, 6 */}
+      <View style={styles.brailleColumn}>{[4, 5, 6].map(renderDot)}</View>
     </View>
   );
 };
@@ -95,7 +98,9 @@ const BrailleCard = ({
           <AccessibleHeader level={2} style={styles.letter}>
             {item.letter}
           </AccessibleHeader>
+
           <BrailleCell dots={item.dots} styles={styles} />
+
           <AccessibleText
             style={styles.descriptionText}
             baseSize={18}
@@ -122,7 +127,7 @@ const CongratsCard = ({
 }) => {
   return (
     <AccessibleView
-      style={styles.congratsCard} // ✅ Usando o novo estilo congratsCard
+      style={styles.congratsCard}
       accessibilityText={`Parabéns, você completou a ${item.title}! Toque duas vezes para voltar.`}
     >
       {isVisible && (
@@ -388,9 +393,7 @@ export default function AlphabetLessonScreen() {
                 <MaterialCommunityIcons
                   name="chevron-left"
                   size={32}
-                  color={
-                    currentPageIndex === 0 ? "#999" : theme.cardText
-                  }
+                  color={currentPageIndex === 0 ? "#999" : theme.cardText}
                 />
               </TouchableOpacity>
 
@@ -449,7 +452,7 @@ const createStyles = (
       paddingBottom: 40,
       alignItems: "center",
       flexGrow: 1,
-      justifyContent: "center", // ✅ Centraliza verticalmente o conteúdo
+      justifyContent: "center",
     },
     pageIndicator: {
       marginTop: 18,
@@ -496,7 +499,7 @@ const createStyles = (
     contentCard: {
       width: "75%",
       maxWidth: 980,
-      minHeight: WINDOW_HEIGHT * 0.6, // Mantido para cards de conteúdo
+      minHeight: WINDOW_HEIGHT * 0.6,
       borderRadius: 12,
       backgroundColor: theme.card,
       elevation: 6,
@@ -507,11 +510,10 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
     },
-    // ✅ NOVO ESTILO PARA O CARD DE PARABÉNS
     congratsCard: {
       width: "100%",
       maxWidth: 980,
-      flex: 1, // Permite que ele cresça e centralize
+      flex: 1,
       borderRadius: 12,
       backgroundColor: theme.card,
       elevation: 6,
@@ -519,9 +521,9 @@ const createStyles = (
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.12,
       shadowRadius: 10,
-      justifyContent: "center", // ✅ Centraliza verticalmente o conteúdo interno
+      justifyContent: "center",
       alignItems: "center",
-      paddingVertical: 40, // Adiciona um padding para espaçamento
+      paddingVertical: 40,
     },
     cardInner: {
       padding: WINDOW_WIDTH * 0.06,
@@ -541,30 +543,36 @@ const createStyles = (
       marginTop: 20,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
+    // ✅ ESTILOS CORRIGIDOS PARA A CELA BRAILLE (2 COLUNAS)
     brailleCell: {
-      width: 120,
-      height: 180,
+      width: 140,
+      height: 200,
       borderRadius: 20,
-      flexDirection: "column",
-      flexWrap: "wrap",
-      alignContent: "center",
-      justifyContent: "space-around",
-      paddingVertical: -5,
-      paddingHorizontal: -10,
+      flexDirection: "row", // Lado a lado
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 10,
+      paddingVertical: 15,
       marginTop: 10,
       borderWidth: 1,
       borderColor: "transparent",
     },
+    brailleColumn: {
+      flexDirection: "column",
+      justifyContent: "space-between",
+      height: "100%",
+      alignItems: "center",
+    },
     dotContainer: {
-      width: "50%",
-      height: "33%",
+      width: 50,
+      height: 50,
       justifyContent: "center",
       alignItems: "center",
     },
     dot: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 2,
@@ -575,12 +583,12 @@ const createStyles = (
       opacity: 0.2,
     },
     dotActive: {
-      backgroundColor: theme.background, // Amarelo
-      borderColor: theme.text, // Azul
+      backgroundColor: theme.background, // Amarelo no alto contraste
+      borderColor: theme.text, // Azul no alto contraste
     },
     dotNumber: {
       fontSize: 14 * fontMultiplier,
-      color: theme.text, // Azul
+      color: theme.text,
       opacity: 0.7,
       fontWeight: "bold",
     },

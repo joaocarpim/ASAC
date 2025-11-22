@@ -1,193 +1,111 @@
 // src/navigation/contractionsData.ts
 
 export interface Contraction {
-  word: string; // A palavra ou grupo de letras
-  dots: number[]; // Padrão Braille
-  description: string; // Descrição do que representa
-  type: "Palavra" | "Grupo"; // Tipo de contração
+  word: string; // A palavra completa
+  dots: number[]; // Os pontos da cela
+  description: string; // Explicação
+  type: "Palavra" | "Grupo"; // Categoria
 }
 
 /**
- * Lista de contrações do Braille Grau 2 (Português Brasileiro)
- * Baseada nas contrações mais comuns usadas no Brasil
+ * Lista de Abreviaturas Braille (Grau 2) - Português Brasileiro
+ * Focada nas abreviações alfabéticas mais comuns do dia a dia.
  */
 export const CONTRACTION_LIST: Contraction[] = [
   // ========================================
-  // CONTRAÇÕES DE PALAVRAS COMPLETAS
+  // PALAVRAS REPRESENTADAS POR UMA LETRA (ISOLADA)
   // ========================================
   {
-    word: "MAS",
-    dots: [1, 3, 4],
-    description: "Palavra 'mas' representada pela letra 'm'",
+    word: "NÃO",
+    dots: [1, 3, 4, 5], // Letra n
+    description: "A letra 'n' isolada representa a palavra 'não'.",
     type: "Palavra",
   },
   {
-    word: "MAIS",
-    dots: [1, 3, 4, 6],
-    description: "Palavra 'mais' com sinal especial",
-    type: "Palavra",
-  },
-  {
-    word: "COM",
-    dots: [1, 4],
-    description: "Palavra 'com' representada pela letra 'c'",
-    type: "Palavra",
-  },
-  {
-    word: "DE",
-    dots: [1, 4, 5],
-    description: "Palavra 'de' representada pela letra 'd'",
-    type: "Palavra",
-  },
-  {
-    word: "E",
-    dots: [1, 5],
-    description: "Palavra 'e' (conjunção) representada pela letra 'e'",
-    type: "Palavra",
-  },
-  {
-    word: "PARA",
-    dots: [1, 2, 3, 4],
-    description: "Palavra 'para' representada pela letra 'p'",
-    type: "Palavra",
-  },
-  {
-    word: "POR",
-    dots: [1, 2, 3, 4],
-    description: "Palavra 'por' (mesma contração que 'para', contexto define)",
+    word: "VOCÊ",
+    dots: [1, 2, 3, 6], // Letra v
+    description: "A letra 'v' isolada representa a palavra 'você'.",
     type: "Palavra",
   },
   {
     word: "QUE",
-    dots: [1, 2, 3, 4, 5],
-    description: "Palavra 'que' representada pela letra 'q'",
+    dots: [1, 2, 3, 4, 5], // Letra q
+    description: "A letra 'q' isolada representa a palavra 'que'.",
     type: "Palavra",
   },
   {
-    word: "SEM",
-    dots: [2, 3, 4],
-    description: "Palavra 'sem' representada pela letra 's'",
+    word: "PARA",
+    dots: [1, 2, 3, 4], // Letra p
+    description: "A letra 'p' isolada representa a palavra 'para'.",
     type: "Palavra",
   },
   {
-    word: "UM",
-    dots: [1, 3, 6],
-    description: "Palavra 'um' representada pela letra 'u'",
+    word: "COM",
+    dots: [1, 4], // Letra c
+    description: "A letra 'c' isolada representa a palavra 'com'.",
+    type: "Palavra",
+  },
+  {
+    word: "DE",
+    dots: [1, 4, 5], // Letra d
+    description: "A letra 'd' isolada representa a palavra 'de'.",
+    type: "Palavra",
+  },
+  {
+    word: "HOJE",
+    dots: [1, 2, 5], // Letra h
+    description: "A letra 'h' isolada representa a palavra 'hoje'.",
+    type: "Palavra",
+  },
+  {
+    word: "TEM",
+    dots: [2, 3, 4, 5], // Letra t
+    description: "A letra 't' isolada representa a palavra 'tem'.",
+    type: "Palavra",
+  },
+  {
+    word: "SE",
+    dots: [2, 3, 4], // Letra s
+    description: "A letra 's' isolada representa a palavra 'se'.",
+    type: "Palavra",
+  },
+  {
+    word: "GENTE",
+    dots: [1, 2, 4, 5], // Letra g
+    description: "A letra 'g' isolada representa a palavra 'gente'.",
     type: "Palavra",
   },
 
   // ========================================
-  // CONTRAÇÕES DE GRUPOS DE LETRAS (Dígrafos)
-  // ========================================
-  {
-    word: "CH",
-    dots: [1, 6],
-    description: "Dígrafo 'ch' (como em 'chave')",
-    type: "Grupo",
-  },
-  {
-    word: "NH",
-    dots: [1, 2, 4, 6],
-    description: "Dígrafo 'nh' (como em 'ninho')",
-    type: "Grupo",
-  },
-  {
-    word: "LH",
-    dots: [1, 2, 3, 6],
-    description: "Dígrafo 'lh' (como em 'filho')",
-    type: "Grupo",
-  },
-  {
-    word: "RR",
-    dots: [1, 2, 3, 5],
-    description: "Dígrafo 'rr' (como em 'carro')",
-    type: "Grupo",
-  },
-  {
-    word: "SS",
-    dots: [2, 3, 4],
-    description: "Dígrafo 'ss' (como em 'passo')",
-    type: "Grupo",
-  },
-
-  // ========================================
-  // CONTRAÇÕES DE COMBINAÇÕES COMUNS
-  // ========================================
-  {
-    word: "OU",
-    dots: [1, 2, 5, 6],
-    description: "Combinação 'ou' (como em 'outro')",
-    type: "Grupo",
-  },
-  {
-    word: "AN",
-    dots: [3, 4, 5],
-    description: "Combinação 'an' ou 'am' (como em 'antes', 'campo')",
-    type: "Grupo",
-  },
-  {
-    word: "EN",
-    dots: [1, 5, 6],
-    description: "Combinação 'en' ou 'em' (como em 'entre', 'tempo')",
-    type: "Grupo",
-  },
-  {
-    word: "IN",
-    dots: [2, 4, 6],
-    description: "Combinação 'in' ou 'im' (como em 'inverno', 'sim')",
-    type: "Grupo",
-  },
-  {
-    word: "ON",
-    dots: [1, 3, 5, 6],
-    description: "Combinação 'on' ou 'om' (como em 'onda', 'som')",
-    type: "Grupo",
-  },
-  {
-    word: "UN",
-    dots: [1, 3, 6],
-    description: "Combinação 'un' ou 'um' (como em 'mundo')",
-    type: "Grupo",
-  },
-
-  // ========================================
-  // SINAIS ESPECIAIS
+  // SINAIS E GRUPOS COMUNS 
   // ========================================
   {
     word: "ÃO",
-    dots: [3, 4, 6],
-    description: "Til 'ão' (como em 'pão', 'mão')",
+    dots: [3, 4, 5], // Sinal de ão (til)
+    description: "Sinal usado para o som 'ão' (como em mão, pão).",
     type: "Grupo",
   },
   {
-    word: "ÕE",
-    dots: [3, 4, 5, 6],
-    description: "Til 'õe' (como em 'põe')",
+    word: "ÇÃO",
+    dots: [1, 2, 3, 4, 6], // ç
+    description: "O 'ç' muitas vezes abrevia o sufixo 'ção'.",
     type: "Grupo",
   },
 ];
 
-/**
- * Função auxiliar para buscar uma contração por palavra
- */
+// Helpers de busca
 export function getContractionByWord(word: string): Contraction | undefined {
   return CONTRACTION_LIST.find(
     (c) => c.word.toUpperCase() === word.toUpperCase()
   );
 }
 
-/**
- * Função auxiliar para buscar contrações por tipo
- */
 export function getContractionsByType(
   type: "Palavra" | "Grupo"
 ): Contraction[] {
   return CONTRACTION_LIST.filter((c) => c.type === type);
 }
 
-/**
- * Retorna o número total de contrações disponíveis
- */
 export function getTotalContractions(): number {
   return CONTRACTION_LIST.length;
 }

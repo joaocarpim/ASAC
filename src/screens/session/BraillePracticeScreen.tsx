@@ -1,4 +1,3 @@
-// src/screens/session/BraillePracticeScreen.tsx (CORRIGIDO PARA WEB)
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
@@ -186,7 +185,6 @@ export default function BraillePracticeScreen() {
     }
   }, [initialShuffledChars, currentIndex, activeDots, playSound]);
 
-  // ✅ Gesture só para mobile
   const panGesture = useMemo(
     () =>
       Platform.OS !== "web"
@@ -196,7 +194,9 @@ export default function BraillePracticeScreen() {
             })
             .onEnd((event) => {
               console.log(
-                `✅ [BraillePractice] Pan finalizado - X: ${event.translationX.toFixed(0)}, Y: ${event.translationY.toFixed(0)}`
+                `✅ [BraillePractice] Pan finalizado - X: ${event.translationX.toFixed(
+                  0
+                )}, Y: ${event.translationY.toFixed(0)}`
               );
               if (
                 event.translationX > 50 &&
@@ -206,7 +206,7 @@ export default function BraillePracticeScreen() {
                 navigation.goBack();
               }
             })
-        : Gesture.Pan(), // Gesture vazio para web
+        : Gesture.Pan(),
     [navigation]
   );
 
@@ -279,7 +279,9 @@ export default function BraillePracticeScreen() {
           <Text
             style={styles.progressIndicator}
             accessible={true}
-            accessibilityLabel={`Progresso: ${currentIndex + 1} de ${initialShuffledChars.length}`}
+            accessibilityLabel={`Progresso: ${currentIndex + 1} de ${
+              initialShuffledChars.length
+            }`}
           >
             {currentIndex + 1} / {initialShuffledChars.length}
           </Text>
@@ -287,39 +289,86 @@ export default function BraillePracticeScreen() {
         <Text style={styles.prompt} accessible={true}>
           Forme: <Text style={styles.letter}>{currentCharacter}</Text>
         </Text>
+
+        {/* ✅ CORREÇÃO: CELA DIVIDIDA EM DUAS COLUNAS */}
         <View
           style={styles.brailleCell}
           accessible={true}
           accessibilityLabel="Cela Braille com 6 pontos interativos"
         >
-          {[1, 2, 3, 4, 5, 6].map((dotNumber) => {
-            const isActive = activeDots.includes(dotNumber);
-            return (
-              <TouchableOpacity
-                key={dotNumber}
-                style={styles.dotContainer}
-                onPress={() => handleDotPress(dotNumber)}
-                disabled={!!isCorrect}
-                accessible={true}
-                accessibilityLabel={`Ponto ${dotNumber}`}
-                accessibilityState={{ selected: isActive }}
-                accessibilityHint={`Toque para ${isActive ? "desativar" : "ativar"}`}
-                accessibilityRole="button"
-              >
-                <View
-                  style={[
-                    styles.dot,
-                    isActive ? styles.dotActive : styles.dotInactive,
-                  ]}
+          {/* COLUNA ESQUERDA (1, 2, 3) */}
+          <View style={styles.column}>
+            {[1, 2, 3].map((dotNumber) => {
+              const isActive = activeDots.includes(dotNumber);
+              return (
+                <TouchableOpacity
+                  key={dotNumber}
+                  style={styles.dotContainer}
+                  onPress={() => handleDotPress(dotNumber)}
+                  disabled={!!isCorrect}
+                  accessible={true}
+                  accessibilityLabel={`Ponto ${dotNumber}`}
+                  accessibilityState={{ selected: isActive }}
+                  accessibilityHint={`Toque para ${
+                    isActive ? "desativar" : "ativar"
+                  }`}
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.dotNumber} importantForAccessibility="no">
-                    {dotNumber}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                  <View
+                    style={[
+                      styles.dot,
+                      isActive ? styles.dotActive : styles.dotInactive,
+                    ]}
+                  >
+                    <Text
+                      style={styles.dotNumber}
+                      importantForAccessibility="no"
+                    >
+                      {dotNumber}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* COLUNA DIREITA (4, 5, 6) */}
+          <View style={styles.column}>
+            {[4, 5, 6].map((dotNumber) => {
+              const isActive = activeDots.includes(dotNumber);
+              return (
+                <TouchableOpacity
+                  key={dotNumber}
+                  style={styles.dotContainer}
+                  onPress={() => handleDotPress(dotNumber)}
+                  disabled={!!isCorrect}
+                  accessible={true}
+                  accessibilityLabel={`Ponto ${dotNumber}`}
+                  accessibilityState={{ selected: isActive }}
+                  accessibilityHint={`Toque para ${
+                    isActive ? "desativar" : "ativar"
+                  }`}
+                  accessibilityRole="button"
+                >
+                  <View
+                    style={[
+                      styles.dot,
+                      isActive ? styles.dotActive : styles.dotInactive,
+                    ]}
+                  >
+                    <Text
+                      style={styles.dotNumber}
+                      importantForAccessibility="no"
+                    >
+                      {dotNumber}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
+
         <View style={styles.feedbackContainer}>
           <Text
             style={[
@@ -380,7 +429,6 @@ export default function BraillePracticeScreen() {
 
   console.log(`🎨 [BraillePractice] Platform: ${Platform.OS}`);
 
-  // ✅ Só usar GestureDetector em mobile
   if (Platform.OS !== "web" && panGesture) {
     return (
       <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
@@ -434,32 +482,39 @@ const createStyles = (
       fontSize: 24 * fontMultiplier,
       fontWeight: "bold",
     },
+    // ✅ ESTILOS CORRIGIDOS
     brailleCell: {
-      width: width * 0.35,
-      height: width * 0.35 * 1.6,
+      width: width * 0.5,
+      height: width * 0.5 * 1.4,
       backgroundColor: theme.card,
       borderRadius: 20,
-      flexDirection: "column",
-      flexWrap: "wrap",
-      alignContent: "center",
-      justifyContent: "space-around",
-      paddingVertical: 8,
+      flexDirection: "row", // Garantir linha
+      justifyContent: "space-evenly",
+      alignItems: "center",
+      paddingVertical: 10,
       elevation: 4,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.2,
       shadowRadius: 3,
     },
+    column: {
+      flexDirection: "column",
+      justifyContent: "space-around",
+      height: "100%",
+      width: "45%",
+      alignItems: "center",
+    },
     dotContainer: {
-      width: "50%",
+      width: "100%",
       height: "33%",
       justifyContent: "center",
       alignItems: "center",
     },
     dot: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 2,
