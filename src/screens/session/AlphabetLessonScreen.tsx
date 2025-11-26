@@ -1,5 +1,3 @@
-// src/screens/module/AlphabetLessonScreen.tsx (CORRIGIDO E FORMATADO)
-
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
@@ -41,7 +39,7 @@ const getDotDescription = (dots: number[]): string => {
   return `Pontos ${sorted.join(", ")} e ${last} levantados.`;
 };
 
-// ✅ COMPONENTE DE CELA BRAILLE CORRIGIDO (LAYOUT DE COLUNAS)
+// Componente da Cela Braille
 const BrailleCell = ({
   dots,
   styles,
@@ -66,7 +64,6 @@ const BrailleCell = ({
     <View style={styles.brailleCell} accessibilityElementsHidden={true}>
       {/* Coluna da Esquerda: Pontos 1, 2, 3 */}
       <View style={styles.brailleColumn}>{[1, 2, 3].map(renderDot)}</View>
-
       {/* Coluna da Direita: Pontos 4, 5, 6 */}
       <View style={styles.brailleColumn}>{[4, 5, 6].map(renderDot)}</View>
     </View>
@@ -257,7 +254,6 @@ export default function AlphabetLessonScreen() {
   const handleNext = useCallback(() => {
     if (isFinished) return;
 
-    // Anima para a esquerda antes de mudar
     Animated.timing(translateX, {
       toValue: -WINDOW_WIDTH,
       duration: 200,
@@ -285,7 +281,6 @@ export default function AlphabetLessonScreen() {
     }
 
     if (currentPageIndex > 0) {
-      // Anima para a direita antes de mudar
       Animated.timing(translateX, {
         toValue: WINDOW_WIDTH,
         duration: 200,
@@ -304,13 +299,11 @@ export default function AlphabetLessonScreen() {
     }
   }, [isFinished, currentPageIndex, navigation, translateX]);
 
-  // Gesto de Pan para navegação por swipe
   const panGesture = useMemo(
     () =>
       Platform.OS !== "web"
         ? Gesture.Pan()
             .onUpdate((event) => {
-              // Atualiza a posição durante o arrasto
               translateX.setValue(event.translationX);
             })
             .onEnd((event) => {
@@ -318,7 +311,6 @@ export default function AlphabetLessonScreen() {
               const isHorizontal = Math.abs(tx) > Math.abs(ty);
 
               if (!isHorizontal) {
-                // Volta para a posição original se não for horizontal
                 Animated.spring(translateX, {
                   toValue: 0,
                   useNativeDriver: true,
@@ -332,14 +324,11 @@ export default function AlphabetLessonScreen() {
 
               if (shouldChangePage) {
                 if (tx < 0) {
-                  // Swipe para ESQUERDA → Próximo
                   handleNext();
                 } else {
-                  // Swipe para DIREITA → Anterior
                   handlePrevious();
                 }
               } else {
-                // Volta para a posição original
                 Animated.spring(translateX, {
                   toValue: 0,
                   useNativeDriver: true,
@@ -510,20 +499,23 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
     },
+    // ✅ STYLE CORRIGIDO: Removido flex: 1 e ajustado width/padding
     congratsCard: {
-      width: "100%",
-      maxWidth: 980,
-      flex: 1,
-      borderRadius: 12,
+      width: "85%", // Reduzido de 100% para parecer um cartão
+      maxWidth: 500, // Limite para tablets
+      // flex: 1, // REMOVIDO: Causava o problema de ocupar a tela toda
+      borderRadius: 20,
       backgroundColor: theme.card,
-      elevation: 6,
+      elevation: 8,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.12,
-      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
       justifyContent: "center",
       alignItems: "center",
       paddingVertical: 40,
+      paddingHorizontal: 20,
+      alignSelf: "center", // Garante centralização
     },
     cardInner: {
       padding: WINDOW_WIDTH * 0.06,
@@ -543,12 +535,11 @@ const createStyles = (
       marginTop: 20,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-    // ✅ ESTILOS CORRIGIDOS PARA A CELA BRAILLE (2 COLUNAS)
     brailleCell: {
       width: 140,
       height: 200,
       borderRadius: 20,
-      flexDirection: "row", // Lado a lado
+      flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 10,
@@ -583,8 +574,8 @@ const createStyles = (
       opacity: 0.2,
     },
     dotActive: {
-      backgroundColor: theme.background, // Amarelo no alto contraste
-      borderColor: theme.text, // Azul no alto contraste
+      backgroundColor: theme.background,
+      borderColor: theme.text,
     },
     dotNumber: {
       fontSize: 14 * fontMultiplier,

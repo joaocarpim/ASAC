@@ -8,13 +8,15 @@ import {
   Dimensions,
   StatusBar,
   ScrollView,
+  SafeAreaView,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { Audio } from "expo-av";
-import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ 1. IMPORTAR ISTO
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
@@ -31,7 +33,15 @@ import {
 } from "../../navigation/contractionsData";
 
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
-const LESSON_COMPLETED_KEY = "contractions_lesson_completed"; // ✅ 2. MESMA CHAVE DA HOME
+const LESSON_COMPLETED_KEY = "contractions_lesson_completed";
+
+// Funções de responsividade
+const wp = (percentage: number) => (WINDOW_WIDTH * percentage) / 100;
+const hp = (percentage: number) => (WINDOW_HEIGHT * percentage) / 100;
+const normalize = (size: number) => {
+  const scale = WINDOW_WIDTH / 375;
+  return Math.round(size * scale);
+};
 
 const getDotDescription = (dots: number[]): string => {
   if (!dots || dots.length === 0) return "Nenhum ponto levantado.";
@@ -41,7 +51,6 @@ const getDotDescription = (dots: number[]): string => {
   return `Pontos ${sorted.join(", ")} e ${last} levantados.`;
 };
 
-// Cores (mantidas iguais ao seu último pedido)
 const getBrailleColors = (
   themeCard: string,
   themeText: string,
@@ -165,16 +174,15 @@ const BrailleCard = ({
           {item.word}
         </AccessibleHeader>
 
+        {/* Layout vertical: Braille em cima, texto embaixo */}
         <View style={styles.cardBody}>
           {hasBraille && (
-            <View style={styles.leftColumn}>
+            <View style={styles.brailleCellContainer}>
               <BrailleCell dots={item.dots} styles={styles} colors={colors} />
             </View>
           )}
 
-          <View
-            style={[styles.rightColumn, !hasBraille && styles.fullWidthColumn]}
-          >
+          <View style={styles.descriptionContainer}>
             <AccessibleText
               style={[styles.descriptionText, { color: colors.textColor }]}
               baseSize={18}
@@ -208,14 +216,18 @@ const CongratsCard = ({
       accessibilityLabel={`Parabéns! Você completou a lição ${title}.`}
     >
       {isVisible && (
-        <ConfettiCannon count={200} origin={{ x: -10, y: 0 }} fadeOut={true} />
+        <ConfettiCannon
+          count={200}
+          origin={{ x: WINDOW_WIDTH / 2, y: 0 }}
+          fadeOut={true}
+        />
       )}
       <View style={styles.cardInner}>
         <MaterialCommunityIcons
           name="party-popper"
-          size={80}
+          size={normalize(80)}
           color={colors.textColor}
-          style={{ marginBottom: 20 }}
+          style={{ marginBottom: hp(2) }}
         />
         <AccessibleHeader
           level={1}
@@ -309,7 +321,6 @@ export default function ContractionsLessonScreen() {
   useEffect(() => {
     if (isFinished) {
       happySound?.replayAsync();
-      // ✅ 3. SALVAR NO ASYNC STORAGE QUANDO TERMINAR
       saveLessonCompletion();
     }
   }, [isFinished, happySound]);
@@ -331,7 +342,6 @@ export default function ContractionsLessonScreen() {
       setCurrentPageIndex((prev) => prev + 1);
     } else {
       setIsFinished(true);
-      // A useEffect acima vai detectar a mudança de isFinished e salvar
     }
   };
 
@@ -363,14 +373,17 @@ export default function ContractionsLessonScreen() {
 
   return (
     <GestureDetector gesture={panGesture}>
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <StatusBar
           barStyle={theme.statusBarStyle}
           backgroundColor={theme.background}
         />
         <ScreenHeader title={lessonTitle} />
 
-        <ScrollView contentContainerStyle={styles.scrollWrapper}>
+        <ScrollView
+          contentContainerStyle={styles.scrollWrapper}
+          showsVerticalScrollIndicator={false}
+        >
           {isFinished ? (
             <CongratsCard
               title={lessonTitle}
@@ -404,7 +417,7 @@ export default function ContractionsLessonScreen() {
             </View>
           )}
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </GestureDetector>
   );
 }
@@ -422,148 +435,185 @@ const createStyles = (
       flex: 1,
       backgroundColor: theme.background,
     },
+
     scrollWrapper: {
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 40,
+      paddingHorizontal: wp(5),
+      paddingTop: hp(2),
+      paddingBottom: hp(4),
       alignItems: "center",
       flexGrow: 1,
       justifyContent: "center",
     },
+
     contentCard: {
       width: "100%",
-      maxWidth: 600,
-      minHeight: WINDOW_HEIGHT * 0.5,
+      maxWidth: Math.min(wp(95), 600),
+      minHeight: hp(55),
       borderRadius: 20,
       backgroundColor: theme.card,
-      elevation: 8,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
       justifyContent: "center",
       alignItems: "center",
-      marginBottom: 20,
+      marginBottom: hp(2),
       borderWidth: 1,
       borderColor: "rgba(0,0,0,0.05)",
+      ...Platform.select({
+        ios: {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 12,
+        },
+        android: { elevation: 8 },
+      }),
     },
+
     cardInner: {
-      padding: 24,
+      padding: wp(6),
       alignItems: "center",
       width: "100%",
       flex: 1,
       justifyContent: "center",
     },
+
     cardTitleText: {
-      fontSize: 32 * fontMultiplier,
+      fontSize: Math.min(normalize(32) * fontMultiplier, wp(9)),
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Bold" : undefined,
-      marginBottom: 24,
+      marginBottom: hp(3),
       textAlign: "center",
       letterSpacing: letterSpacing,
     },
+
+    // Layout vertical: célula em cima, texto embaixo
     cardBody: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "center",
-      alignItems: "center",
-      width: "100%",
-    },
-    leftColumn: {
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 20,
-      marginBottom: 20,
-    },
-    rightColumn: {
-      flex: 1,
-      justifyContent: "center",
-      minWidth: 200,
-    },
-    fullWidthColumn: {
-      flex: 1,
       width: "100%",
       alignItems: "center",
     },
-    descriptionText: {
-      fontSize: 20 * fontMultiplier,
-      textAlign: "left",
-      lineHeight: 28 * fontMultiplier * lineHeightMultiplier,
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      letterSpacing: letterSpacing,
+
+    brailleCellContainer: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: hp(3),
     },
+
     brailleCell: {
-      width: 140,
-      height: 210,
+      width: wp(35),
+      height: wp(52),
+      maxWidth: 140,
+      maxHeight: 210,
       borderRadius: 15,
       flexDirection: "column",
       flexWrap: "wrap",
       alignContent: "center",
       justifyContent: "space-around",
-      paddingVertical: 10,
-      paddingHorizontal: 5,
+      paddingVertical: hp(1.2),
+      paddingHorizontal: wp(1),
       borderWidth: 4,
-      elevation: 4,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3,
+      ...Platform.select({
+        ios: {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3,
+        },
+        android: { elevation: 4 },
+      }),
     },
+
     dotContainer: {
       width: "50%",
       height: "33%",
       justifyContent: "center",
       alignItems: "center",
     },
+
     dot: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: wp(10),
+      height: wp(10),
+      maxWidth: 40,
+      maxHeight: 40,
+      borderRadius: wp(5),
       justifyContent: "center",
       alignItems: "center",
     },
+
     dotNumber: {
       display: "none",
     },
+
+    // Container do texto de descrição com margens laterais
+    descriptionContainer: {
+      width: "100%",
+      paddingHorizontal: wp(4),
+    },
+
+    descriptionText: {
+      fontSize: Math.min(normalize(18) * fontMultiplier, wp(5)),
+      textAlign: "center",
+      lineHeight: Math.min(
+        normalize(26) * fontMultiplier * lineHeightMultiplier,
+        wp(7)
+      ),
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      letterSpacing: letterSpacing,
+    },
+
     congratsTitle: {
-      fontSize: 36 * fontMultiplier,
+      fontSize: Math.min(normalize(36) * fontMultiplier, wp(10)),
       fontWeight: "bold",
       textAlign: "center",
-      marginTop: 10,
-      marginBottom: 10,
+      marginTop: hp(1),
+      marginBottom: hp(1),
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Bold" : undefined,
     },
+
     congratsSubtitle: {
-      fontSize: 22 * fontMultiplier,
+      fontSize: Math.min(normalize(20) * fontMultiplier, wp(5.5)),
       textAlign: "center",
       opacity: 0.9,
-      marginBottom: 30,
+      marginBottom: hp(3),
+      paddingHorizontal: wp(4),
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
+
     button: {
-      paddingVertical: 16,
-      paddingHorizontal: 40,
+      paddingVertical: hp(2),
+      paddingHorizontal: wp(10),
       borderRadius: 30,
-      elevation: 4,
+      minWidth: wp(40),
+      alignItems: "center",
+      ...Platform.select({
+        ios: {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+        },
+        android: { elevation: 4 },
+      }),
     },
+
     buttonText: {
-      fontSize: 20 * fontMultiplier,
+      fontSize: Math.min(normalize(18) * fontMultiplier, wp(5)),
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
+
     footer: {
       alignItems: "center",
-      marginTop: 10,
+      marginTop: hp(2),
     },
+
     pageIndicator: {
       opacity: 0.8,
-      fontSize: 16 * fontMultiplier,
+      fontSize: Math.min(normalize(16) * fontMultiplier, wp(4.5)),
       fontWeight: "bold",
-      marginBottom: 4,
+      marginBottom: hp(0.5),
     },
+
     hintText: {
       opacity: 0.6,
-      fontSize: 12 * fontMultiplier,
+      fontSize: Math.min(normalize(12) * fontMultiplier, wp(3.5)),
       fontStyle: "italic",
     },
   });

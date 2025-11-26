@@ -11,6 +11,7 @@ import {
   ColorValue,
   Platform,
   Dimensions,
+  SafeAreaView,
 } from "react-native";
 
 import { RootStackScreenProps } from "../../navigation/types";
@@ -26,12 +27,14 @@ import {
 
 import { useAccessibility } from "../../context/AccessibilityProvider";
 import { useSettings } from "../../hooks/useSettings";
-
 import { DEFAULT_MODULES, ModuleContent } from "../../navigation/moduleTypes";
-
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
 
-const { width: WINDOW_WIDTH } = Dimensions.get("window");
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
+
+// Função para calcular tamanho responsivo
+const wp = (percentage: number) => (WINDOW_WIDTH * percentage) / 100;
+const hp = (percentage: number) => (WINDOW_HEIGHT * percentage) / 100;
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string") return false;
@@ -121,26 +124,37 @@ export default function ModuleContentScreen({
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar
+          barStyle={statusBarStyle}
+          backgroundColor={theme.background}
+        />
         <ActivityIndicator color={theme.text} size="large" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (!moduleData) {
     return (
-      <View style={styles.contentContainer}>
+      <SafeAreaView style={styles.contentContainer}>
+        <StatusBar
+          barStyle={statusBarStyle}
+          backgroundColor={theme.background}
+        />
         <Text style={styles.errorText}>Conteúdo não encontrado.</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   const content = (
-    <View style={styles.container} {...panResponder}>
+    <SafeAreaView style={styles.container} {...panResponder}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
       <ScreenHeader title={moduleData.title || "Módulo"} />
 
-      <ScrollView contentContainerStyle={styles.scrollWrapper}>
+      <ScrollView
+        contentContainerStyle={styles.scrollWrapper}
+        showsVerticalScrollIndicator={false}
+      >
         <AccessibleView
           style={styles.contentCard}
           accessibilityText={`Página ${currentPageIndex + 1}. ${
@@ -170,7 +184,7 @@ export default function ModuleContentScreen({
           {currentPageIndex + 1} / {totalPages}
         </Text>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 
   if (gestureWrapper && Platform.OS !== "web") {
@@ -183,11 +197,6 @@ export default function ModuleContentScreen({
   return content;
 }
 
-//
-// ========================================================
-// 🎨 ESTILOS CORRIGIDOS (CORES DE CONTRASTE)
-// ========================================================
-//
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -210,7 +219,7 @@ const getStyles = (
     },
 
     contentContainer: {
-      padding: 20,
+      padding: wp(5),
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
@@ -218,26 +227,24 @@ const getStyles = (
     },
 
     errorText: {
-      fontSize: 18 * fontMultiplier,
-      color: theme.text, // ✅ CORRIGIDO
+      fontSize: Math.min(18 * fontMultiplier, wp(6)),
+      color: theme.text,
       textAlign: "center",
-      userSelect: "none",
     },
 
     scrollWrapper: {
-      paddingHorizontal: 20,
-      paddingVertical: 30,
+      paddingHorizontal: wp(4),
+      paddingVertical: hp(2),
       alignItems: "center",
+      flexGrow: 1,
     },
 
     contentCard: {
       width: "100%",
-      maxWidth: 900,
+      maxWidth: Math.min(wp(95), 900),
       borderRadius: 16,
-      paddingVertical: 24,
-      backgroundColor: theme.card, // ✅ Fundo do card
-      userSelect: "none",
-      // Borda sutil para contraste extra
+      paddingVertical: hp(2.5),
+      backgroundColor: theme.card,
       borderWidth: 1,
       borderColor: "rgba(0,0,0,0.05)",
       ...Platform.select({
@@ -252,43 +259,38 @@ const getStyles = (
       }),
     },
 
-    cardInner: { paddingHorizontal: 24 },
+    cardInner: {
+      paddingHorizontal: wp(6),
+    },
 
     contentTitle: {
-      fontSize: 22 * fontMultiplier,
+      fontSize: Math.min(22 * fontMultiplier, wp(6.5)),
       fontWeight: isBold ? "bold" : "600",
-      marginBottom: 12,
-      // ✅ CORRIGIDO: Usa cardText (cor legível sobre o card)
+      marginBottom: hp(1.5),
       color: theme.cardText,
-      userSelect: "none",
       letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
 
     contentBody: {
-      fontSize: 16 * fontMultiplier,
-      lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
-      // ✅ CORRIGIDO: Usa cardText (cor legível sobre o card)
+      fontSize: Math.min(16 * fontMultiplier, wp(4.5)),
+      lineHeight: Math.min(24 * fontMultiplier * lineHeightMultiplier, wp(7)),
       color: theme.cardText,
-      userSelect: "none",
       letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
 
     emptyText: {
-      fontSize: 16,
-      color: theme.cardText, // ✅ CORRIGIDO
+      fontSize: Math.min(16, wp(4.5)),
+      color: theme.cardText,
       textAlign: "center",
-      userSelect: "none",
     },
 
     pageIndicator: {
-      marginTop: 16,
-      fontSize: 14,
-      // ✅ CORRIGIDO: Usa text (cor legível sobre o background da tela)
+      marginTop: hp(2),
+      fontSize: Math.min(14, wp(4)),
       color: theme.text,
       opacity: 0.9,
       fontWeight: "bold",
-      userSelect: "none",
     },
   });

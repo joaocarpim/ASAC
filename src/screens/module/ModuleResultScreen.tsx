@@ -1,3 +1,4 @@
+// src/screens/module/ModuleResultScreen.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -8,6 +9,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Platform,
+  SafeAreaView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import ConfettiCannon from "react-native-confetti-cannon";
@@ -29,14 +31,17 @@ import { useAuthStore } from "../../store/authStore";
 import progressService, { ErrorDetail } from "../../services/progressService";
 import { useModalStore } from "../../store/useModalStore";
 
-import {
-  Gesture,
-  GestureDetector,
-  Directions,
-} from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
 
-const { width } = Dimensions.get("window");
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
+
+const wp = (percentage: number) => (WINDOW_WIDTH * percentage) / 100;
+const hp = (percentage: number) => (WINDOW_HEIGHT * percentage) / 100;
+const normalize = (size: number) => {
+  const scale = WINDOW_WIDTH / 375;
+  return Math.round(size * scale);
+};
 
 export default function ModuleResultScreen({
   route,
@@ -59,7 +64,6 @@ export default function ModuleResultScreen({
   const { user } = useAuthStore();
   const { showModal } = useModalStore();
 
-  // Sounds
   const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
   const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
 
@@ -67,7 +71,6 @@ export default function ModuleResultScreen({
   const [saved, setSaved] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Theme + Accessibility
   const { theme } = useContrast();
   const {
     fontSizeMultiplier,
@@ -86,13 +89,11 @@ export default function ModuleResultScreen({
     isDyslexiaFontEnabled
   );
 
-  // Swipe Navigation (universal handler)
   const { panResponder, gestureWrapper } = useSwipeNavigation({
     onSwipeLeft: () => navigation.navigate("Home"),
     onSwipeRight: () => navigation.replace("ModuleQuiz", { moduleId }),
   });
 
-  // Load sounds
   useEffect(() => {
     async function load() {
       try {
@@ -117,7 +118,6 @@ export default function ModuleResultScreen({
     };
   }, []);
 
-  // Play sounds + Confetti
   useEffect(() => {
     if (passed) {
       successSound?.playAsync();
@@ -134,7 +134,6 @@ export default function ModuleResultScreen({
     }
   }, [passed]);
 
-  // Save Progress Automatic
   const handleSaveProgress = useCallback(async () => {
     if (!user?.userId || !progressId) return;
 
@@ -181,8 +180,6 @@ export default function ModuleResultScreen({
     }
   }, [saved, saving]);
 
-  // ============ Helpers ============
-
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -207,20 +204,17 @@ export default function ModuleResultScreen({
       ? "Bom trabalho! Você passou!"
       : "Continue praticando! Você está progredindo.";
 
-  // MAIN UI -----------------------------------------------------
-
   const content = (
-    <View style={styles.container} {...panResponder}>
+    <SafeAreaView style={styles.container} {...panResponder}>
       <StatusBar barStyle={"light-content"} />
 
-      {/* HEADER */}
       <AccessibleView
         accessibilityText="Resumo do resultado do módulo"
         style={styles.header}
       >
         <MaterialCommunityIcons
           name={passed ? "trophy" : "school"}
-          size={52}
+          size={normalize(52)}
           color={theme.text}
         />
 
@@ -243,7 +237,7 @@ export default function ModuleResultScreen({
           <View style={styles.savedBadge}>
             <MaterialCommunityIcons
               name="check-circle"
-              size={16}
+              size={normalize(16)}
               color="#4CAF50"
             />
             <Text style={styles.savedBadgeText}>Progresso salvo!</Text>
@@ -251,8 +245,11 @@ export default function ModuleResultScreen({
         )}
       </AccessibleView>
 
-      {/* RESULT MAIN CARD */}
-      <ScrollView style={styles.scroll}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.resultCard}>
           <View style={styles.scoreCircle}>
             <Text style={[styles.scoreText, { color: accuracyColor }]}>
@@ -264,10 +261,13 @@ export default function ModuleResultScreen({
           <Text style={styles.performanceMessage}>{performanceMessage}</Text>
         </View>
 
-        {/* GRID DE ESTATÍSTICAS */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <MaterialCommunityIcons name="timer-sand" size={28} color="#fff" />
+            <MaterialCommunityIcons
+              name="timer-sand"
+              size={normalize(28)}
+              color={theme.cardText}
+            />
             <Text style={styles.statNumber}>{formatTime(timeSpent)}</Text>
             <Text style={styles.statLabel}>Tempo</Text>
           </View>
@@ -275,7 +275,7 @@ export default function ModuleResultScreen({
           <View style={styles.statCard}>
             <MaterialCommunityIcons
               name="check-circle-outline"
-              size={28}
+              size={normalize(28)}
               color="#4CAF50"
             />
             <Text style={styles.statNumber}>{correctAnswers}</Text>
@@ -285,7 +285,7 @@ export default function ModuleResultScreen({
           <View style={styles.statCard}>
             <MaterialCommunityIcons
               name="close-circle-outline"
-              size={28}
+              size={normalize(28)}
               color="#F44336"
             />
             <Text style={styles.statNumber}>{wrongAnswers}</Text>
@@ -295,7 +295,7 @@ export default function ModuleResultScreen({
           <View style={styles.statCard}>
             <MaterialCommunityIcons
               name="hand-coin"
-              size={28}
+              size={normalize(28)}
               color="#FFC107"
             />
             <Text style={styles.statNumber}>+{coinsEarned}</Text>
@@ -304,7 +304,6 @@ export default function ModuleResultScreen({
         </View>
       </ScrollView>
 
-      {/* BUTTONS */}
       <View style={styles.footer}>
         {!passed && (
           <AccessibleButton
@@ -327,20 +326,18 @@ export default function ModuleResultScreen({
         </AccessibleButton>
       </View>
 
-      {/* CONFETTI */}
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
           <ConfettiCannon
             count={160}
-            origin={{ x: width / 2, y: -20 }}
+            origin={{ x: WINDOW_WIDTH / 2, y: -20 }}
             fadeOut
           />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 
-  // Mobile → envolve em GestureDetector
   if (gestureWrapper && Platform.OS !== "web") {
     const { GestureDetector } = require("react-native-gesture-handler");
     return (
@@ -350,10 +347,6 @@ export default function ModuleResultScreen({
 
   return content;
 }
-
-// ============================================================
-// STYLESHEET
-// ============================================================
 
 const createStyles = (
   theme: Theme,
@@ -371,161 +364,196 @@ const createStyles = (
 
     scroll: {
       flex: 1,
-      paddingHorizontal: 20,
+    },
+
+    scrollContent: {
+      paddingHorizontal: wp(4),
+      paddingBottom: hp(2),
     },
 
     header: {
-      paddingTop: 50,
-      paddingBottom: 15,
+      paddingTop: hp(3),
+      paddingBottom: hp(2),
       alignItems: "center",
+      paddingHorizontal: wp(4),
     },
 
     headerTitle: {
-      fontSize: 28 * fontMultiplier,
+      fontSize: Math.min(normalize(28) * fontMultiplier, wp(8)),
       fontWeight: "bold",
       color: theme.text,
-      marginTop: 10,
+      marginTop: hp(1),
       letterSpacing,
-      lineHeight: 28 * lineHeightMultiplier * fontMultiplier,
+      textAlign: "center",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
 
     headerSubtitle: {
-      fontSize: 16 * fontMultiplier,
+      fontSize: Math.min(normalize(16) * fontMultiplier, wp(4.5)),
       color: theme.text,
-      marginTop: 4,
+      marginTop: hp(0.5),
       fontWeight: "400",
+      textAlign: "center",
     },
 
     savingBadge: {
-      marginTop: 10,
+      marginTop: hp(1),
       flexDirection: "row",
       backgroundColor: "rgba(255,255,255,0.2)",
-      paddingHorizontal: 12,
-      paddingVertical: 6,
+      paddingHorizontal: wp(3),
+      paddingVertical: hp(0.7),
       borderRadius: 20,
       alignItems: "center",
     },
+
     savingBadgeText: {
-      marginLeft: 8,
+      marginLeft: wp(2),
       color: "#fff",
       fontWeight: "600",
+      fontSize: normalize(13),
     },
 
     savedBadge: {
-      marginTop: 10,
+      marginTop: hp(1),
       flexDirection: "row",
       backgroundColor: "rgba(76,175,80,0.2)",
-      paddingHorizontal: 12,
-      paddingVertical: 6,
+      paddingHorizontal: wp(3),
+      paddingVertical: hp(0.7),
       borderRadius: 20,
       alignItems: "center",
     },
+
     savedBadgeText: {
-      marginLeft: 6,
+      marginLeft: wp(1.5),
       color: "#4CAF50",
       fontWeight: "700",
+      fontSize: normalize(13),
     },
 
     resultCard: {
       backgroundColor: theme.card,
-      marginVertical: 20,
-      padding: 25,
+      marginVertical: hp(2),
+      padding: wp(6),
       borderRadius: 14,
       alignItems: "center",
     },
+
     scoreCircle: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: wp(30),
+      height: wp(30),
+      maxWidth: 120,
+      maxHeight: 120,
+      borderRadius: wp(15),
       backgroundColor: theme.background,
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 3,
-      borderColor: "#fff",
-      marginBottom: 20,
+      borderColor: theme.cardText,
+      marginBottom: hp(2),
     },
+
     scoreText: {
-      fontSize: 34 * fontMultiplier,
+      fontSize: Math.min(normalize(34) * fontMultiplier, wp(10)),
       fontWeight: "bold",
     },
+
     scoreLabel: {
       color: theme.text,
-      marginTop: 5,
-      fontSize: 14,
+      marginTop: hp(0.5),
+      fontSize: Math.min(normalize(14), wp(3.8)),
     },
+
     performanceMessage: {
-      marginTop: 10,
+      marginTop: hp(1),
       textAlign: "center",
-      fontSize: 18 * fontMultiplier,
+      fontSize: Math.min(normalize(18) * fontMultiplier, wp(5)),
       color: theme.cardText,
       fontWeight: "600",
-      lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
+      lineHeight: Math.min(
+        normalize(24) * fontMultiplier * lineHeightMultiplier,
+        wp(6.5)
+      ),
+      paddingHorizontal: wp(2),
     },
 
     statsGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
       justifyContent: "space-between",
-      marginTop: 10,
-      marginBottom: 20,
+      marginTop: hp(1),
+      marginBottom: hp(2),
     },
 
     statCard: {
       backgroundColor: theme.card,
       width: "48%",
-      paddingVertical: 20,
-      paddingHorizontal: 10,
+      paddingVertical: hp(2.5),
+      paddingHorizontal: wp(2),
       borderRadius: 12,
       alignItems: "center",
-      marginBottom: 15,
+      marginBottom: hp(1.5),
+      minHeight: hp(12),
+      justifyContent: "center",
     },
+
     statNumber: {
       color: theme.cardText,
-      fontSize: 22 * fontMultiplier,
+      fontSize: Math.min(normalize(22) * fontMultiplier, wp(6)),
       fontWeight: "bold",
-      marginTop: 6,
+      marginTop: hp(0.7),
     },
+
     statLabel: {
       color: theme.cardText,
       opacity: 0.85,
-      marginTop: 3,
+      marginTop: hp(0.4),
+      fontSize: Math.min(normalize(14), wp(3.8)),
     },
 
     footer: {
       flexDirection: "row",
-      padding: 20,
+      padding: wp(4),
+      paddingBottom: Platform.OS === "ios" ? hp(1) : hp(2),
       borderTopWidth: 1,
       borderTopColor: "rgba(255,255,255,0.15)",
-      gap: 10,
+      gap: wp(2),
     },
 
     primaryButton: {
       flex: 1,
       backgroundColor: theme.button,
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: 12,
+      borderRadius: 10,
+      marginLeft: 140,
       alignItems: "center",
+      justifyContent: "center",
+      minHeight: hp(6),
     },
+
     primaryButtonText: {
       color: theme.buttonText,
-      fontSize: 16,
+      fontSize: Math.min(normalize(16), wp(4.5)),
       fontWeight: "700",
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
 
     secondaryButton: {
       flex: 1,
       borderWidth: 2,
       borderColor: theme.button,
-      paddingVertical: 14,
+      paddingVertical: hp(1.8),
       borderRadius: 12,
       alignItems: "center",
+      justifyContent: "center",
       backgroundColor: "transparent",
+      minHeight: hp(6),
     },
+
     secondaryButtonText: {
       color: theme.button,
       fontWeight: "700",
-      fontSize: 16,
+      fontSize: Math.min(normalize(16), wp(4.5)),
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
 
     confettiContainer: {

@@ -9,20 +9,19 @@ import {
   StatusBar,
   Platform,
   ColorValue,
-  useWindowDimensions,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { RootStackScreenProps } from "../../navigation/types";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
-import {
-  GestureDetector,
-  Gesture,
-  Directions,
-} from "react-native-gesture-handler";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import {
   AccessibleView,
   AccessibleHeader,
   AccessibleText,
+  AccessibleButton,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
 import {
@@ -33,9 +32,16 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useAccessibility } from "../../context/AccessibilityProvider";
 import { useProgressStore } from "../../store/progressStore";
 
-/* -----------------------------------------------------
-   FUNÇÃO PARA DEFINIR SE A COR DO TEMA É ESCURA
------------------------------------------------------ */
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
+
+// Funções de responsividade
+const wp = (percentage: number) => (WINDOW_WIDTH * percentage) / 100;
+const hp = (percentage: number) => (WINDOW_HEIGHT * percentage) / 100;
+const normalize = (size: number) => {
+  const scale = WINDOW_WIDTH / 375; // Base: iPhone 11
+  return Math.round(size * scale);
+};
+
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string" || !color.startsWith("#"))
     return false;
@@ -70,23 +76,15 @@ export default function ModulePreQuizScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  const { width } = useWindowDimensions();
-  const scaleFactor = width / 380;
-  const dynamicSize = (value: number) => Math.max(12, value * scaleFactor);
-
   const styles = getStyles(
     theme,
     fontSizeMultiplier,
     isBoldTextEnabled,
     lineHeightMultiplier,
     letterSpacing,
-    isDyslexiaFontEnabled,
-    dynamicSize
+    isDyslexiaFontEnabled
   );
 
-  /* -----------------------------------------------------
-     LOAD QUIZ DATA
-  ----------------------------------------------------- */
   useEffect(() => {
     setLoadingQuiz(true);
 
@@ -102,28 +100,21 @@ export default function ModulePreQuizScreen({
       return;
     }
 
-    // Corrige pontuação total
     quiz.totalCoins = 12250;
 
     setQuizData(quiz);
     setLoadingQuiz(false);
   }, [moduleId]);
 
-  /* -----------------------------------------------------
-     ACESSIBILIDADE - LEITURA EM VOZ ALTA
-  ----------------------------------------------------- */
   useEffect(() => {
     if (!loadingQuiz && quizData && speakText) {
       speakText(
         `Tela de introdução ao questionário ${quizData.title}. 
-         Arraste para a esquerda ou use o mouse segurando botão esquerdo para começar.`
+         Arraste para a esquerda para começar.`
       );
     }
   }, [loadingQuiz, quizData]);
 
-  /* -----------------------------------------------------
-     HANDLERS
-  ----------------------------------------------------- */
   const handleStartQuiz = () => {
     setCheckingPermission(true);
     startTimer();
@@ -136,122 +127,128 @@ export default function ModulePreQuizScreen({
 
   const handleGoBack = () => navigation.goBack();
 
-  /* -----------------------------------------------------
-     GESTO UNIVERSAL (WEB + MOBILE)
-     Suporte: Mouse (web), Touch (android/ios)
-  ----------------------------------------------------- */
-
   const panGesture = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .onEnd((e) => {
-      if (e.translationX < -40) handleStartQuiz(); // esquerda
-      if (e.translationX > 40) handleGoBack(); // direita
+      if (e.translationX < -40) handleStartQuiz();
+      if (e.translationX > 40) handleGoBack();
     });
 
-  /* -----------------------------------------------------
-     STATUSBAR
-  ----------------------------------------------------- */
   const statusBarStyle = isColorDark(theme.background)
     ? "light-content"
     : "dark-content";
 
-  /* -----------------------------------------------------
-     LOADING
-  ----------------------------------------------------- */
   if (loadingQuiz || !quizData) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <StatusBar
           barStyle={statusBarStyle}
           backgroundColor={theme.background}
         />
         <ScreenHeader title="Carregando Quiz..." />
         <ActivityIndicator size="large" color={theme.text} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   const instructions = `Questões: ${quizData.questions.length}. Para passar: ${quizData.passingScore}.`;
 
-  /* -----------------------------------------------------
-     TELA PRINCIPAL
-  ----------------------------------------------------- */
   return (
     <GestureDetector gesture={panGesture}>
-      <AccessibleView style={styles.container} accessibilityText={instructions}>
+      <SafeAreaView style={styles.container}>
         <StatusBar
           barStyle={statusBarStyle}
           backgroundColor={theme.background}
         />
         <ScreenHeader title={quizData.title} />
 
-        <View style={styles.centerWrapper}>
-          <AccessibleHeader level={1} style={styles.title}>
-            Você concluiu o conteúdo!
-          </AccessibleHeader>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.centerWrapper}>
+            <AccessibleHeader level={1} style={styles.title}>
+              Você concluiu o conteúdo!
+            </AccessibleHeader>
 
-          <AccessibleHeader level={2} style={styles.subtitle}>
-            Sobre o Questionário
-          </AccessibleHeader>
+            <AccessibleHeader level={2} style={styles.subtitle}>
+              Sobre o Questionário
+            </AccessibleHeader>
 
-          <View style={styles.card}>
-            <AccessibleText baseSize={15} style={styles.infoText}>
-              📝 Questões: {quizData.questions.length}
-            </AccessibleText>
+            <View style={styles.card}>
+              <AccessibleText baseSize={15} style={styles.infoText}>
+                📝 Questões: {quizData.questions.length}
+              </AccessibleText>
 
-            <AccessibleText baseSize={15} style={styles.infoText}>
-              ✅ Para passar: {quizData.passingScore}
-            </AccessibleText>
+              <AccessibleText baseSize={15} style={styles.infoText}>
+                ✅ Para passar: {quizData.passingScore}
+              </AccessibleText>
 
-            <AccessibleText baseSize={15} style={styles.infoText}>
-              🪙 Moedas por acerto: {quizData.coinsPerCorrect}
-            </AccessibleText>
+              <AccessibleText baseSize={15} style={styles.infoText}>
+                🪙 Moedas por acerto: {quizData.coinsPerCorrect}
+              </AccessibleText>
 
-            <AccessibleText baseSize={15} style={styles.infoText}>
-              🏆 Total possível: {quizData.totalCoins.toLocaleString("pt-BR")}
-            </AccessibleText>
+              <AccessibleText baseSize={15} style={styles.infoText}>
+                🏆 Total possível: {quizData.totalCoins.toLocaleString("pt-BR")}
+              </AccessibleText>
+            </View>
+
+            <View style={styles.tipBox}>
+              <Text style={styles.tipIcon}>💡</Text>
+              <Text style={styles.tipText}>
+                Leia com atenção antes de iniciar.
+              </Text>
+            </View>
+
+            {checkingPermission && (
+              <ActivityIndicator
+                style={{ marginTop: hp(2) }}
+                size="large"
+                color={theme.text}
+              />
+            )}
           </View>
+        </ScrollView>
 
-          <View style={styles.tipBox}>
-            <Text style={styles.tipIcon}>💡</Text>
-            <Text style={styles.tipText}>
-              Leia com atenção antes de iniciar.
+        <View style={styles.footer}>
+          <AccessibleButton
+            onPress={handleGoBack}
+            style={styles.secondaryButton}
+            accessibilityText="Voltar"
+          >
+            <Text style={styles.secondaryButtonText}>← Voltar</Text>
+          </AccessibleButton>
+
+          <AccessibleButton
+            onPress={handleStartQuiz}
+            style={styles.primaryButton}
+            accessibilityText="Iniciar Quiz"
+            disabled={checkingPermission}
+          >
+            <Text style={styles.primaryButtonText}>
+              {checkingPermission ? "Iniciando..." : "Iniciar Quiz →"}
             </Text>
-          </View>
-
-          {checkingPermission && (
-            <ActivityIndicator
-              style={{ marginTop: 20 }}
-              size="large"
-              color={theme.text}
-            />
-          )}
+          </AccessibleButton>
         </View>
-
-        <View style={{ height: 80 }} />
-      </AccessibleView>
+      </SafeAreaView>
     </GestureDetector>
   );
 }
 
-/* -----------------------------------------------------
-   ESTILOS
------------------------------------------------------ */
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
   isBold: boolean,
   lineHeight: number,
   letterSpacing: number,
-  dyslexia: boolean,
-  rs: (n: number) => number
+  dyslexia: boolean
 ) =>
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.background,
-      padding:55,
     },
+
     loadingContainer: {
       flex: 1,
       justifyContent: "center",
@@ -259,64 +256,154 @@ const getStyles = (
       backgroundColor: theme.background,
     },
 
-    /* Layout central */
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: wp(5),
+      paddingTop: hp(2),
+      paddingBottom: hp(2),
+    },
+
     centerWrapper: {
-      paddingHorizontal: -2,
-      paddingTop: 30,
       alignItems: "center",
     },
 
-    /* Títulos */
     title: {
-      fontSize: rs(24) * fontMultiplier,
+      fontSize: Math.min(normalize(22) * fontMultiplier, wp(7)),
+      fontWeight: isBold ? "bold" : "700",
+      color: theme.text,
+      textAlign: "center",
+      marginBottom: hp(1.5),
+      paddingHorizontal: wp(2),
+      fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
+    },
+
+    subtitle: {
+      fontSize: Math.min(normalize(17) * fontMultiplier, wp(5.5)),
       fontWeight: isBold ? "bold" : "600",
       color: theme.text,
       textAlign: "center",
-      marginBottom: 8,
-      fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
-    subtitle: {
-      fontSize: rs(18) * fontMultiplier,
-      fontWeight: isBold ? "bold" : "500",
-      color: theme.text,
-      textAlign: "center",
-      marginBottom: 18,
+      marginBottom: hp(2.5),
+      paddingHorizontal: wp(2),
       fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
     },
 
-    /* Cartão Informativo */
     card: {
       width: "100%",
+      maxWidth: Math.min(wp(95), 600),
       backgroundColor: theme.card,
-      padding: 20,
-      borderRadius: 12,
-      marginBottom: 20,
+      padding: wp(5),
+      borderRadius: 16,
+      marginBottom: hp(2.5),
+      ...Platform.select({
+        ios: {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        },
+        android: { elevation: 4 },
+      }),
     },
+
     infoText: {
-      fontSize: rs(15) * fontMultiplier,
+      fontSize: Math.min(normalize(15) * fontMultiplier, wp(4.3)),
       color: theme.cardText,
-      marginBottom: 10,
+      marginBottom: hp(1.5),
+      lineHeight: Math.min(normalize(22), wp(6.5)),
       fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
     },
 
-    /* Dica */
     tipBox: {
       flexDirection: "row",
       alignItems: "center",
-      padding: 12,
+      padding: wp(4),
       borderRadius: 12,
-      backgroundColor: theme.background,
-      borderWidth: 1,
-      borderColor: theme.card,
-      marginTop: 6,
+      backgroundColor: theme.card,
+      borderWidth: 2,
+      borderColor: theme.button,
+      width: "100%",
+      maxWidth: Math.min(wp(95), 600),
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.button,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+        },
+        android: { elevation: 2 },
+      }),
     },
+
     tipIcon: {
-      fontSize: rs(20),
-      marginRight: 10,
+      fontSize: normalize(22),
+      marginRight: wp(3),
     },
+
     tipText: {
-      color: theme.text,
-      fontSize: rs(14) * fontMultiplier,
+      flex: 1,
+      color: theme.cardText,
+      fontSize: Math.min(normalize(14) * fontMultiplier, wp(4)),
+      fontWeight: "500",
+      lineHeight: Math.min(normalize(20), wp(5.5)),
+      fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
+    },
+
+    footer: {
+      flexDirection: "row",
+      padding: wp(4),
+      paddingBottom: Platform.OS === "ios" ? hp(1) : hp(2),
+      borderTopWidth: 1,
+      borderTopColor: "rgba(255,255,255,0.1)",
+      gap: wp(2),
+      backgroundColor: theme.background,
+    },
+
+    primaryButton: {
+      flex: 2,
+      backgroundColor: theme.button,
+      paddingVertical: 12,
+      marginVertical: 5,
+      marginHorizontal: 5,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: hp(6.5),
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.button,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 6,
+        },
+        android: { elevation: 4 },
+      }),
+    },
+
+    primaryButtonText: {
+      color: theme.buttonText,
+      fontSize: Math.min(normalize(15), wp(4.2)),
+      fontWeight: "700",
+      fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
+    },
+
+    secondaryButton: {
+      flex: 1,
+      borderWidth: 2,
+      marginLeft: 100,
+      borderColor: theme.button,
+      paddingVertical: 12,
+      marginVertical: 5,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "transparent",
+      minHeight: hp(6.5),
+    },
+
+    secondaryButtonText: {
+      color: theme.button,
+      fontWeight: "700",
+      fontSize: Math.min(normalize(15), wp(4.2)),
       fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
     },
   });

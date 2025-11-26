@@ -6,6 +6,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Animated,
+  PanResponder, // ✅ 1. Importado PanResponder
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
@@ -19,7 +20,6 @@ import { AccessibleText } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 
-// Certifique-se de que o StatItem está criado no caminho correto
 import { StatItem } from "../../components/progress/StatItem";
 import { ModuleCard } from "../../components/progress/ModuleCard";
 
@@ -33,38 +33,36 @@ type ProgressItem = {
   updatedAt: string;
 };
 
-// ✅ CONFIGURAÇÃO DE CORES CORRIGIDA
+// ... (Sua função getThemeColors permanece idêntica aqui, omitida para brevidade) ...
 const getThemeColors = (mode: string) => {
-  // Cores padrão dos ícones (Coloridos sempre)
   const defaultIcons = {
-    avg: "#FFC107", // Amarelo
-    correct: "#4CAF50", // Verde
-    wrong: "#F44336", // Vermelho
-    time: "#2196F3", // Azul
-    modules: "#9C27B0", // Roxo
-    points: "#FF9800", // Laranja
+    avg: "#FFC107",
+    correct: "#4CAF50",
+    wrong: "#F44336",
+    time: "#2196F3",
+    modules: "#9C27B0",
+    points: "#FF9800",
   };
 
   switch (mode) {
     case "sepia":
       return {
-        text: "#3E2723", // Marrom Escuro (Legível no bege)
+        text: "#3E2723",
         itemBg: "rgba(62, 39, 35, 0.1)",
-        iconColors: defaultIcons, // Mantém colorido
+        iconColors: defaultIcons,
       };
     case "grayscale":
     case "white_black":
       return {
-        text: "#000000", // Preto (Legível no branco/cinza)
-        itemBg: "rgba(0, 0, 0, 0.1)", // Cinza escuro transparente
-        iconColors: defaultIcons, // ✅ Mantém ícones COLORIDOS mesmo no monocromático
+        text: "#000000",
+        itemBg: "rgba(0, 0, 0, 0.1)",
+        iconColors: defaultIcons,
       };
     case "blue_yellow":
       return {
-        text: "#FFFFFF", // Branco (Legível no Azul Escuro)
+        text: "#FFFFFF",
         itemBg: "rgba(255, 255, 255, 0.15)",
         iconColors: {
-          // No tema azul, usamos cores neon vibrantes
           avg: "#FFD700",
           correct: "#00FF00",
           wrong: "#FF4444",
@@ -74,7 +72,6 @@ const getThemeColors = (mode: string) => {
         },
       };
     default:
-      // Modo noturno / padrão
       return {
         text: "#FFFFFF",
         itemBg: "rgba(255, 255, 255, 0.1)",
@@ -88,8 +85,6 @@ const ProgressScreenComponent = ({
 }: RootStackScreenProps<"Progress">) => {
   const user = useAuthStore((state) => state.user);
   const { theme, contrastMode } = useContrast();
-
-  // ✅ Carrega as cores baseadas na lógica acima
   const colors = getThemeColors(contrastMode);
 
   const [moduleProgress, setModuleProgress] = useState<ProgressItem[]>([]);
@@ -120,16 +115,15 @@ const ProgressScreenComponent = ({
     isDyslexiaFontEnabled
   );
 
+  // ... (Sua função fetchProgressData permanece idêntica aqui) ...
   const fetchProgressData = useCallback(async () => {
     if (!user?.userId) {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     try {
       const client = generateClient();
-
       try {
         const userQueryWithBuster = `
           # CacheBuster: ${Date.now()}-${Math.random()}
@@ -140,7 +134,6 @@ const ProgressScreenComponent = ({
           variables: { id: user.userId },
           authMode: "userPool",
         });
-
         const freshUser = userResult.data?.getUser;
         if (freshUser) {
           setUserPoints(freshUser.points ?? 0);
@@ -148,16 +141,13 @@ const ProgressScreenComponent = ({
       } catch (userError) {
         console.error("❌ Erro ao buscar dados do usuário:", userError);
       }
-
       let allProgress: any[] = [];
       let nextToken: string | null = null;
-
       do {
         const queryWithCacheBuster = `
           # CacheBuster: ${Date.now()}-${Math.random()}
           ${listProgresses}
         `;
-
         const result: any = await client.graphql({
           query: queryWithCacheBuster,
           variables: {
@@ -167,7 +157,6 @@ const ProgressScreenComponent = ({
           },
           authMode: "userPool",
         });
-
         const items = result?.data?.listProgresses?.items || [];
         allProgress.push(...items);
         nextToken = result?.data?.listProgresses?.nextToken || null;
@@ -176,16 +165,12 @@ const ProgressScreenComponent = ({
       const attemptedProgress = allProgress.filter(
         (p) => p.timeSpent && p.timeSpent > 0
       );
-
       const latestByModule: Record<number, any> = {};
-
       attemptedProgress.forEach((p: any) => {
         const moduleNum = Number(p.moduleNumber ?? 0);
         if (moduleNum === 0) return;
-
         const timestamp = p?.updatedAt || p?.completedAt || p?.createdAt;
         const currentTime = timestamp ? new Date(timestamp).getTime() : 0;
-
         if (!latestByModule[moduleNum]) {
           latestByModule[moduleNum] = p;
         } else {
@@ -196,13 +181,11 @@ const ProgressScreenComponent = ({
           const existingTime = existingTimestamp
             ? new Date(existingTimestamp).getTime()
             : 0;
-
           if (currentTime > existingTime) {
             latestByModule[moduleNum] = p;
           }
         }
       });
-
       const latestProgress: ProgressItem[] = Object.values(latestByModule)
         .map((p: any) => ({
           id: p.id,
@@ -214,9 +197,7 @@ const ProgressScreenComponent = ({
           updatedAt: p.updatedAt ?? p.createdAt ?? new Date().toISOString(),
         }))
         .sort((a, b) => a.moduleNumber - b.moduleNumber);
-
       setModuleProgress(latestProgress);
-
       const totals = latestProgress.reduce(
         (acc, p) => {
           acc.sumCorrect += p.correctAnswers;
@@ -227,16 +208,13 @@ const ProgressScreenComponent = ({
         },
         { sumCorrect: 0, sumWrong: 0, sumTime: 0, sumAccuracy: 0 }
       );
-
       const count = latestProgress.length;
       const avgAccuracy =
         count > 0 ? Math.round(totals.sumAccuracy / count) : 0;
-
       setTotalCorrect(totals.sumCorrect);
       setTotalWrong(totals.sumWrong);
       setTotalTime(totals.sumTime);
       setAvgAccuracy(avgAccuracy);
-
       Animated.timing(headerFadeAnim, {
         toValue: 1,
         duration: 800,
@@ -260,7 +238,6 @@ const ProgressScreenComponent = ({
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.round(seconds % 60);
-
     if (hours > 0) return `${hours}h ${mins}m`;
     if (mins > 0) return `${mins}m ${secs}s`;
     return `${secs}s`;
@@ -269,6 +246,25 @@ const ProgressScreenComponent = ({
   const handleGoBack = () => {
     navigation.goBack();
   };
+
+  // ✅ 2. Configuração do PanResponder para detectar o gesto de arrastar
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Ativa se o movimento horizontal for maior que o vertical e maior que 20px
+        const isHorizontal =
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        const isSwipeRight = gestureState.dx > 20; // Arrastando para direita
+        return isHorizontal && isSwipeRight;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        // Se arrastou mais de 100px para a direita, volta
+        if (gestureState.dx > 100) {
+          handleGoBack();
+        }
+      },
+    })
+  ).current;
 
   if (loading) {
     return (
@@ -286,7 +282,11 @@ const ProgressScreenComponent = ({
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    // ✅ 3. Adicionado {...panResponder.panHandlers} na View principal
+    <View
+      style={[styles.container, { backgroundColor: theme.background }]}
+      {...panResponder.panHandlers}
+    >
       <StatusBar
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
@@ -305,7 +305,6 @@ const ProgressScreenComponent = ({
             },
           ]}
         >
-          {/* Título do Resumo: Usa cor do tema (geralmente contrastante com o fundo) */}
           <AccessibleText
             baseSize={20}
             style={[styles.sectionTitle, { color: colors.text }]}
@@ -328,8 +327,8 @@ const ProgressScreenComponent = ({
               icon="target"
               value={`${avgAccuracy}%`}
               label="Precisão Média"
-              iconColor={colors.iconColors.avg} // Colorido
-              textColor={colors.text} // Preto ou Branco dependendo do tema
+              iconColor={colors.iconColors.avg}
+              textColor={colors.text}
               backgroundColor={colors.itemBg}
               delay={0}
             />
@@ -337,7 +336,7 @@ const ProgressScreenComponent = ({
               icon="check-all"
               value={totalCorrect.toString()}
               label="Total Acertos"
-              iconColor={colors.iconColors.correct} // Colorido
+              iconColor={colors.iconColors.correct}
               textColor={colors.text}
               backgroundColor={colors.itemBg}
               delay={100}
@@ -346,7 +345,7 @@ const ProgressScreenComponent = ({
               icon="close-circle"
               value={totalWrong.toString()}
               label="Total Erros"
-              iconColor={colors.iconColors.wrong} // Colorido
+              iconColor={colors.iconColors.wrong}
               textColor={colors.text}
               backgroundColor={colors.itemBg}
               delay={200}
@@ -355,7 +354,7 @@ const ProgressScreenComponent = ({
               icon="clock-time-eight-outline"
               value={formatTime(totalTime)}
               label="Tempo Total"
-              iconColor={colors.iconColors.time} // Colorido
+              iconColor={colors.iconColors.time}
               textColor={colors.text}
               backgroundColor={colors.itemBg}
               delay={300}
@@ -364,7 +363,7 @@ const ProgressScreenComponent = ({
               icon="book-open-variant"
               value={moduleProgress.length.toString()}
               label="Módulos Feitos"
-              iconColor={colors.iconColors.modules} // Colorido
+              iconColor={colors.iconColors.modules}
               textColor={colors.text}
               backgroundColor={colors.itemBg}
               delay={400}
@@ -373,7 +372,7 @@ const ProgressScreenComponent = ({
               icon="trophy"
               value={userPoints.toLocaleString("pt-BR")}
               label="Pontos"
-              iconColor={colors.iconColors.points} // Colorido
+              iconColor={colors.iconColors.points}
               textColor={colors.text}
               backgroundColor={colors.itemBg}
               delay={500}
@@ -441,6 +440,7 @@ export default function ProgressScreen(
   return <ProgressScreenComponent {...props} />;
 }
 
+// ... (Seus estilos permanecem idênticos abaixo)
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
