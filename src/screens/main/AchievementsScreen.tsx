@@ -1,3 +1,4 @@
+// src/screens/main/AchievementsScreen.tsx
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -7,7 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  Animated,
   Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -26,7 +26,7 @@ import {
 } from "react-native-gesture-handler";
 import { useAuthStore } from "../../store/authStore";
 import { generateClient } from "aws-amplify/api";
-import { listProgresses, getUser } from "../../graphql/queries";
+import { listProgresses } from "../../graphql/queries";
 
 const MODULE_EMOJIS = ["🎓", "🏆", "⭐"];
 const ACHIEVEMENT_EMOJIS = ["🥉", "🥈", "🥇", "🏆", "💎"];
@@ -91,7 +91,6 @@ export default function AchievementsScreen() {
       const validAttempts = rawList.filter((p: any) => p && p.timeSpent > 0);
 
       // 3. Identifica módulos únicos completados
-      // ✅ CORREÇÃO 1: Forçando a tipagem (as number[]) para o TypeScript entender
       const uniqueCompletedModules = (
         [
           ...new Set(validAttempts.map((p: any) => Number(p.moduleNumber))),
@@ -196,6 +195,7 @@ export default function AchievementsScreen() {
   };
 
   const renderAchievementCard = (achievement: any, index: number) => {
+    // Usando cores do array para fundo
     const bgColor = CARD_COLORS[index % CARD_COLORS.length];
 
     return (
@@ -209,6 +209,7 @@ export default function AchievementsScreen() {
           </Text>
         </View>
         <View style={styles.achievementTextContainer}>
+          {/* ✅ CORRIGIDO: Texto branco fixo APENAS aqui porque o fundo é colorido */}
           <Text style={styles.achievementTitle}>{achievement.title}</Text>
           <Text style={styles.achievementDate}>{achievement.description}</Text>
         </View>
@@ -217,7 +218,6 @@ export default function AchievementsScreen() {
   };
 
   const renderContent = () => (
-    // ✅ CORREÇÃO 2: Usando styles.page ao invés de styles.pageContainer
     <View style={styles.page}>
       <StatusBar
         barStyle={theme.statusBarStyle}
@@ -252,16 +252,23 @@ export default function AchievementsScreen() {
           </AccessibleView>
 
           <View style={styles.achievementsContainer}>
-            <Text style={styles.sectionTitle}>Módulos Concluídos</Text>
+            {/* ✅ CORRIGIDO: Cor do texto agora é dinâmica (cardText) */}
+            <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+              Módulos Concluídos
+            </Text>
             <View style={styles.modulosRow}>{renderModuleIcons()}</View>
-            <Text style={[styles.progressText, { color: "#FFFFFF" }]}>
+            <Text style={[styles.progressText, { color: theme.cardText }]}>
               {progressoAtual} de {modulosTotais} módulos concluídos
             </Text>
           </View>
 
           <View style={styles.achievementsContainer}>
-            <Text style={styles.sectionTitle}>🌟 Últimas Pontuações</Text>
-            <Text style={styles.performanceSubtitle}>
+            <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+              🌟 Últimas Pontuações
+            </Text>
+            <Text
+              style={[styles.performanceSubtitle, { color: theme.cardText }]}
+            >
               (Última pontuação registrada em cada módulo)
             </Text>
 
@@ -288,10 +295,12 @@ export default function AchievementsScreen() {
                 <MaterialCommunityIcons
                   name="information-outline"
                   size={36}
-                  color="#FFFFFF"
+                  color={theme.cardText} // ✅ CORRIGIDO
                   style={{ opacity: 0.8 }}
                 />
-                <Text style={styles.performanceInfo}>
+                <Text
+                  style={[styles.performanceInfo, { color: theme.cardText }]}
+                >
                   Suas pontuações aparecerão aqui após você finalizar um módulo.
                 </Text>
               </View>
@@ -314,10 +323,11 @@ export default function AchievementsScreen() {
                   color={theme.cardText}
                   style={{ opacity: 0.5 }}
                 />
-                <Text style={[styles.emptyTitle, { color: "#FFFFFF" }]}>
+                {/* ✅ CORRIGIDO: Cor do texto dinâmica */}
+                <Text style={[styles.emptyTitle, { color: theme.cardText }]}>
                   Sem Conquistas Ainda
                 </Text>
-                <Text style={[styles.emptySubtitle, { color: "#FFFFFF" }]}>
+                <Text style={[styles.emptySubtitle, { color: theme.cardText }]}>
                   Complete os módulos para ganhar emblemas!
                 </Text>
               </View>
@@ -385,11 +395,12 @@ const createStyles = (
       padding: 20,
       marginBottom: 20,
       alignItems: "center",
+      borderWidth: 1,
+      borderColor: "rgba(0,0,0,0.05)",
     },
     sectionTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
-      color: "#FFFFFF",
       marginBottom: 10,
       textAlign: "center",
       lineHeight: 18 * fontMultiplier * lineHeight,
@@ -398,7 +409,6 @@ const createStyles = (
     },
     performanceSubtitle: {
       fontSize: 12 * fontMultiplier,
-      color: "#FFFFFF",
       opacity: 0.8,
       textAlign: "center",
       marginBottom: 15,
@@ -420,16 +430,15 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
       marginHorizontal: 8,
-      opacity: 0.4,
+      opacity: 0.6,
       borderWidth: 2,
-      borderColor: theme.cardText,
+      borderColor: theme.cardText, // Usa a cor do texto para a borda
     },
     moduloIconCompleted: { opacity: 1, borderColor: "#4CD964" },
     moduloIconLowAccuracy: { opacity: 1, borderColor: theme.cardText },
     moduloEmoji: { fontSize: 32 },
     progressText: {
       fontSize: 14 * fontMultiplier,
-      color: "#FFFFFF",
       fontWeight: isBold ? "bold" : "normal",
       lineHeight: 14 * fontMultiplier * lineHeight,
       letterSpacing,
@@ -442,7 +451,7 @@ const createStyles = (
       width: "100%",
     },
     emblemCard: {
-      backgroundColor: "#FFD700",
+      backgroundColor: "#FFD700", // Fundo dourado fixo para emblemas
       margin: 6,
       borderRadius: 12,
       padding: 12,
@@ -456,7 +465,7 @@ const createStyles = (
     },
     emblemEmoji: { fontSize: 40 },
     emblemAccuracy: {
-      color: "#191970",
+      color: "#191970", // Texto escuro no fundo dourado
       fontSize: 16,
       fontWeight: "bold",
       marginTop: 5,
@@ -484,7 +493,7 @@ const createStyles = (
     achievementTitle: {
       fontSize: 16 * fontMultiplier,
       fontWeight: "bold",
-      color: "#FFFFFF",
+      color: "#FFFFFF", // Texto branco no card colorido
       marginBottom: 4,
       lineHeight: 16 * fontMultiplier * lineHeight,
       letterSpacing,
@@ -492,7 +501,7 @@ const createStyles = (
     },
     achievementDate: {
       fontSize: 12 * fontMultiplier,
-      color: "#FFFFFF",
+      color: "#FFFFFF", // Texto branco no card colorido
       opacity: 0.9,
       lineHeight: 12 * fontMultiplier * lineHeight,
       letterSpacing,
@@ -508,7 +517,6 @@ const createStyles = (
     emptyTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
-      color: "#FFFFFF",
       marginTop: 15,
       marginBottom: 8,
       lineHeight: 18 * fontMultiplier * lineHeight,
@@ -517,7 +525,6 @@ const createStyles = (
     },
     emptySubtitle: {
       fontSize: 14 * fontMultiplier,
-      color: "#FFFFFF",
       textAlign: "center",
       opacity: 0.8,
       lineHeight: 20 * lineHeight,
@@ -532,7 +539,6 @@ const createStyles = (
     },
     performanceInfo: {
       marginTop: 10,
-      color: "#FFFFFF",
       textAlign: "center",
       maxWidth: 280,
       fontSize: 13 * fontMultiplier,

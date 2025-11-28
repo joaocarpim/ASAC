@@ -1,3 +1,5 @@
+// src/screens/module/RankingScreen.tsx
+
 import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
@@ -301,12 +303,18 @@ export default function RankingScreen() {
     setLoading(true);
     try {
       const users = await getAllUsers();
-      if (!users || users.length === 0) {
+
+      // ✅ FILTRO ADICIONADO: Remove Renata do ranking
+      const filteredUsers = (users || []).filter(
+        (u: any) => u.email !== "docente.asac@gmail.com"
+      );
+
+      if (!filteredUsers || filteredUsers.length === 0) {
         setRankingData([]);
         return;
       }
 
-      const ranked = users
+      const ranked = filteredUsers
         .map((user: any) => {
           const modulesCompleted = Array.isArray(user.modulesCompleted)
             ? user.modulesCompleted.filter(Boolean).length

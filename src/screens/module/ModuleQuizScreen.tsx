@@ -36,6 +36,10 @@ import {
 import { useSettings } from "../../hooks/useSettings";
 import { Audio } from "expo-av";
 
+// ✅ Importar Observer e Subject
+import { ExplanationSubject } from "../../services/ExplanationSubject";
+import { ExplanationObserver } from "../../observers/ExplanationObserver";
+
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
 
 const wp = (percentage: number) => (WINDOW_WIDTH * percentage) / 100;
@@ -62,6 +66,10 @@ export default function ModuleQuizScreen({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
+
+  // ✅ Novo estado para bloquear o botão "Próximo"
+  const [isNextButtonLocked, setIsNextButtonLocked] = useState(true);
+
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongCount, setWrongCount] = useState(0);
   const [errorDetails, setErrorDetails] = useState<ErrorDetail[]>([]);
@@ -161,8 +169,12 @@ export default function ModuleQuizScreen({
 
     const q = questions[currentQuestionIndex];
     setIsAnswerChecked(true);
+    setIsNextButtonLocked(true); // 🔒 Bloqueia o botão próximo inicialmente
 
-    if (selectedAnswer === q.correctAnswer) {
+    const isCorrect = selectedAnswer === q.correctAnswer;
+
+    // Feedback Auditivo e Tátil
+    if (isCorrect) {
       playSound(correctSound);
       Vibration.vibrate(70);
       setCorrectCount((p) => p + 1);
@@ -172,7 +184,6 @@ export default function ModuleQuizScreen({
       playSound(wrongSound);
       Vibration.vibrate([0, 80, 50, 80]);
       setWrongCount((p) => p + 1);
-
       setErrorDetails((prev) => [
         ...prev,
         {
@@ -183,6 +194,25 @@ export default function ModuleQuizScreen({
         },
       ]);
     }
+
+    // 📢 DISPARAR NOTIFICAÇÃO DE EXPLICAÇÃO
+    // Pequeno delay para garantir que o feedback visual da seleção ocorra antes
+    setTimeout(() => {
+      const title = isCorrect ? "Correto! 🎉" : "Atenção! 🧐";
+      const message =
+        q.explanation || (isCorrect ? "Você acertou!" : "Resposta incorreta.");
+      const type = isCorrect ? "success" : "info"; // Usa 'info' para erro/explicação neutra
+
+      ExplanationSubject.notify({
+        title,
+        message,
+        type,
+        onDismiss: () => {
+          // 🔓 Desbloqueia o botão quando o usuário interagir com a notificação
+          setIsNextButtonLocked(false);
+        },
+      });
+    }, 500);
   }, [selectedAnswer, currentQuestionIndex, questions]);
 
   const handleNext = useCallback(() => {
@@ -190,6 +220,7 @@ export default function ModuleQuizScreen({
       setCurrentQuestionIndex((p) => p + 1);
       setSelectedAnswer(null);
       setIsAnswerChecked(false);
+      setIsNextButtonLocked(true); // Reseta para a próxima pergunta
       return;
     }
 
@@ -244,6 +275,9 @@ export default function ModuleQuizScreen({
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.background} />
+
+      {/* ✅ Observer da Explicação */}
+      <ExplanationObserver />
 
       {/* HEADER COM PROGRESSO */}
       <View style={styles.header}>
@@ -312,12 +346,7 @@ export default function ModuleQuizScreen({
             ))}
           </View>
 
-          {isAnswerChecked && current.explanation && (
-            <View style={styles.explanationBox}>
-              <Text style={styles.explanationTitle}>💡 Explicação</Text>
-              <Text style={styles.explanationText}>{current.explanation}</Text>
-            </View>
-          )}
+          {/* REMOVIDO: explanationBox antigo foi substituído pela notificação */}
         </View>
       </ScrollView>
 
@@ -326,16 +355,32 @@ export default function ModuleQuizScreen({
         <AccessibleButton
           style={[
             styles.button,
-            selectedAnswer === null &&
-              !isAnswerChecked &&
-              styles.buttonDisabled,
+            // Desabilita visualmente se não selecionou nada OU se já respondeu mas não clicou na notificação
+            (selectedAnswer === null && !isAnswerChecked) ||
+            (isAnswerChecked && isNextButtonLocked)
+              ? styles.buttonDisabled
+              : {},
           ]}
+          // Ação: Se não respondeu -> Confirma. Se respondeu E destravou -> Próximo.
           onPress={isAnswerChecked ? handleNext : handleConfirm}
-          disabled={selectedAnswer === null && !isAnswerChecked}
+          // Desabilitado se: (Não selecionou nada) OU (Já respondeu mas botão está travado)
+          disabled={
+            (selectedAnswer === null && !isAnswerChecked) ||
+            (isAnswerChecked && isNextButtonLocked)
+          }
+          accessibilityText={
+            !isAnswerChecked
+              ? "Confirmar Resposta"
+              : isNextButtonLocked
+              ? "Leia a explicação acima"
+              : "Próxima Pergunta"
+          }
         >
           <Text style={styles.buttonText}>
             {isAnswerChecked
-              ? currentQuestionIndex === questions.length - 1
+              ? isNextButtonLocked
+                ? "Leia a Explicação ☝️" // Texto muda para orientar usuário
+                : currentQuestionIndex === questions.length - 1
                 ? "Finalizar Quiz"
                 : "Próxima Pergunta →"
               : "Confirmar Resposta"}
@@ -389,7 +434,7 @@ const getStyles = (
 
     header: {
       paddingHorizontal: wp(4),
-      paddingTop: hp(1.5),
+      paddingTop: hp(5),
       paddingBottom: hp(2),
       backgroundColor: theme.card,
       borderBottomWidth: 1,
@@ -553,29 +598,6 @@ const getStyles = (
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
 
-    explanationBox: {
-      marginTop: hp(2.5),
-      padding: wp(4),
-      backgroundColor: "rgba(33, 150, 243, 0.1)",
-      borderRadius: 12,
-      borderLeftWidth: 4,
-      borderLeftColor: "#2196F3",
-    },
-
-    explanationTitle: {
-      color: theme.cardText,
-      fontSize: Math.min(normalize(15), wp(4.2)),
-      fontWeight: "bold",
-      marginBottom: hp(1),
-    },
-
-    explanationText: {
-      color: theme.cardText,
-      fontSize: Math.min(normalize(14) * fontMultiplier, wp(4)),
-      lineHeight: Math.min(normalize(20) * lineHeightMultiplier, wp(5.5)),
-      fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
-
     footer: {
       padding: wp(4),
       paddingBottom: Platform.OS === "ios" ? hp(1) : hp(2),
@@ -586,6 +608,7 @@ const getStyles = (
 
     button: {
       backgroundColor: theme.button,
+      marginBottom: 60,
       paddingVertical: hp(2),
       borderRadius: 12,
       alignItems: "center",
@@ -603,7 +626,8 @@ const getStyles = (
     },
 
     buttonDisabled: {
-      opacity: 0.4,
+      opacity: 0.5,
+      backgroundColor: "#666",
     },
 
     buttonText: {

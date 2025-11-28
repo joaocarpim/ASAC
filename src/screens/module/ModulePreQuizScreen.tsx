@@ -210,26 +210,7 @@ export default function ModulePreQuizScreen({
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
-          <AccessibleButton
-            onPress={handleGoBack}
-            style={styles.secondaryButton}
-            accessibilityText="Voltar"
-          >
-            <Text style={styles.secondaryButtonText}>← Voltar</Text>
-          </AccessibleButton>
-
-          <AccessibleButton
-            onPress={handleStartQuiz}
-            style={styles.primaryButton}
-            accessibilityText="Iniciar Quiz"
-            disabled={checkingPermission}
-          >
-            <Text style={styles.primaryButtonText}>
-              {checkingPermission ? "Iniciando..." : "Iniciar Quiz →"}
-            </Text>
-          </AccessibleButton>
-        </View>
+        
       </SafeAreaView>
     </GestureDetector>
   );
@@ -345,65 +326,6 @@ const getStyles = (
       fontSize: Math.min(normalize(14) * fontMultiplier, wp(4)),
       fontWeight: "500",
       lineHeight: Math.min(normalize(20), wp(5.5)),
-      fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
-
-    footer: {
-      flexDirection: "row",
-      padding: wp(4),
-      paddingBottom: Platform.OS === "ios" ? hp(1) : hp(2),
-      borderTopWidth: 1,
-      borderTopColor: "rgba(255,255,255,0.1)",
-      gap: wp(2),
-      backgroundColor: theme.background,
-    },
-
-    primaryButton: {
-      flex: 2,
-      backgroundColor: theme.button,
-      paddingVertical: 12,
-      marginVertical: 5,
-      marginHorizontal: 5,
-      borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: hp(6.5),
-      ...Platform.select({
-        ios: {
-          shadowColor: theme.button,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 6,
-        },
-        android: { elevation: 4 },
-      }),
-    },
-
-    primaryButtonText: {
-      color: theme.buttonText,
-      fontSize: Math.min(normalize(15), wp(4.2)),
-      fontWeight: "700",
-      fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
-
-    secondaryButton: {
-      flex: 1,
-      borderWidth: 2,
-      marginLeft: 100,
-      borderColor: theme.button,
-      paddingVertical: 12,
-      marginVertical: 5,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "transparent",
-      minHeight: hp(6.5),
-    },
-
-    secondaryButtonText: {
-      color: theme.button,
-      fontWeight: "700",
-      fontSize: Math.min(normalize(15), wp(4.2)),
       fontFamily: dyslexia ? "OpenDyslexic-Regular" : undefined,
     },
   });

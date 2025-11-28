@@ -1,4 +1,3 @@
-// src/screens/module/ModuleResultScreen.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -120,7 +119,11 @@ export default function ModuleResultScreen({
 
   useEffect(() => {
     if (passed) {
-      successSound?.playAsync();
+      // Pequeno delay para garantir que o som carregou
+      setTimeout(() => {
+        successSound?.playAsync();
+      }, 500);
+
       setShowConfetti(true);
 
       const title = "🎉 Módulo Concluído!";
@@ -130,9 +133,11 @@ export default function ModuleResultScreen({
 
       setTimeout(() => setShowConfetti(false), 2500);
     } else {
-      failureSound?.playAsync();
+      setTimeout(() => {
+        failureSound?.playAsync();
+      }, 500);
     }
-  }, [passed]);
+  }, [passed, successSound, failureSound]); // Adicionado dependências de som
 
   const handleSaveProgress = useCallback(async () => {
     if (!user?.userId || !progressId) return;
@@ -302,30 +307,19 @@ export default function ModuleResultScreen({
             <Text style={styles.statLabel}>Moedas</Text>
           </View>
         </View>
+
+        {/* Dica de Navegação por Gesto (Já que removemos o botão) */}
+        {passed && (
+          <View style={styles.tipBox}>
+            <Text style={styles.tipIcon}>👈</Text>
+            <Text style={styles.tipText}>
+              Arraste para a esquerda para sair.
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        {!passed && (
-          <AccessibleButton
-            onPress={() => navigation.replace("ModuleQuiz", { moduleId })}
-            style={styles.secondaryButton}
-            accessibilityText="Tentar novamente"
-          >
-            <Text style={styles.secondaryButtonText}>Tentar Novamente</Text>
-          </AccessibleButton>
-        )}
-
-        <AccessibleButton
-          onPress={() => navigation.navigate("Home")}
-          style={styles.primaryButton}
-          accessibilityText="Voltar ao Início"
-        >
-          <Text style={styles.primaryButtonText}>
-            {passed ? "Continuar" : "Voltar"}
-          </Text>
-        </AccessibleButton>
-      </View>
-
+      
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
           <ConfettiCannon
@@ -510,52 +504,26 @@ const createStyles = (
       fontSize: Math.min(normalize(14), wp(3.8)),
     },
 
-    footer: {
+    tipBox: {
       flexDirection: "row",
-      padding: wp(4),
-      paddingBottom: Platform.OS === "ios" ? hp(1) : hp(2),
-      borderTopWidth: 1,
-      borderTopColor: "rgba(255,255,255,0.15)",
-      gap: wp(2),
-    },
-
-    primaryButton: {
-      flex: 1,
-      backgroundColor: theme.button,
-      paddingVertical: 12,
-      borderRadius: 10,
-      marginLeft: 140,
       alignItems: "center",
       justifyContent: "center",
-      minHeight: hp(6),
-    },
-
-    primaryButtonText: {
-      color: theme.buttonText,
-      fontSize: Math.min(normalize(16), wp(4.5)),
-      fontWeight: "700",
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-    },
-
-    secondaryButton: {
-      flex: 1,
-      borderWidth: 2,
-      borderColor: theme.button,
-      paddingVertical: hp(1.8),
+      padding: 15,
+      backgroundColor: theme.card,
       borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "transparent",
-      minHeight: hp(6),
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: theme.button + "50",
     },
-
-    secondaryButtonText: {
-      color: theme.button,
-      fontWeight: "700",
-      fontSize: Math.min(normalize(16), wp(4.5)),
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    tipIcon: {
+      fontSize: 20,
+      marginRight: 10,
     },
-
+    tipText: {
+      color: theme.cardText,
+      fontSize: 14,
+      fontWeight: "500",
+    },
     confettiContainer: {
       position: "absolute",
       top: 0,

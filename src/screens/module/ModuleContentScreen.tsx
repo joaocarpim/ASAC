@@ -11,7 +11,6 @@ import {
   ColorValue,
   Platform,
   Dimensions,
-  SafeAreaView,
 } from "react-native";
 
 import { RootStackScreenProps } from "../../navigation/types";
@@ -27,14 +26,20 @@ import {
 
 import { useAccessibility } from "../../context/AccessibilityProvider";
 import { useSettings } from "../../hooks/useSettings";
+
 import { DEFAULT_MODULES, ModuleContent } from "../../navigation/moduleTypes";
+
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
 
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
 
-// Função para calcular tamanho responsivo
+// Funções de responsividade
 const wp = (percentage: number) => (WINDOW_WIDTH * percentage) / 100;
 const hp = (percentage: number) => (WINDOW_HEIGHT * percentage) / 100;
+const normalize = (size: number) => {
+  const scale = WINDOW_WIDTH / 375;
+  return Math.round(size * scale);
+};
 
 function isColorDark(color: ColorValue | undefined): boolean {
   if (!color || typeof color !== "string") return false;
@@ -124,37 +129,26 @@ export default function ModuleContentScreen({
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar
-          barStyle={statusBarStyle}
-          backgroundColor={theme.background}
-        />
+      <View style={styles.loadingContainer}>
         <ActivityIndicator color={theme.text} size="large" />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!moduleData) {
     return (
-      <SafeAreaView style={styles.contentContainer}>
-        <StatusBar
-          barStyle={statusBarStyle}
-          backgroundColor={theme.background}
-        />
+      <View style={styles.contentContainer}>
         <Text style={styles.errorText}>Conteúdo não encontrado.</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const content = (
-    <SafeAreaView style={styles.container} {...panResponder}>
+    <View style={styles.container} {...panResponder}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
       <ScreenHeader title={moduleData.title || "Módulo"} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollWrapper}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollWrapper}>
         <AccessibleView
           style={styles.contentCard}
           accessibilityText={`Página ${currentPageIndex + 1}. ${
@@ -184,7 +178,7 @@ export default function ModuleContentScreen({
           {currentPageIndex + 1} / {totalPages}
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 
   if (gestureWrapper && Platform.OS !== "web") {
@@ -197,6 +191,11 @@ export default function ModuleContentScreen({
   return content;
 }
 
+//
+// ========================================================
+// 🎨 ESTILOS OTIMIZADOS PARA CONTRASTE E LEITURA
+// ========================================================
+//
 const getStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -227,35 +226,39 @@ const getStyles = (
     },
 
     errorText: {
-      fontSize: Math.min(18 * fontMultiplier, wp(6)),
-      color: theme.text,
+      fontSize: Math.min(normalize(18) * fontMultiplier, wp(6)),
+      color: theme.text, // ✅ Usa cor de texto padrão (contrasta com background)
       textAlign: "center",
+      userSelect: "none",
     },
 
     scrollWrapper: {
-      paddingHorizontal: wp(4),
-      paddingVertical: hp(2),
+      paddingHorizontal: wp(5),
+      paddingVertical: hp(3),
       alignItems: "center",
-      flexGrow: 1,
     },
 
     contentCard: {
       width: "100%",
       maxWidth: Math.min(wp(95), 900),
-      borderRadius: 16,
-      paddingVertical: hp(2.5),
-      backgroundColor: theme.card,
+      borderRadius: 20,
+      paddingVertical: hp(4),
+      backgroundColor: theme.card, // ✅ Fundo do card
+      userSelect: "none",
+
+      // Bordas e sombras para separar do fundo
       borderWidth: 1,
-      borderColor: "rgba(0,0,0,0.05)",
+      borderColor: "rgba(0,0,0,0.08)",
+
       ...Platform.select({
-        web: { boxShadow: "0 8px 24px rgba(0,0,0,0.12)" },
+        web: { boxShadow: "0 4px 16px rgba(0,0,0,0.1)" },
         ios: {
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.12,
-          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
         },
-        android: { elevation: 6 },
+        android: { elevation: 5 },
       }),
     },
 
@@ -264,33 +267,43 @@ const getStyles = (
     },
 
     contentTitle: {
-      fontSize: Math.min(22 * fontMultiplier, wp(6.5)),
-      fontWeight: isBold ? "bold" : "600",
-      marginBottom: hp(1.5),
-      color: theme.cardText,
+      fontSize: Math.min(normalize(24) * fontMultiplier, wp(7)),
+      fontWeight: isBold ? "bold" : "700",
+      marginBottom: hp(2),
+      color: theme.cardText, // ✅ Garante contraste com theme.card
+      textAlign: "left",
       letterSpacing,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Bold" : undefined,
     },
 
     contentBody: {
-      fontSize: Math.min(16 * fontMultiplier, wp(4.5)),
-      lineHeight: Math.min(24 * fontMultiplier * lineHeightMultiplier, wp(7)),
-      color: theme.cardText,
+      fontSize: Math.min(normalize(18) * fontMultiplier, wp(5)),
+      lineHeight: Math.min(
+        normalize(28) * fontMultiplier * lineHeightMultiplier,
+        wp(8)
+      ),
+      color: theme.cardText, // ✅ Garante contraste com theme.card
+      textAlign: "left",
+      userSelect: "none",
       letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
 
     emptyText: {
-      fontSize: Math.min(16, wp(4.5)),
-      color: theme.cardText,
+      fontSize: normalize(16),
+      color: theme.cardText, // ✅ Garante contraste
       textAlign: "center",
+      userSelect: "none",
     },
 
     pageIndicator: {
-      marginTop: hp(2),
-      fontSize: Math.min(14, wp(4)),
+      marginTop: hp(3),
+      fontSize: Math.min(normalize(16), wp(4.5)),
+      // ✅ Usa theme.text pois está FORA do card (sobre theme.background)
       color: theme.text,
-      opacity: 0.9,
+      opacity: 0.8,
       fontWeight: "bold",
+      userSelect: "none",
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
   });

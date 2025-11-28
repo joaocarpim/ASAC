@@ -1,5 +1,4 @@
 // src/screens/admin/AdminDashboardScreen.tsx
-// === VERSÃO FINAL, 100% CORRIGIDA E COMPATÍVEL ===
 
 import React, { useState, useCallback } from "react";
 import {
@@ -124,6 +123,7 @@ export default function AdminDashboardScreen({
 
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ============================================================
   // STATS
@@ -162,7 +162,10 @@ export default function AdminDashboardScreen({
     try {
       const allUsers = (await getAllUsers()) as User[];
 
-      const assistidos = allUsers.filter((u) => !u.isAdmin);
+      // ✅ FILTRO ATUALIZADO: Remove Admins E a usuária "Renata" (docente)
+      const assistidos = allUsers.filter(
+        (u) => !u.isAdmin && u.email !== "docente.asac@gmail.com"
+      );
 
       setUsers(assistidos);
       calculateStats(assistidos);
@@ -193,13 +196,13 @@ export default function AdminDashboardScreen({
   };
 
   // ============================================================
-  // CONFIRMAR DELEÇÃO — CHAMA deleteUserService
+  // CONFIRMAR DELEÇÃO
   // ============================================================
   const confirmDeleteUser = useCallback(async () => {
     if (!userToDelete) return;
 
     setConfirmModalVisible(false);
-    setLoading(true);
+    setIsDeleting(true);
 
     try {
       const result = await deleteUserService.deleteUserCompletely(
@@ -233,7 +236,7 @@ export default function AdminDashboardScreen({
         );
     }
 
-    setLoading(false);
+    setIsDeleting(false);
     setUserToDelete(null);
   }, [userToDelete, users, calculateStats]);
 
@@ -330,7 +333,31 @@ export default function AdminDashboardScreen({
             />
           )}
           contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons
+                name="account-off-outline"
+                size={64}
+                color="#999"
+              />
+              <Text style={styles.emptyText}>
+                {searchQuery
+                  ? "Nenhum assistido encontrado"
+                  : "Nenhum assistido cadastrado"}
+              </Text>
+            </View>
+          }
         />
+      )}
+
+      {/* Loading Overlay para deleção */}
+      {isDeleting && (
+        <View style={styles.deletingOverlay}>
+          <View style={styles.deletingBox}>
+            <ActivityIndicator size="large" color="#FFF" />
+            <Text style={styles.deletingText}>Apagando dados...</Text>
+          </View>
+        </View>
       )}
 
       <ConfirmModal
@@ -444,9 +471,47 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: "rgba(255, 138, 138, 0.15)",
+    marginLeft: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
-  listContent: { paddingHorizontal: 20 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 20 },
 
   loadingContainer: { flex: 1, justifyContent: "center", paddingTop: 40 },
+
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 60,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
+  },
+
+  // Overlay de Deleção
+  deletingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+  deletingBox: {
+    backgroundColor: "#191970",
+    padding: 24,
+    borderRadius: 16,
+    alignItems: "center",
+    gap: 12,
+    elevation: 10,
+  },
+  deletingText: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
 });

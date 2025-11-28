@@ -1,5 +1,3 @@
-// src/screens/module/AlphabetSectionsScreen.tsx (CORRIGIDO)
-
 import React, { useMemo } from "react";
 import {
   View,
@@ -34,44 +32,19 @@ export default function AlphabetSectionsScreen() {
   );
   const navigation = useNavigation<NavigationProps>();
 
-  console.log("🔵 [AlphabetSections] Tela renderizada");
-
+  // Configuração do gesto de arrastar para voltar
   const panGesture = useMemo(
     () =>
       Platform.OS !== "web"
         ? Gesture.Pan()
-            .onStart(() => {
-              console.log("👆 [AlphabetSections] Gesture iniciado");
-            })
-            .onUpdate((event) => {
-              console.log(
-                `📍 [AlphabetSections] Pan update - X: ${event.translationX.toFixed(
-                  0
-                )}, Y: ${event.translationY.toFixed(0)}`
-              );
-            })
+            .activeOffsetX([-20, 20]) // Reduz sensibilidade vertical
             .onEnd((event) => {
-              console.log(
-                `✅ [AlphabetSections] Gesture finalizado - X: ${event.translationX.toFixed(
-                  0
-                )}, Y: ${event.translationY.toFixed(0)}`
-              );
-
-              if (
-                event.translationX > 80 &&
-                Math.abs(event.translationX) > Math.abs(event.translationY)
-              ) {
-                console.log(
-                  "🔙 [AlphabetSections] Swipe RIGHT detectado → Voltando"
-                );
+              // Se arrastar mais de 60px para a direita, volta
+              if (event.translationX > 60) {
                 navigation.goBack();
-              } else {
-                console.log(
-                  "❌ [AlphabetSections] Swipe não atingiu threshold"
-                );
               }
             })
-        : Gesture.Pan(), // Gesture vazio para web
+        : Gesture.Pan(), // Gesto vazio para web
     [navigation]
   );
 
@@ -83,7 +56,6 @@ export default function AlphabetSectionsScreen() {
     const accessibilityLabel = `${session.title}. ${session.description}. Toque duas vezes para iniciar a aula.`;
 
     const handlePress = () => {
-      console.log(`🎯 [AlphabetSections] Card pressionado: ${session.title}`);
       navigation.navigate("AlphabetLesson", {
         title: session.title,
         characters: session.characters,
@@ -98,21 +70,18 @@ export default function AlphabetSectionsScreen() {
         accessible={true}
         accessibilityLabel={accessibilityLabel}
         accessibilityRole="button"
-        onAccessibilityTap={() => {
-          console.log(`♿ [AlphabetSections] TalkBack tap: ${session.title}`);
-          handlePress();
-        }}
       >
-        {/* ✅ CORREÇÃO AQUI */}
         <MaterialCommunityIcons
           name={session.icon}
           size={32}
-          // Corrigido de theme.text para theme.cardText
+          // ✅ CORREÇÃO: Usar cardText para garantir contraste dentro do card
           color={theme.cardText}
           importantForAccessibility="no"
         />
         <View style={styles.cardTextContainer}>
           <Text style={styles.cardTitle}>{session.title}</Text>
+          {/* Opcional: Adicionar descrição visualmente se desejar */}
+          {/* <Text style={styles.cardDescription}>{session.description}</Text> */}
         </View>
       </TouchableOpacity>
     );
@@ -124,7 +93,12 @@ export default function AlphabetSectionsScreen() {
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
-      <ScreenHeader title="Aprender o Alfabeto" />
+      {/* Header com botão de voltar padrão */}
+      <ScreenHeader
+        title="Aprender o Alfabeto"
+        onBackPress={() => navigation.goBack()}
+      />
+
       <FlatList
         data={LEARNING_PATH_SESSIONS}
         renderItem={renderSessionCard}
@@ -134,9 +108,8 @@ export default function AlphabetSectionsScreen() {
     </View>
   );
 
-  console.log(`🎨 [AlphabetSections] Platform: ${Platform.OS}`);
-
-  if (Platform.OS !== "web" && panGesture) {
+  // Aplica o gesto apenas se não for web
+  if (Platform.OS !== "web") {
     return (
       <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
     );
@@ -176,6 +149,13 @@ const createStyles = (
       fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       color: theme.cardText,
+      fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
+    },
+    cardDescription: {
+      fontSize: 13 * fontMultiplier,
+      color: theme.cardText,
+      opacity: 0.8,
+      marginTop: 2,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
   });

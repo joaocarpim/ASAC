@@ -1,6 +1,6 @@
 // src/screens/contractions/ContractionsHomeScreen.tsx
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   StyleSheet,
   Platform,
@@ -8,7 +8,7 @@ import {
   View,
   Modal,
   TouchableOpacity,
-  Text, // ✅ ADICIONADO AQUI (Isso corrige o erro)
+  Text,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
@@ -23,6 +23,9 @@ import {
   AccessibleButton,
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
+
+// ✅ 1. Importar Gesture Handler
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 type ScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -80,7 +83,23 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
     }
   };
 
-  return (
+  // ✅ 2. Configurar Gesto de Voltar (Swipe Right)
+  const panGesture = useMemo(
+    () =>
+      Platform.OS !== "web"
+        ? Gesture.Pan()
+            .activeOffsetX([-20, 20]) // Reduz sensibilidade vertical
+            .onEnd((event) => {
+              // Se arrastar mais de 60px para a direita, volta para Home
+              if (event.translationX > 60) {
+                navigation.navigate("Home");
+              }
+            })
+        : Gesture.Pan(), // Gesto vazio para web
+    [navigation]
+  );
+
+  const renderContent = () => (
     <View style={styles.container}>
       <StatusBar
         barStyle={theme.statusBarStyle}
@@ -161,7 +180,6 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
               Acesso Bloqueado
             </AccessibleHeader>
 
-            {/* O erro estava aqui, agora corrigido com a importação de Text */}
             <AccessibleText style={styles.modalText} baseSize={16}>
               Para acessar o Desafio de Escrita, você precisa primeiro concluir
               a lição{" "}
@@ -183,6 +201,15 @@ export default function ContractionsHomeScreen({ navigation }: ScreenProps) {
       </Modal>
     </View>
   );
+
+  // ✅ 3. Aplicar GestureDetector (Exceto Web se preferir)
+  if (Platform.OS !== "web") {
+    return (
+      <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
+    );
+  }
+
+  return renderContent();
 }
 
 const createStyles = (

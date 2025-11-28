@@ -10,6 +10,7 @@ import {
   Platform,
   TextStyle,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -34,10 +35,13 @@ import { useModalStore } from "../../store/useModalStore";
 import { useNotificationQueueStore } from "../../store/useNotificationQueueStore";
 
 /* ===========================
-    Estilos
+    Estilos e Layout
    =========================== */
+const { width } = Dimensions.get("window");
 const BOX_SIZE = 75;
-const FEATURE_BUTTON_WIDTH = 165;
+const SCREEN_PADDING = 16;
+const GAP_SIZE = 10;
+const FEATURE_BUTTON_WIDTH = (width - SCREEN_PADDING * 2 - GAP_SIZE) / 2;
 const FEATURE_BUTTON_HEIGHT = 120;
 
 const createStyles = (
@@ -74,16 +78,18 @@ const createStyles = (
       fontWeight: isBold ? "bold" : "700",
       color: theme.text,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
       lineHeight: 22 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing,
+      letterSpacing: letterSpacing,
     },
     headerSubtitle: {
       fontSize: 13 * fontMultiplier,
       color: theme.text,
       opacity: 0.8,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
       lineHeight: 13 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing,
+      letterSpacing: letterSpacing,
     },
     headerIcon: {
       backgroundColor: theme.button ?? "#191970",
@@ -117,6 +123,10 @@ const createStyles = (
       fontWeight: isBold ? "900" : "bold",
       marginTop: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
+      lineHeight: 15 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
+      textAlign: "center",
     },
     statLabel: {
       color: theme.cardText,
@@ -124,6 +134,9 @@ const createStyles = (
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
+      lineHeight: 10 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
 
     // MÓDULOS COM CONFIG E ALFABETO
@@ -143,6 +156,9 @@ const createStyles = (
       color: theme.text,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
       flex: 1,
+      // Aplicando configurações globais
+      lineHeight: 16 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
     headerButtons: {
       flexDirection: "row",
@@ -189,12 +205,18 @@ const createStyles = (
       fontWeight: isBold ? "900" : "bold",
       marginBottom: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
+      lineHeight: 13 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
     moduleSubtitle: {
       color: theme.cardText,
       fontSize: 11 * fontMultiplier,
       opacity: 0.9,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
+      lineHeight: 11 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
     moduleStatusIndicator: {
       width: 14,
@@ -215,7 +237,7 @@ const createStyles = (
     },
     featuresRow: {
       flexDirection: "row",
-      gap: 10,
+      gap: GAP_SIZE,
       justifyContent: "center",
     },
     featureButton: {
@@ -254,6 +276,9 @@ const createStyles = (
       fontWeight: isBold ? "bold" : "700",
       marginTop: 8,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
+      lineHeight: 14 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
     featureSubtitle: {
       color: theme.cardText,
@@ -261,6 +286,9 @@ const createStyles = (
       opacity: 0.7,
       marginTop: 2,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
+      lineHeight: 11 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
 
     // AÇÕES RÁPIDAS
@@ -292,6 +320,9 @@ const createStyles = (
       fontWeight: isBold ? "bold" : "600",
       textAlign: "center",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais
+      lineHeight: 10 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
   });
 
@@ -433,7 +464,9 @@ const ModuleItem: React.FC<ModuleItemProps> = ({
     >["name"]);
   return (
     <AccessibleButton
-      accessibilityText={`Módulo ${module.moduleId}. ${completed ? "Concluído" : isLocked ? "Bloqueado" : "Disponível"}.`}
+      accessibilityText={`Módulo ${module.moduleId}. ${
+        completed ? "Concluído" : isLocked ? "Bloqueado" : "Disponível"
+      }.`}
       onPress={onPress}
       disabled={isLocked}
       style={[styles.moduleItem, isLocked && { opacity: 0.55 }]}
@@ -476,6 +509,7 @@ const HomeScreen: React.FC<
   const [dbUser, setDbUser] = useState<APIt.User | null>(null);
 
   const { theme } = useContrast();
+  // Obtendo todas as configurações do hook
   const {
     fontSizeMultiplier,
     isBoldTextEnabled,
@@ -484,6 +518,7 @@ const HomeScreen: React.FC<
     letterSpacing,
   } = useSettings();
 
+  // Passando todas as variáveis para a criação dos estilos
   const styles = createStyles(
     theme,
     fontSizeMultiplier,
@@ -659,7 +694,7 @@ const HomeScreen: React.FC<
               <AccessibleButton
                 onPress={() => navigation.navigate("Settings")}
                 style={styles.smallButton}
-                accessibilityText="Configurações"
+                accessibilityText="Configurações do aplicativo"
               >
                 <MaterialCommunityIcons
                   name="cog"
@@ -671,7 +706,7 @@ const HomeScreen: React.FC<
               <AccessibleButton
                 onPress={() => navigation.navigate("AlphabetSections")}
                 style={styles.smallButton}
-                accessibilityText="Alfabeto"
+                accessibilityText="Alfabeto Braille"
               >
                 <MaterialCommunityIcons
                   name="alphabetical"
