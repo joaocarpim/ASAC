@@ -1,3 +1,4 @@
+// src/screens/learning/AlphabetLessonScreen.tsx
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
@@ -17,7 +18,7 @@ import ConfettiCannon from "react-native-confetti-cannon";
 import { Audio } from "expo-av";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
-import { Theme } from "../../types/contrast";
+import { Theme, ContrastMode } from "../../types/contrast";
 import {
   AccessibleView,
   AccessibleHeader,
@@ -54,7 +55,10 @@ const BrailleCell = ({
         <View
           style={[styles.dot, isActive ? styles.dotActive : styles.dotInactive]}
         >
-          <Text style={styles.dotNumber}>{dotNum}</Text>
+          {/* Aplica estilo específico para o número se o ponto estiver ativo */}
+          <Text style={[styles.dotNumber, isActive && styles.dotNumberActive]}>
+            {dotNum}
+          </Text>
         </View>
       </View>
     );
@@ -62,9 +66,7 @@ const BrailleCell = ({
 
   return (
     <View style={styles.brailleCell} accessibilityElementsHidden={true}>
-      {/* Coluna da Esquerda: Pontos 1, 2, 3 */}
       <View style={styles.brailleColumn}>{[1, 2, 3].map(renderDot)}</View>
-      {/* Coluna da Direita: Pontos 4, 5, 6 */}
       <View style={styles.brailleColumn}>{[4, 5, 6].map(renderDot)}</View>
     </View>
   );
@@ -160,7 +162,7 @@ export default function AlphabetLessonScreen() {
   const route = useRoute<AlphabetLessonRouteProp>();
   const { title, characters } = route.params;
 
-  const { theme } = useContrast();
+  const { theme, contrastMode } = useContrast();
   const {
     fontSizeMultiplier,
     isBoldTextEnabled,
@@ -178,6 +180,7 @@ export default function AlphabetLessonScreen() {
     () =>
       createStyles(
         theme,
+        contrastMode,
         fontSizeMultiplier,
         isBoldTextEnabled,
         lineHeightMultiplier,
@@ -186,6 +189,7 @@ export default function AlphabetLessonScreen() {
       ),
     [
       theme,
+      contrastMode,
       fontSizeMultiplier,
       isBoldTextEnabled,
       lineHeightMultiplier,
@@ -196,7 +200,6 @@ export default function AlphabetLessonScreen() {
 
   useEffect(() => {
     let sound: Audio.Sound | null = null;
-
     const loadSound = async () => {
       try {
         const { sound: loadedSound } = await Audio.Sound.createAsync(
@@ -208,9 +211,7 @@ export default function AlphabetLessonScreen() {
         console.warn("Erro ao carregar som 'happy':", error);
       }
     };
-
     loadSound();
-
     return () => {
       if (sound) {
         sound.unloadAsync();
@@ -253,7 +254,6 @@ export default function AlphabetLessonScreen() {
 
   const handleNext = useCallback(() => {
     if (isFinished) return;
-
     Animated.timing(translateX, {
       toValue: -WINDOW_WIDTH,
       duration: 200,
@@ -279,7 +279,6 @@ export default function AlphabetLessonScreen() {
       setIsFinished(false);
       return;
     }
-
     if (currentPageIndex > 0) {
       Animated.timing(translateX, {
         toValue: WINDOW_WIDTH,
@@ -427,13 +426,36 @@ export default function AlphabetLessonScreen() {
 
 const createStyles = (
   theme: Theme,
+  contrastMode: ContrastMode,
   fontMultiplier: number,
   isBold: boolean,
   lineHeight: number,
   letterSpacing: number,
   isDyslexiaFont: boolean
-) =>
-  StyleSheet.create({
+) => {
+  // ✅ Lógica de Cores da Sela Braille
+  let activeDotBg: string;
+  let activeDotText: string;
+
+  if (contrastMode === "white_black") {
+    // CLARO: Ponto Preto, Número Branco
+    activeDotBg = "#000000";
+    activeDotText = "#FFFFFF";
+  } else if (contrastMode === "sepia") {
+    // SÉPIA: Ponto Marrom, Número Branco
+    activeDotBg = "#5B4636";
+    activeDotText = "#FFFFFF";
+  } else if (contrastMode === "blue_yellow") {
+    // ✅ AZUL ESCURO: Ponto Amarelo, Número Azul
+    activeDotBg = "#FFC700"; // Amarelo
+    activeDotText = "#191970"; // Azul Escuro
+  } else {
+    // Padrão do app (Outros modos)
+    activeDotBg = theme.button ?? theme.text;
+    activeDotText = theme.buttonText ?? theme.background;
+  }
+
+  return StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     scrollWrapper: {
       paddingHorizontal: WINDOW_WIDTH * 0.05,
@@ -499,11 +521,9 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
     },
-    // ✅ STYLE CORRIGIDO: Removido flex: 1 e ajustado width/padding
     congratsCard: {
-      width: "85%", // Reduzido de 100% para parecer um cartão
-      maxWidth: 500, // Limite para tablets
-      // flex: 1, // REMOVIDO: Causava o problema de ocupar a tela toda
+      width: "85%",
+      maxWidth: 500,
       borderRadius: 20,
       backgroundColor: theme.card,
       elevation: 8,
@@ -515,7 +535,7 @@ const createStyles = (
       alignItems: "center",
       paddingVertical: 40,
       paddingHorizontal: 20,
-      alignSelf: "center", // Garante centralização
+      alignSelf: "center",
     },
     cardInner: {
       padding: WINDOW_WIDTH * 0.06,
@@ -573,15 +593,21 @@ const createStyles = (
       borderColor: theme.cardText,
       opacity: 0.2,
     },
+    // ✅ Aplicação da cor de fundo dinâmica
     dotActive: {
-      backgroundColor: theme.background,
-      borderColor: theme.text,
+      backgroundColor: activeDotBg,
+      borderColor: "transparent",
     },
     dotNumber: {
       fontSize: 14 * fontMultiplier,
       color: theme.text,
       opacity: 0.7,
       fontWeight: "bold",
+    },
+    // ✅ Aplicação da cor do texto dinâmica para pontos ativos
+    dotNumberActive: {
+      color: activeDotText,
+      opacity: 1,
     },
     congratsTitle: {
       fontSize: 32 * fontMultiplier,
@@ -613,3 +639,4 @@ const createStyles = (
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
   });
+};

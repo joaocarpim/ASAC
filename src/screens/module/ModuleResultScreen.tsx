@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+// src/screens/module/ModuleResultScreen.tsx
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -20,7 +21,6 @@ import { Theme } from "../../types/contrast";
 
 import {
   AccessibleView,
-  AccessibleButton,
   AccessibleHeader,
   AccessibleText,
 } from "../../components/AccessibleComponents";
@@ -30,7 +30,6 @@ import { useAuthStore } from "../../store/authStore";
 import progressService, { ErrorDetail } from "../../services/progressService";
 import { useModalStore } from "../../store/useModalStore";
 
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
 
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
@@ -54,7 +53,7 @@ export default function ModuleResultScreen({
     accuracy,
     timeSpent,
     coinsEarned,
-    pointsEarned,
+    pointsEarned, // Certifique-se que sua tela de Quiz está enviando isso
     passed,
     progressId,
     errorDetails,
@@ -69,6 +68,7 @@ export default function ModuleResultScreen({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const isMounted = useRef(true);
 
   const { theme } = useContrast();
   const {
@@ -93,7 +93,9 @@ export default function ModuleResultScreen({
     onSwipeRight: () => navigation.replace("ModuleQuiz", { moduleId }),
   });
 
+  // 1. OTIMIZAÇÃO: Carregamento de som mais seguro e leve
   useEffect(() => {
+    isMounted.current = true;
     async function load() {
       try {
         const { sound: success } = await Audio.Sound.createAsync(
@@ -103,8 +105,10 @@ export default function ModuleResultScreen({
           require("../../../assets/som/incorrect.mp3")
         );
 
-        setSuccessSound(success);
-        setFailureSound(fail);
+        if (isMounted.current) {
+          setSuccessSound(success);
+          setFailureSound(fail);
+        }
       } catch (err) {
         console.log("Erro ao carregar som:", err);
       }
@@ -112,32 +116,41 @@ export default function ModuleResultScreen({
     load();
 
     return () => {
+      isMounted.current = false;
       successSound?.unloadAsync();
       failureSound?.unloadAsync();
     };
   }, []);
 
+  // 2. CORREÇÃO: Lógica de exibição do Modal (Card de porcentagem) e Sons
   useEffect(() => {
-    if (passed) {
-      // Pequeno delay para garantir que o som carregou
-      setTimeout(() => {
+    // Pequeno delay para garantir que a UI renderizou antes de travar a thread com som/modal
+    const timer = setTimeout(() => {
+      if (passed) {
         successSound?.playAsync();
-      }, 500);
+        setShowConfetti(true); // Ativa confetes
 
-      setShowConfetti(true);
+        // Modal de Sucesso + Conquista
+        const title = "🎉 Módulo Concluído!";
+        const body = `Parabéns! Você desbloqueou novas conquistas e completou o módulo com ${accuracy}% de precisão!`;
+        showModal(title, body);
 
-      const title = "🎉 Módulo Concluído!";
-      const body = `Parabéns! Você completou o Módulo ${moduleId} com ${accuracy}% de acertos!`;
-
-      showModal(title, body);
-
-      setTimeout(() => setShowConfetti(false), 2500);
-    } else {
-      setTimeout(() => {
+        // Desliga confete depois de 2.5s para economizar bateria
+        setTimeout(() => {
+          if (isMounted.current) setShowConfetti(false);
+        }, 2500);
+      } else {
         failureSound?.playAsync();
-      }, 500);
-    }
-  }, [passed, successSound, failureSound]); // Adicionado dependências de som
+
+        // Modal de Falha (AGORA APARECE SEMPRE)
+        const title = "Não foi dessa vez 😕";
+        const body = `Você atingiu ${accuracy}% de acerto. Você precisa de 70% para passar. Tente novamente!`;
+        showModal(title, body);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [passed, successSound, failureSound, accuracy]);
 
   const handleSaveProgress = useCallback(async () => {
     if (!user?.userId || !progressId) return;
@@ -171,11 +184,11 @@ export default function ModuleResultScreen({
         parsedErrors
       );
 
-      if (result) setSaved(true);
+      if (isMounted.current && result) setSaved(true);
     } catch (e) {
       console.log("Erro ao salvar progresso:", e);
     } finally {
-      setSaving(false);
+      if (isMounted.current) setSaving(false);
     }
   }, []);
 
@@ -207,14 +220,16 @@ export default function ModuleResultScreen({
       ? "Muito bom! Grande desempenho!"
       : accuracy >= 70
       ? "Bom trabalho! Você passou!"
-      : "Continue praticando! Você está progredindo.";
+      : "Continue praticando! Você consegue.";
 
   const content = (
     <SafeAreaView style={styles.container} {...panResponder}>
       <StatusBar barStyle={"light-content"} />
 
       <AccessibleView
-        accessibilityText="Resumo do resultado do módulo"
+        accessibilityText={`Resultado: ${
+          passed ? "Aprovado" : "Reprovado"
+        }. Precisão de ${accuracy} por cento.`}
         style={styles.header}
       >
         <MaterialCommunityIcons
@@ -224,17 +239,18 @@ export default function ModuleResultScreen({
         />
 
         <AccessibleHeader level={1} style={styles.headerTitle}>
-          {passed ? "Parabéns!" : "Você tentou!"}
+          {passed ? "Parabéns!" : "Quase lá!"}
         </AccessibleHeader>
 
         <AccessibleText baseSize={15} style={styles.headerSubtitle}>
-          Módulo {moduleId} — {passed ? "Concluído" : "Não passou"}
+          Módulo {moduleId} — {passed ? "Concluído" : "Tente Novamente"}
         </AccessibleText>
 
+        {/* Feedback visual de salvamento discreto */}
         {saving && (
           <View style={styles.savingBadge}>
             <ActivityIndicator size="small" color="#fff" />
-            <Text style={styles.savingBadgeText}>Salvando...</Text>
+            <Text style={styles.savingBadgeText}>Sincronizando...</Text>
           </View>
         )}
 
@@ -245,7 +261,7 @@ export default function ModuleResultScreen({
               size={normalize(16)}
               color="#4CAF50"
             />
-            <Text style={styles.savedBadgeText}>Progresso salvo!</Text>
+            <Text style={styles.savedBadgeText}>Salvo</Text>
           </View>
         )}
       </AccessibleView>
@@ -266,6 +282,7 @@ export default function ModuleResultScreen({
           <Text style={styles.performanceMessage}>{performanceMessage}</Text>
         </View>
 
+        {/* 3. CORREÇÃO: Exibindo cards mesmo na primeira vez (usando || 0) */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <MaterialCommunityIcons
@@ -283,7 +300,7 @@ export default function ModuleResultScreen({
               size={normalize(28)}
               color="#4CAF50"
             />
-            <Text style={styles.statNumber}>{correctAnswers}</Text>
+            <Text style={styles.statNumber}>{correctAnswers || 0}</Text>
             <Text style={styles.statLabel}>Acertos</Text>
           </View>
 
@@ -293,7 +310,7 @@ export default function ModuleResultScreen({
               size={normalize(28)}
               color="#F44336"
             />
-            <Text style={styles.statNumber}>{wrongAnswers}</Text>
+            <Text style={styles.statNumber}>{wrongAnswers || 0}</Text>
             <Text style={styles.statLabel}>Erros</Text>
           </View>
 
@@ -303,29 +320,40 @@ export default function ModuleResultScreen({
               size={normalize(28)}
               color="#FFC107"
             />
-            <Text style={styles.statNumber}>+{coinsEarned}</Text>
+            <Text style={styles.statNumber}>+{coinsEarned || 0}</Text>
             <Text style={styles.statLabel}>Moedas</Text>
           </View>
         </View>
 
-        {/* Dica de Navegação por Gesto (Já que removemos o botão) */}
-        {passed && (
-          <View style={styles.tipBox}>
-            <Text style={styles.tipIcon}>👈</Text>
+        {/* Card extra de Pontos se houver */}
+        {pointsEarned > 0 && (
+          <View style={[styles.tipBox, { borderColor: "#4ECDC4" }]}>
+            <MaterialCommunityIcons
+              name="star"
+              size={20}
+              color="#FFD700"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.tipText}>
-              Arraste para a esquerda para sair.
+              +{pointsEarned} pontos de XP ganhos!
             </Text>
           </View>
         )}
+
+        <View style={styles.tipBox}>
+          <Text style={styles.tipIcon}>👈</Text>
+          <Text style={styles.tipText}>Arraste para a esquerda para sair.</Text>
+        </View>
       </ScrollView>
 
-      
+      {/* 4. OTIMIZAÇÃO: Menos confetes para celulares fracos */}
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
           <ConfettiCannon
-            count={160}
+            count={50} // Reduzido de 160 para 50 para ficar leve
             origin={{ x: WINDOW_WIDTH / 2, y: -20 }}
-            fadeOut
+            fadeOut={true}
+            fallSpeed={3000}
           />
         </View>
       )}
@@ -362,7 +390,7 @@ const createStyles = (
 
     scrollContent: {
       paddingHorizontal: wp(4),
-      paddingBottom: hp(2),
+      paddingBottom: hp(5),
     },
 
     header: {
@@ -410,7 +438,7 @@ const createStyles = (
     savedBadge: {
       marginTop: hp(1),
       flexDirection: "row",
-      backgroundColor: "rgba(76,175,80,0.2)",
+      backgroundColor: "rgba(76,175,80,0.1)", // Mais transparente
       paddingHorizontal: wp(3),
       paddingVertical: hp(0.7),
       borderRadius: 20,
@@ -430,6 +458,11 @@ const createStyles = (
       padding: wp(6),
       borderRadius: 14,
       alignItems: "center",
+      elevation: 2, // Sombra leve
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
     },
 
     scoreCircle: {
@@ -488,6 +521,7 @@ const createStyles = (
       marginBottom: hp(1.5),
       minHeight: hp(12),
       justifyContent: "center",
+      elevation: 1, // Sombra bem leve
     },
 
     statNumber: {

@@ -1,5 +1,4 @@
 // src/screens/settings/SettingsScreen.tsx
-
 import React, { useEffect, useRef } from "react";
 import {
   View,
@@ -25,7 +24,7 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { Theme } from "../../types/contrast";
 import {
   Gesture,
-  GestureDetector, // <--- GESTO (1. Importado)
+  GestureDetector,
   Directions,
 } from "react-native-gesture-handler";
 
@@ -45,18 +44,14 @@ export default function SettingsScreen() {
     toggleDyslexiaFont,
   } = useSettings();
 
-  // --- LOG 1 ---
-  console.log(
-    "----------------------------------------------------\n" +
-      "[SettingsScreen Render] Estado atual das configs:",
-    {
-      fontSize: fontSizeMultiplier,
-      bold: isBoldTextEnabled,
-      lineHeight: lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-      dyslexia: isDyslexiaFontEnabled,
-    }
-  );
+  // --- LOG ---
+  console.log("[SettingsScreen Render] Estado atual das configs:", {
+    fontSize: fontSizeMultiplier,
+    bold: isBoldTextEnabled,
+    lineHeight: lineHeightMultiplier,
+    letterSpacing: letterSpacing,
+    dyslexia: isDyslexiaFontEnabled,
+  });
 
   const MAX_FONT_SIZE_MULTIPLIER = 1.2;
 
@@ -91,39 +86,22 @@ export default function SettingsScreen() {
 
   const handleGoBack = () => navigation.goBack();
 
-  // <--- GESTO (2. Definindo o gesto de arrastar para a direita)
+  // Gesto de voltar
   const flingRight =
-    Platform.OS !== "web" // O gesto é desabilitado na web
+    Platform.OS !== "web"
       ? Gesture.Fling()
-          .direction(Directions.RIGHT) // Apenas para a direita
-          .onEnd(() => navigation.navigate("Home" as never)) // Navega para Home
+          .direction(Directions.RIGHT)
+          .onEnd(() => navigation.navigate("Home" as never))
       : undefined;
 
-  // --- LOG 2 ---
   useEffect(() => {
-    console.log(
-      "[Settings Effect] Verificando limites...",
-      `Fonte: ${fontSizeMultiplier}`,
-      `Linha: ${lineHeightMultiplier}`,
-      `Letra: ${letterSpacing}`
-    );
-
     if (fontSizeMultiplier > MAX_FONT_SIZE_MULTIPLIER) {
-      console.warn(
-        `[Settings Effect] CONFLITO: Tamanho da Fonte (${fontSizeMultiplier}) > MAX (1.2). Corrigindo...`
-      );
       setFontSizeMultiplier(MAX_FONT_SIZE_MULTIPLIER);
     }
     if (lineHeightMultiplier < 1.0) {
-      console.warn(
-        `[Settings Effect] CONFLITO: Altura da Linha (${lineHeightMultiplier}) < MIN (1.0). Corrigindo...`
-      );
       setLineHeightMultiplier(1.0);
     }
     if (letterSpacing < 0) {
-      console.warn(
-        `[Settings Effect] CONFLITO: Espaço da Letra (${letterSpacing}) < MIN (0). Corrigindo...`
-      );
       setLetterSpacing(0);
     }
   }, [
@@ -174,7 +152,6 @@ export default function SettingsScreen() {
     fadeAnim,
     scaleAnim,
   }: any) => {
-    // --- LOG 3 ---
     const handleWebChange = (direction: "increase" | "decrease") => {
       let newValue = value;
       if (direction === "increase") {
@@ -182,22 +159,13 @@ export default function SettingsScreen() {
       } else {
         newValue = Math.max(value - step, min);
       }
-      console.log(
-        `[SliderCard: ${label}] (Web Botão ${direction}) Novo valor:`,
-        newValue
-      );
-      onValueChange(newValue);
-    };
-
-    const handleNativeChange = (newValue: number) => {
-      console.log(`[SliderCard: ${label}] (Nativo) Novo valor:`, newValue);
       onValueChange(newValue);
     };
 
     return (
       <SettingCard fadeAnim={fadeAnim} scaleAnim={scaleAnim}>
         <View style={styles.cardHeader}>
-          <AccessibleText baseSize={16} style={styles.cardLabel}>
+          <AccessibleText baseSize={24} style={styles.cardLabel}>
             {label}
           </AccessibleText>
           {Platform.OS !== "web" && (
@@ -252,7 +220,7 @@ export default function SettingsScreen() {
             maximumValue={max}
             step={step}
             value={value}
-            onSlidingComplete={handleNativeChange}
+            onSlidingComplete={onValueChange}
             minimumTrackTintColor={theme.button}
             maximumTrackTintColor={theme.card}
             thumbTintColor={theme.button}
@@ -269,21 +237,15 @@ export default function SettingsScreen() {
     fadeAnim,
     scaleAnim,
   }: any) => {
-    // --- LOG 4 ---
-    const handleSwitchChange = (newValue: boolean) => {
-      console.log(`[SwitchCard: ${label}] Novo valor:`, newValue);
-      onValueChange(newValue);
-    };
-
     return (
       <SettingCard fadeAnim={fadeAnim} scaleAnim={scaleAnim}>
         <View style={styles.switchRow}>
-          <AccessibleText baseSize={16} style={styles.cardLabel}>
+          <AccessibleText baseSize={24} style={styles.cardLabel}>
             {label}
           </AccessibleText>
           <Switch
             value={value}
-            onValueChange={handleSwitchChange}
+            onValueChange={onValueChange}
             trackColor={{ false: "#767577", true: theme.button }}
             thumbColor={value ? theme.buttonText : "#f4f3f4"}
             ios_backgroundColor="#767577"
@@ -293,7 +255,6 @@ export default function SettingsScreen() {
     );
   };
 
-  // Esta é a função que renderiza todo o conteúdo da tela
   const renderContent = () => (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar
@@ -329,7 +290,7 @@ export default function SettingsScreen() {
             scaleAnim={scaleAnims[1]}
           />
           <SliderCard
-            label="Espaçamento entre Linhas"
+            label="Espaçamento Linhas"
             value={lineHeightMultiplier}
             onValueChange={setLineHeightMultiplier}
             min={1.0}
@@ -340,7 +301,7 @@ export default function SettingsScreen() {
             scaleAnim={scaleAnims[2]}
           />
           <SliderCard
-            label="Espaçamento entre Letras"
+            label="Espaçamento Letras"
             value={letterSpacing}
             onValueChange={setLetterSpacing}
             min={0}
@@ -364,10 +325,10 @@ export default function SettingsScreen() {
           <SettingCard fadeAnim={fadeAnims[5]} scaleAnim={scaleAnims[5]}>
             <View style={styles.switchRow}>
               <View style={{ flex: 1 }}>
-                <AccessibleText baseSize={16} style={styles.cardLabel}>
+                <AccessibleText baseSize={24} style={styles.cardLabel}>
                   Modo de Contraste
                 </AccessibleText>
-                <Text style={styles.cardSubtitle}>{contrastMode}</Text>
+                {/* Descrição removida conforme solicitado */}
               </View>
               <AccessibleButton
                 onPress={() => navigation.navigate("Contrast" as never)}
@@ -385,16 +346,12 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 
-  // <--- GESTO (3. Aplicando o gesto na tela)
-  // Se não for web E o gesto estiver definido...
   if (Platform.OS !== "web" && flingRight) {
-    // Renderiza o conteúdo DENTRO do Detector de Gestos
     return (
       <GestureDetector gesture={flingRight}>{renderContent()}</GestureDetector>
     );
   }
 
-  // Se for web, renderiza o conteúdo normalmente
   return renderContent();
 }
 
@@ -413,11 +370,15 @@ const createStyles = (
     section: { marginBottom: 32 },
     sectionTitle: {
       color: theme.text,
-      fontSize: 22 * fontMultiplier,
-      fontWeight: "bold",
+      // Título ligeiramente maior que o label de 24
+      fontSize: 28 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "700",
       marginBottom: 16,
       marginLeft: 4,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      // Aplicando configurações globais ao Título
+      lineHeight: 32 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
     card: {
       backgroundColor: theme.card,
@@ -438,33 +399,31 @@ const createStyles = (
     },
     cardLabel: {
       color: theme.cardText,
-      fontSize: 16 * fontMultiplier,
+      // FONTE 24 (SOLICITADO)
+      fontSize: 24 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      lineHeight: 16 * fontMultiplier * lineHeightMultiplier,
+      // Aplicando configurações globais ao Label
+      lineHeight: 28 * fontMultiplier * lineHeightMultiplier, // Ajustado para não cortar a fonte 24
       letterSpacing: letterSpacing,
       flex: 1,
     },
-    cardSubtitle: {
-      color: theme.cardText,
-      fontSize: 13 * fontMultiplier,
-      opacity: 0.6,
-      marginTop: 4,
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-    },
+    // cardSubtitle removido
     valueBadge: {
       backgroundColor: theme.button,
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 12,
-      minWidth: 60,
+      minWidth: 70, // Aumentado um pouco para acomodar fonte maior
       alignItems: "center",
     },
     valueText: {
       color: theme.buttonText,
-      fontSize: 14 * fontMultiplier,
-      fontWeight: "bold",
+      fontSize: 16 * fontMultiplier, // Aumentado proporcionalmente
+      fontWeight: isBold ? "bold" : "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      lineHeight: 20 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
     slider: { width: "100%", height: 40 },
     switchRow: {
@@ -475,14 +434,16 @@ const createStyles = (
     changeButton: {
       backgroundColor: theme.button,
       paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingVertical: 10,
       borderRadius: 12,
     },
     changeButtonText: {
       color: theme.buttonText,
-      fontSize: 14 * fontMultiplier,
-      fontWeight: "bold",
+      fontSize: 16 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+      lineHeight: 20 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
     webSliderContainer: {
       flexDirection: "row",
@@ -492,9 +453,9 @@ const createStyles = (
     },
     webSliderButton: {
       backgroundColor: theme.button,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: "center",
       alignItems: "center",
     },
@@ -510,10 +471,12 @@ const createStyles = (
     },
     webSliderValue: {
       color: theme.cardText,
-      fontSize: 18 * fontMultiplier,
-      fontWeight: "bold",
+      fontSize: 20 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "700",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       minWidth: 80,
       textAlign: "center",
+      lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
     },
   });

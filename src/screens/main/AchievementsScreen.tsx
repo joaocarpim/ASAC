@@ -1,14 +1,15 @@
-// src/screens/main/AchievementsScreen.tsx
-import React, { useState, useCallback } from "react";
+// src/screens/main/AchievementsScreen.tsx - OTIMIZADO
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   StatusBar,
-  ScrollView,
+  FlatList,
   ActivityIndicator,
   TouchableOpacity,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -19,11 +20,6 @@ import {
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
-import {
-  Gesture,
-  GestureDetector,
-  Directions,
-} from "react-native-gesture-handler";
 import { useAuthStore } from "../../store/authStore";
 import { generateClient } from "aws-amplify/api";
 import { listProgresses } from "../../graphql/queries";
@@ -31,6 +27,11 @@ import { listProgresses } from "../../graphql/queries";
 const MODULE_EMOJIS = ["🎓", "🏆", "⭐"];
 const ACHIEVEMENT_EMOJIS = ["🥉", "🥈", "🥇", "🏆", "💎"];
 const CARD_COLORS = ["#CD7F32", "#C0C0C0", "#DAA520", "#4CAF50", "#8A2BE2"];
+
+// ✅ Cache simples em memória
+let progressCache: any = null;
+let cacheTime = 0;
+const CACHE_DURATION = 10000; // 10 segundos
 
 export default function AchievementsScreen() {
   const navigation = useNavigation();
@@ -50,47 +51,88 @@ export default function AchievementsScreen() {
   );
   const [achievements, setAchievements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [emblemsByPerformance, setEmblemsByPerformance] = useState<
     { moduleNumber: number; accuracy: number }[]
   >([]);
   const modulosTotais = 3;
 
-  const styles = createStyles(
-    theme,
-    fontSizeMultiplier,
-    isBoldTextEnabled,
-    lineHeightMultiplier,
-    letterSpacing,
-    isDyslexiaFontEnabled
+  // ✅ OTIMIZAÇÃO 1: Memoizar estilos
+  const styles = useMemo(
+    () =>
+      createStyles(
+        theme,
+        fontSizeMultiplier,
+        isBoldTextEnabled,
+        lineHeightMultiplier,
+        letterSpacing,
+        isDyslexiaFontEnabled
+      ),
+    [
+      theme,
+      fontSizeMultiplier,
+      isBoldTextEnabled,
+      lineHeightMultiplier,
+      letterSpacing,
+      isDyslexiaFontEnabled,
+    ]
   );
 
-  const fetchAchievements = useCallback(async () => {
-    if (!user?.userId) {
-      setLoading(false);
-      return;
-    }
+  const fetchAchievements = useCallback(
+    async (isRefresh = false) => {
+      if (!user?.userId) {
+        setLoading(false);
+        return;
+      }
 
-    setLoading(true);
-    const client = generateClient();
+      // ✅ OTIMIZAÇÃO 2: Usar cache se ainda válido
+      const now = Date.now();
+      if (!isRefresh && progressCache && now - cacheTime < CACHE_DURATION) {
+        console.log("📦 Usando cache...");
+        processProgressData(progressCache);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      // 1. Busca progresso bruto (source of truth)
-      const progressQueryWithBuster = `
-        # CacheBuster: ${Date.now()}
-        ${listProgresses}
-      `;
-      const progressResult: any = await client.graphql({
-        query: progressQueryWithBuster,
-        variables: { filter: { userId: { eq: user.userId } } },
-        authMode: "userPool",
-      });
+      if (!isRefresh) setLoading(true);
 
-      const rawList = progressResult?.data?.listProgresses?.items || [];
+      try {
+        const client = generateClient();
 
-      // 2. Filtra tentativas válidas (com tempo gasto > 0)
-      const validAttempts = rawList.filter((p: any) => p && p.timeSpent > 0);
+        // ✅ OTIMIZAÇÃO 3: Query mais simples, sem cache buster desnecessário
+        const progressResult: any = await client.graphql({
+          query: listProgresses,
+          variables: {
+            filter: { userId: { eq: user.userId } },
+            limit: 100, // Limitar resultados
+          },
+          authMode: "userPool",
+        });
 
-      // 3. Identifica módulos únicos completados
+        const rawList = progressResult?.data?.listProgresses?.items || [];
+
+        // ✅ Salvar no cache
+        progressCache = rawList;
+        cacheTime = now;
+
+        processProgressData(rawList);
+      } catch (error) {
+        console.error("❌ Erro ao buscar conquistas:", error);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [user?.userId]
+  );
+
+  // ✅ OTIMIZAÇÃO 4: Separar processamento de dados
+  const processProgressData = useCallback(
+    (rawList: any[]) => {
+      const validAttempts = rawList.filter(
+        (p: any) => p && p.moduleNumber && p.userId === user?.userId
+      );
+
       const uniqueCompletedModules = (
         [
           ...new Set(validAttempts.map((p: any) => Number(p.moduleNumber))),
@@ -100,51 +142,43 @@ export default function AchievementsScreen() {
       setCompletedModulesList(uniqueCompletedModules);
       setProgressoAtual(uniqueCompletedModules.length);
 
-      // 4. Recalcula conquistas baseadas no progresso real
       const calculatedAchievements = uniqueCompletedModules.map((modNum) => ({
+        id: `achievement-${modNum}`, // ✅ Adicionar ID único
         title: `Módulo ${modNum} Concluído`,
         description: `Você concluiu o Módulo ${modNum}!`,
         moduleNumber: modNum,
-        createdAt: new Date().toISOString(),
       }));
 
       setAchievements(calculatedAchievements);
 
-      // 5. Calcula performance (Emblemas)
-      const latestProgressByModule = new Map<number, any>();
-
-      validAttempts.forEach((p: any) => {
+      // ✅ OTIMIZAÇÃO 5: Processamento mais eficiente
+      const latestByModule = validAttempts.reduce((acc, p) => {
         const modNum = Number(p.moduleNumber);
-        const timestamp = p.updatedAt || p.createdAt;
-        const currentTime = new Date(timestamp).getTime();
-
-        const existing = latestProgressByModule.get(modNum);
-        if (!existing) {
-          latestProgressByModule.set(modNum, p);
-        } else {
-          const existingTime = new Date(
-            existing.updatedAt || existing.createdAt
-          ).getTime();
-          if (currentTime > existingTime) {
-            latestProgressByModule.set(modNum, p);
-          }
+        if (
+          !acc[modNum] ||
+          new Date(p.updatedAt || p.createdAt) >
+            new Date(acc[modNum].updatedAt || acc[modNum].createdAt)
+        ) {
+          acc[modNum] = p;
         }
-      });
+        return acc;
+      }, {} as Record<number, any>);
 
-      const modulePerformance = Array.from(latestProgressByModule.values()).map(
-        (p: any) => ({
-          moduleNumber: Number(p.moduleNumber),
-          accuracy: Number(p.accuracy ?? 0),
-        })
-      );
+      const modulePerformance = Object.values(latestByModule).map((p: any) => ({
+        moduleNumber: Number(p.moduleNumber),
+        accuracy: Number(p.accuracy ?? 0),
+      }));
 
       setEmblemsByPerformance(modulePerformance);
-    } catch (error) {
-      console.error("❌ Erro ao buscar conquistas:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.userId]);
+    },
+    [user?.userId]
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    progressCache = null; // ✅ Limpar cache no refresh manual
+    fetchAchievements(true);
+  }, [fetchAchievements]);
 
   useFocusEffect(
     useCallback(() => {
@@ -154,24 +188,20 @@ export default function AchievementsScreen() {
 
   const handleGoBack = () => navigation.goBack();
 
-  const flingRight =
-    Platform.OS !== "web"
-      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handleGoBack)
-      : undefined;
-
-  const renderModuleIcons = () => {
+  // ✅ OTIMIZAÇÃO 6: Renderizar ícones de forma eficiente
+  const renderModuleIcons = useMemo(() => {
     return Array.from({ length: modulosTotais }, (_, i) => {
       const moduleNum = i + 1;
       const isCompleted = completedModulesList.includes(moduleNum);
       const progressData = emblemsByPerformance.find(
         (p) => p.moduleNumber === moduleNum
       );
-      const accuracy = progressData ? progressData.accuracy : 0;
+      const accuracy = progressData?.accuracy ?? 0;
       const hasHighAccuracy = accuracy >= 70;
 
       return (
         <View
-          key={i}
+          key={moduleNum}
           style={[
             styles.moduloIconContainer,
             isCompleted && hasHighAccuracy && styles.moduloIconCompleted,
@@ -192,37 +222,72 @@ export default function AchievementsScreen() {
         </View>
       );
     });
-  };
+  }, [completedModulesList, emblemsByPerformance, styles, theme]);
 
-  const renderAchievementCard = (achievement: any, index: number) => {
-    // Usando cores do array para fundo
-    const bgColor = CARD_COLORS[index % CARD_COLORS.length];
+  // ✅ OTIMIZAÇÃO 7: Usar FlatList em vez de map
+  const renderAchievementCard = useCallback(
+    ({ item, index }: { item: any; index: number }) => {
+      const bgColor = CARD_COLORS[index % CARD_COLORS.length];
 
-    return (
-      <View
-        key={index}
-        style={[styles.achievementCard, { backgroundColor: bgColor }]}
-      >
-        <View style={styles.achievementIconContainer}>
-          <Text style={styles.achievementEmoji}>
-            {ACHIEVEMENT_EMOJIS[index % ACHIEVEMENT_EMOJIS.length]}
-          </Text>
+      return (
+        <View style={[styles.achievementCard, { backgroundColor: bgColor }]}>
+          <View style={styles.achievementIconContainer}>
+            <Text style={styles.achievementEmoji}>
+              {ACHIEVEMENT_EMOJIS[index % ACHIEVEMENT_EMOJIS.length]}
+            </Text>
+          </View>
+          <View style={styles.achievementTextContainer}>
+            <Text style={styles.achievementTitle}>{item.title}</Text>
+            <Text style={styles.achievementDate}>{item.description}</Text>
+          </View>
         </View>
-        <View style={styles.achievementTextContainer}>
-          {/* ✅ CORRIGIDO: Texto branco fixo APENAS aqui porque o fundo é colorido */}
-          <Text style={styles.achievementTitle}>{achievement.title}</Text>
-          <Text style={styles.achievementDate}>{achievement.description}</Text>
+      );
+    },
+    [styles]
+  );
+
+  const renderPerformanceCard = useCallback(
+    ({
+      item,
+      index,
+    }: {
+      item: { moduleNumber: number; accuracy: number };
+      index: number;
+    }) => (
+      <View style={styles.emblemCard}>
+        <Text style={styles.emblemEmoji}>
+          {MODULE_EMOJIS[(item.moduleNumber - 1) % MODULE_EMOJIS.length]}
+        </Text>
+        <Text style={styles.emblemAccuracy}>{item.accuracy}%</Text>
+        <Text style={styles.emblemModule}>Módulo {item.moduleNumber}</Text>
+      </View>
+    ),
+    [styles]
+  );
+
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.page}>
+        <StatusBar
+          barStyle={theme.statusBarStyle}
+          backgroundColor={theme.background}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.text} />
+          <Text style={styles.loadingText}>Carregando...</Text>
         </View>
       </View>
     );
-  };
+  }
 
-  const renderContent = () => (
+  return (
     <View style={styles.page}>
       <StatusBar
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
+
+      {/* Header fixo */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleGoBack} accessibilityLabel="Voltar">
           <MaterialCommunityIcons
@@ -237,116 +302,109 @@ export default function AchievementsScreen() {
         <View style={styles.headerIconPlaceholder} />
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.text} />
-          <Text style={styles.loadingText}>Carregando conquistas...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <AccessibleView accessibilityText="Medalha de conquistas">
-            <Text style={styles.seloEmoji}>🎖️</Text>
-          </AccessibleView>
+      {/* ✅ OTIMIZAÇÃO 8: FlatList com ListHeaderComponent */}
+      <FlatList
+        data={achievements}
+        keyExtractor={(item) => item.id}
+        renderItem={renderAchievementCard}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.text}
+            colors={[theme.button || "#000"]}
+          />
+        }
+        ListHeaderComponent={
+          <>
+            <AccessibleView accessibilityText="Medalha de conquistas">
+              <Text style={styles.seloEmoji}>🎖️</Text>
+            </AccessibleView>
 
-          <View style={styles.achievementsContainer}>
-            {/* ✅ CORRIGIDO: Cor do texto agora é dinâmica (cardText) */}
-            <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
-              Módulos Concluídos
-            </Text>
-            <View style={styles.modulosRow}>{renderModuleIcons()}</View>
-            <Text style={[styles.progressText, { color: theme.cardText }]}>
-              {progressoAtual} de {modulosTotais} módulos concluídos
-            </Text>
-          </View>
+            {/* Módulos */}
+            <View style={styles.achievementsContainer}>
+              <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+                Módulos Concluídos
+              </Text>
+              <View style={styles.modulosRow}>{renderModuleIcons}</View>
+              <Text style={[styles.progressText, { color: theme.cardText }]}>
+                {progressoAtual} de {modulosTotais} módulos concluídos
+              </Text>
+            </View>
 
-          <View style={styles.achievementsContainer}>
-            <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
-              🌟 Últimas Pontuações
-            </Text>
-            <Text
-              style={[styles.performanceSubtitle, { color: theme.cardText }]}
-            >
-              (Última pontuação registrada em cada módulo)
-            </Text>
+            {/* Performance */}
+            <View style={styles.achievementsContainer}>
+              <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+                🌟 Últimas Pontuações
+              </Text>
+              <Text
+                style={[styles.performanceSubtitle, { color: theme.cardText }]}
+              >
+                (Última pontuação registrada em cada módulo)
+              </Text>
 
-            {emblemsByPerformance.length > 0 ? (
-              <View style={styles.emblemsGrid}>
-                {emblemsByPerformance.map((e, i) => (
-                  <View key={i} style={styles.emblemCard}>
-                    <Text style={styles.emblemEmoji}>
-                      {
-                        MODULE_EMOJIS[
-                          (e.moduleNumber - 1) % MODULE_EMOJIS.length
-                        ]
-                      }
-                    </Text>
-                    <Text style={styles.emblemAccuracy}>{e.accuracy}%</Text>
-                    <Text style={styles.emblemModule}>
-                      Módulo {e.moduleNumber}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyPerformance}>
-                <MaterialCommunityIcons
-                  name="information-outline"
-                  size={36}
-                  color={theme.cardText} // ✅ CORRIGIDO
-                  style={{ opacity: 0.8 }}
+              {emblemsByPerformance.length > 0 ? (
+                <FlatList
+                  data={emblemsByPerformance}
+                  keyExtractor={(item) => `perf-${item.moduleNumber}`}
+                  renderItem={renderPerformanceCard}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.emblemsGrid}
                 />
-                <Text
-                  style={[styles.performanceInfo, { color: theme.cardText }]}
-                >
-                  Suas pontuações aparecerão aqui após você finalizar um módulo.
-                </Text>
-              </View>
-            )}
-          </View>
+              ) : (
+                <View style={styles.emptyPerformance}>
+                  <MaterialCommunityIcons
+                    name="information-outline"
+                    size={36}
+                    color={theme.cardText}
+                    style={{ opacity: 0.8 }}
+                  />
+                  <Text
+                    style={[styles.performanceInfo, { color: theme.cardText }]}
+                  >
+                    Suas pontuações aparecerão aqui após você finalizar um
+                    módulo.
+                  </Text>
+                </View>
+              )}
+            </View>
 
-          <View style={styles.achievementsList}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: theme.text, marginTop: 10 },
+              ]}
+            >
               Suas Conquistas
             </Text>
-            {achievements.length > 0 ? (
-              achievements.map((achievement, index) =>
-                renderAchievementCard(achievement, index)
-              )
-            ) : (
-              <View style={styles.emptyCard}>
-                <MaterialCommunityIcons
-                  name="emoticon-sad-outline"
-                  size={50}
-                  color={theme.cardText}
-                  style={{ opacity: 0.5 }}
-                />
-                {/* ✅ CORRIGIDO: Cor do texto dinâmica */}
-                <Text style={[styles.emptyTitle, { color: theme.cardText }]}>
-                  Sem Conquistas Ainda
-                </Text>
-                <Text style={[styles.emptySubtitle, { color: theme.cardText }]}>
-                  Complete os módulos para ganhar emblemas!
-                </Text>
-              </View>
-            )}
+          </>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyCard}>
+            <MaterialCommunityIcons
+              name="emoticon-sad-outline"
+              size={50}
+              color={theme.cardText}
+              style={{ opacity: 0.5 }}
+            />
+            <Text style={[styles.emptyTitle, { color: theme.cardText }]}>
+              Sem Conquistas Ainda
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: theme.cardText }]}>
+              Complete os módulos para ganhar emblemas!
+            </Text>
           </View>
-        </ScrollView>
-      )}
+        }
+        // ✅ OTIMIZAÇÃO 9: Performance props
+        removeClippedSubviews={Platform.OS === "android"}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={50}
+        windowSize={5}
+      />
     </View>
   );
-
-  if (Platform.OS !== "web" && flingRight) {
-    return (
-      <GestureDetector gesture={flingRight}>
-        <View style={styles.page}>{renderContent()}</View>
-      </GestureDetector>
-    );
-  }
-
-  return renderContent();
 }
 
 const createStyles = (
@@ -381,12 +439,9 @@ const createStyles = (
       opacity: 0.8,
       fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
-      lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     headerIconPlaceholder: { width: 28 },
-    container: { flex: 1 },
     scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 30 },
     seloEmoji: { fontSize: 80, marginBottom: 20, textAlign: "center" },
     achievementsContainer: {
@@ -395,16 +450,12 @@ const createStyles = (
       padding: 20,
       marginBottom: 20,
       alignItems: "center",
-      borderWidth: 1,
-      borderColor: "rgba(0,0,0,0.05)",
     },
     sectionTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       marginBottom: 10,
       textAlign: "center",
-      lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     performanceSubtitle: {
@@ -412,14 +463,11 @@ const createStyles = (
       opacity: 0.8,
       textAlign: "center",
       marginBottom: 15,
-      lineHeight: 12 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     modulosRow: {
       flexDirection: "row",
       justifyContent: "center",
-      alignItems: "center",
       marginBottom: 15,
     },
     moduloIconContainer: {
@@ -432,7 +480,7 @@ const createStyles = (
       marginHorizontal: 8,
       opacity: 0.6,
       borderWidth: 2,
-      borderColor: theme.cardText, // Usa a cor do texto para a borda
+      borderColor: theme.cardText,
     },
     moduloIconCompleted: { opacity: 1, borderColor: "#4CD964" },
     moduloIconLowAccuracy: { opacity: 1, borderColor: theme.cardText },
@@ -440,38 +488,25 @@ const createStyles = (
     progressText: {
       fontSize: 14 * fontMultiplier,
       fontWeight: isBold ? "bold" : "normal",
-      lineHeight: 14 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-    emblemsGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "center",
-      width: "100%",
-    },
+    emblemsGrid: { paddingHorizontal: 6 },
     emblemCard: {
-      backgroundColor: "#FFD700", // Fundo dourado fixo para emblemas
-      margin: 6,
+      backgroundColor: "#FFD700",
+      marginHorizontal: 6,
       borderRadius: 12,
       padding: 12,
       alignItems: "center",
       minWidth: 80,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 4,
     },
     emblemEmoji: { fontSize: 40 },
     emblemAccuracy: {
-      color: "#191970", // Texto escuro no fundo dourado
+      color: "#191970",
       fontSize: 16,
       fontWeight: "bold",
       marginTop: 5,
     },
     emblemModule: { color: "#191970", fontSize: 12, marginTop: 2 },
-    achievementsList: { marginTop: 10 },
     achievementCard: {
       borderRadius: 16,
       padding: 15,
@@ -493,18 +528,14 @@ const createStyles = (
     achievementTitle: {
       fontSize: 16 * fontMultiplier,
       fontWeight: "bold",
-      color: "#FFFFFF", // Texto branco no card colorido
+      color: "#FFFFFF",
       marginBottom: 4,
-      lineHeight: 16 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     achievementDate: {
       fontSize: 12 * fontMultiplier,
-      color: "#FFFFFF", // Texto branco no card colorido
+      color: "#FFFFFF",
       opacity: 0.9,
-      lineHeight: 12 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptyCard: {
@@ -519,17 +550,12 @@ const createStyles = (
       fontWeight: "bold",
       marginTop: 15,
       marginBottom: 8,
-      lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptySubtitle: {
       fontSize: 14 * fontMultiplier,
       textAlign: "center",
       opacity: 0.8,
-      lineHeight: 20 * lineHeight,
-      fontWeight: isBold ? "bold" : "normal",
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptyPerformance: {
@@ -542,7 +568,6 @@ const createStyles = (
       textAlign: "center",
       maxWidth: 280,
       fontSize: 13 * fontMultiplier,
-      lineHeight: 18 * lineHeight,
       opacity: 0.9,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },

@@ -1,5 +1,5 @@
 // src/screens/main/HomeScreen.tsx
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   TextStyle,
-  ScrollView,
+  FlatList,
   Dimensions,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -23,312 +23,27 @@ import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 import {
-  AccessibleView,
-  AccessibleText,
   AccessibleHeader,
   AccessibleButton,
+  AccessibleText,
 } from "../../components/AccessibleComponents";
 import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
-
-// IMPORTAR OS STORES
 import { useModalStore } from "../../store/useModalStore";
 import { useNotificationQueueStore } from "../../store/useNotificationQueueStore";
 
-/* ===========================
-    Estilos e Layout
-   =========================== */
 const { width } = Dimensions.get("window");
-const BOX_SIZE = 75;
+const BOX_SIZE = 80; // Aumentei levemente para preencher melhor o centro
 const SCREEN_PADDING = 16;
-const GAP_SIZE = 10;
+const GAP_SIZE = 12;
+// Cálculo ajustado para features
 const FEATURE_BUTTON_WIDTH = (width - SCREEN_PADDING * 2 - GAP_SIZE) / 2;
-const FEATURE_BUTTON_HEIGHT = 120;
+const FEATURE_BUTTON_HEIGHT = 115;
 
-const createStyles = (
-  theme: Theme,
-  fontMultiplier: number,
-  isBold: boolean,
-  isDyslexiaFontEnabled: boolean,
-  lineHeightMultiplier: number,
-  letterSpacing: number
-) =>
-  StyleSheet.create({
-    loadingContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: theme.background,
-    },
-    container: {
-      flex: 1,
-      backgroundColor: theme.background,
-    },
-    scrollContent: {
-      paddingBottom: 20,
-    },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginTop: 8,
-      paddingHorizontal: 16,
-    },
-    headerTitle: {
-      fontSize: 22 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "700",
-      color: theme.text,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 22 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-    headerSubtitle: {
-      fontSize: 13 * fontMultiplier,
-      color: theme.text,
-      opacity: 0.8,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 13 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-    headerIcon: {
-      backgroundColor: theme.button ?? "#191970",
-      borderRadius: 10,
-      padding: 6,
-    },
-    statsContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-      gap: 8,
-      alignSelf: "center",
-      marginVertical: 12,
-    },
-    statCard: {
-      width: BOX_SIZE,
-      height: BOX_SIZE,
-      backgroundColor: theme.card,
-      borderRadius: 14,
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 4,
-    },
-    statIcon: {
-      fontSize: 22 * fontMultiplier,
-      color: theme.cardText,
-    } as TextStyle,
-    statValue: {
-      color: theme.cardText,
-      fontSize: 15 * fontMultiplier,
-      fontWeight: isBold ? "900" : "bold",
-      marginTop: 2,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 15 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-      textAlign: "center",
-    },
-    statLabel: {
-      color: theme.cardText,
-      fontSize: 10 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "600",
-      textAlign: "center",
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 10 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
+// ✅ Cache do usuário (Mantido para performance)
+let userCache: APIt.User | null = null;
+let userCacheTime = 0;
+const USER_CACHE_TTL = 20000;
 
-    // MÓDULOS COM CONFIG E ALFABETO
-    modulesSection: {
-      paddingHorizontal: 16,
-      marginBottom: 12,
-    },
-    modulesSectionHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 10,
-    },
-    modulesTitle: {
-      fontSize: 16 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "700",
-      color: theme.text,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      flex: 1,
-      // Aplicando configurações globais
-      lineHeight: 16 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-    headerButtons: {
-      flexDirection: "row",
-      gap: 8,
-    },
-    smallButton: {
-      width: 44,
-      height: 44,
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    smallIcon: {
-      fontSize: 22 * fontMultiplier,
-      color: theme.cardText,
-    } as TextStyle,
-    modulesList: {
-      gap: 8,
-      marginBottom: 12,
-    },
-    moduleItem: {
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    moduleIconContainer: {
-      backgroundColor: theme.background,
-      borderRadius: 22,
-      padding: 8,
-      marginRight: 10,
-    },
-    moduleIcon: {
-      fontSize: 20 * fontMultiplier,
-      color: theme.text,
-    } as TextStyle,
-    moduleTextContainer: { flex: 1 },
-    moduleTitle: {
-      color: theme.cardText,
-      fontSize: 13 * fontMultiplier,
-      fontWeight: isBold ? "900" : "bold",
-      marginBottom: 2,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 13 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-    moduleSubtitle: {
-      color: theme.cardText,
-      fontSize: 11 * fontMultiplier,
-      opacity: 0.9,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 11 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-    moduleStatusIndicator: {
-      width: 14,
-      height: 14,
-      borderRadius: 7,
-      marginLeft: 8,
-    },
-    lockIcon: {
-      fontSize: 22 * fontMultiplier,
-      color: theme.text,
-      marginLeft: 8,
-    } as TextStyle,
-
-    // 🎨 FEATURES EM DESTAQUE (LADO A LADO)
-    featuresSection: {
-      paddingHorizontal: 16,
-      marginBottom: 12,
-    },
-    featuresRow: {
-      flexDirection: "row",
-      gap: GAP_SIZE,
-      justifyContent: "center",
-    },
-    featureButton: {
-      width: FEATURE_BUTTON_WIDTH,
-      height: FEATURE_BUTTON_HEIGHT,
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      padding: 12,
-      justifyContent: "space-between",
-      elevation: 4,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-    },
-    featureIconContainer: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    featureWriting: {
-      backgroundColor: "#FF6B6B",
-    },
-    featureContractions: {
-      backgroundColor: "#4ECDC4",
-    },
-    featureIcon: {
-      fontSize: 28 * fontMultiplier,
-      color: "#FFFFFF",
-    } as TextStyle,
-    featureTitle: {
-      color: theme.cardText,
-      fontSize: 14 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "700",
-      marginTop: 8,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 14 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-    featureSubtitle: {
-      color: theme.cardText,
-      fontSize: 11 * fontMultiplier,
-      opacity: 0.7,
-      marginTop: 2,
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 11 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-
-    // AÇÕES RÁPIDAS
-    actionsContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-      flexWrap: "wrap",
-      gap: 8,
-      marginVertical: 8,
-      paddingHorizontal: 16,
-    },
-    actionButton: {
-      width: BOX_SIZE,
-      height: BOX_SIZE,
-      backgroundColor: theme.card,
-      borderRadius: 14,
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 4,
-    },
-    actionIcon: {
-      fontSize: 22 * fontMultiplier,
-      color: theme.cardText,
-    } as TextStyle,
-    actionLabel: {
-      color: theme.cardText,
-      fontSize: 10 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "600",
-      textAlign: "center",
-      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais
-      lineHeight: 10 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-  });
-
-/* ===========================
-    Tipagens e Subcomponentes
-   =========================== */
 type HomeScreenStyles = ReturnType<typeof createStyles>;
 
 interface StatCardProps {
@@ -338,15 +53,8 @@ interface StatCardProps {
   styles: HomeScreenStyles;
 }
 
-interface ActionButtonProps {
-  iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  label: string;
-  onPress: () => void;
-  styles: HomeScreenStyles;
-}
-
 interface ModuleItemProps {
-  module: { id: string; moduleId: number; title: string; description?: string };
+  module: { id: string; moduleId: number; title: string };
   completed: boolean;
   isLocked: boolean;
   onPress: () => void;
@@ -357,150 +65,140 @@ interface FeatureButtonProps {
   title: string;
   subtitle: string;
   iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  gradientType: "writing" | "contractions";
+  gradientType: string;
   onPress: () => void;
   styles: HomeScreenStyles;
 }
 
-const StatCard: React.FC<StatCardProps> = ({
-  iconName,
-  value,
-  label,
-  styles,
-}) => {
-  const iconStyle = styles.statIcon as TextStyle;
-  return (
-    <AccessibleView
-      accessibilityText={`${label}: ${value}.`}
-      style={styles.statCard}
-    >
-      <MaterialCommunityIcons
-        name={iconName}
-        size={iconStyle.fontSize}
-        color={iconStyle.color}
-      />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </AccessibleView>
-  );
-};
+// ✅ COMPONENTES MEMOIZADOS
 
-const FeatureButton: React.FC<FeatureButtonProps> = ({
-  title,
-  subtitle,
-  iconName,
-  gradientType,
-  onPress,
-  styles,
-}) => {
-  const iconStyle = styles.featureIcon as TextStyle;
-
-  return (
-    <AccessibleButton
-      accessibilityText={`${title}. ${subtitle}`}
-      onPress={onPress}
-      style={styles.featureButton}
-    >
+const StatCard = React.memo<StatCardProps>(
+  ({ iconName, value, label, styles }) => {
+    const iconStyle = styles.statIcon as TextStyle;
+    return (
       <View
-        style={[
-          styles.featureIconContainer,
-          gradientType === "writing"
-            ? styles.featureWriting
-            : styles.featureContractions,
-        ]}
+        style={styles.statCard}
+        accessible={true}
+        accessibilityLabel={`${label}: ${value}`}
+        accessibilityRole="text"
       >
         <MaterialCommunityIcons
           name={iconName}
           size={iconStyle.fontSize}
-          color="#FFFFFF"
-        />
-      </View>
-      <View>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureSubtitle}>{subtitle}</Text>
-      </View>
-    </AccessibleButton>
-  );
-};
-
-const ActionButton: React.FC<ActionButtonProps> = ({
-  iconName,
-  label,
-  onPress,
-  styles,
-}) => {
-  const iconStyle = styles.actionIcon as TextStyle;
-  return (
-    <AccessibleButton
-      accessibilityText={`${label}. Toque para abrir.`}
-      onPress={onPress}
-      style={styles.actionButton}
-    >
-      <MaterialCommunityIcons
-        name={iconName}
-        size={iconStyle.fontSize}
-        color={iconStyle.color}
-      />
-      <Text style={styles.actionLabel}>{label}</Text>
-    </AccessibleButton>
-  );
-};
-
-const ModuleItem: React.FC<ModuleItemProps> = ({
-  module,
-  completed,
-  isLocked,
-  onPress,
-  styles,
-}) => {
-  const iconStyle = styles.moduleIcon as TextStyle;
-  const lockIconStyle = styles.lockIcon as TextStyle;
-  const iconMap: React.ComponentProps<typeof MaterialCommunityIcons>["name"][] =
-    ["alphabet-latin", "hand-wave-outline", "star-box-outline"];
-  const iconName =
-    iconMap[module.moduleId - 1] ??
-    ("book-outline" as React.ComponentProps<
-      typeof MaterialCommunityIcons
-    >["name"]);
-  return (
-    <AccessibleButton
-      accessibilityText={`Módulo ${module.moduleId}. ${
-        completed ? "Concluído" : isLocked ? "Bloqueado" : "Disponível"
-      }.`}
-      onPress={onPress}
-      disabled={isLocked}
-      style={[styles.moduleItem, isLocked && { opacity: 0.55 }]}
-    >
-      <View style={styles.moduleIconContainer}>
-        <MaterialCommunityIcons
-          name={iconName}
-          size={iconStyle.fontSize}
           color={iconStyle.color}
+          accessible={false}
         />
+        <Text style={styles.statValue} accessible={false}>
+          {value}
+        </Text>
+        <Text style={styles.statLabel} accessible={false}>
+          {label}
+        </Text>
       </View>
-      <View style={styles.moduleTextContainer}>
-        <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
-        <Text style={styles.moduleSubtitle}>{module.title}</Text>
-      </View>
-      {isLocked ? (
-        <MaterialCommunityIcons
-          name="lock-outline"
-          size={lockIconStyle.fontSize}
-          color={lockIconStyle.color}
-        />
-      ) : (
-        <View
-          style={[
-            styles.moduleStatusIndicator,
-            { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
-          ]}
-        />
-      )}
-    </AccessibleButton>
-  );
-};
+    );
+  }
+);
 
-/* ---------- COMPONENTE PRINCIPAL ---------- */
+const FeatureButton = React.memo<FeatureButtonProps>(
+  ({ title, subtitle, iconName, gradientType, onPress, styles }) => {
+    const iconStyle = styles.featureIcon as TextStyle;
+
+    const bgStyle = useMemo(() => {
+      const styleMap: Record<string, any> = {
+        writing: styles.featureWriting,
+        journey: styles.featureJourney,
+        ranking: styles.featureRanking,
+        progress: styles.featureProgress,
+        alphabet: styles.featureAlphabet,
+        achievements: styles.featureAchievements,
+      };
+      return styleMap[gradientType] || styles.featureJourney;
+    }, [gradientType, styles]);
+
+    return (
+      <AccessibleButton
+        accessibilityText={`${title}. ${subtitle}`}
+        onPress={onPress}
+        style={styles.featureButton}
+      >
+        <View style={[styles.featureIconContainer, bgStyle]} accessible={false}>
+          <MaterialCommunityIcons
+            name={iconName}
+            size={iconStyle.fontSize}
+            color="#FFFFFF"
+            accessible={false}
+          />
+        </View>
+        <View accessible={false}>
+          <Text style={styles.featureTitle} accessible={false}>
+            {title}
+          </Text>
+          <Text style={styles.featureSubtitle} accessible={false}>
+            {subtitle}
+          </Text>
+        </View>
+      </AccessibleButton>
+    );
+  }
+);
+
+const ModuleItem = React.memo<ModuleItemProps>(
+  ({ module, completed, isLocked, onPress, styles }) => {
+    const iconStyle = styles.moduleIcon as TextStyle;
+    const lockIconStyle = styles.lockIcon as TextStyle;
+
+    const iconMap: React.ComponentProps<
+      typeof MaterialCommunityIcons
+    >["name"][] = ["alphabet-latin", "hand-wave-outline", "star-box-outline"];
+
+    const iconName = iconMap[module.moduleId - 1] ?? "book-outline";
+    const statusText = completed
+      ? "Concluído"
+      : isLocked
+      ? "Bloqueado"
+      : "Disponível";
+
+    return (
+      <AccessibleButton
+        accessibilityText={`Módulo ${module.moduleId}. ${statusText}.`}
+        onPress={onPress}
+        disabled={isLocked}
+        style={[styles.moduleItem, isLocked && { opacity: 0.6 }]}
+      >
+        <View style={styles.moduleIconContainer} accessible={false}>
+          <MaterialCommunityIcons
+            name={iconName}
+            size={iconStyle.fontSize}
+            color={iconStyle.color}
+            accessible={false}
+          />
+        </View>
+        <View style={styles.moduleTextContainer} accessible={false}>
+          <Text style={styles.moduleTitle} accessible={false}>
+            Módulo {module.moduleId}
+          </Text>
+        </View>
+        {isLocked ? (
+          <MaterialCommunityIcons
+            name="lock-outline"
+            size={lockIconStyle.fontSize}
+            color={lockIconStyle.color}
+            accessible={false}
+          />
+        ) : (
+          <View
+            style={[
+              styles.moduleStatusIndicator,
+              { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
+            ]}
+            accessible={false}
+          />
+        )}
+      </AccessibleButton>
+    );
+  }
+);
+
 const HomeScreen: React.FC<
   NativeStackScreenProps<RootStackParamList, "Home">
 > = ({ navigation }) => {
@@ -509,7 +207,6 @@ const HomeScreen: React.FC<
   const [dbUser, setDbUser] = useState<APIt.User | null>(null);
 
   const { theme } = useContrast();
-  // Obtendo todas as configurações do hook
   const {
     fontSizeMultiplier,
     isBoldTextEnabled,
@@ -518,14 +215,24 @@ const HomeScreen: React.FC<
     letterSpacing,
   } = useSettings();
 
-  // Passando todas as variáveis para a criação dos estilos
-  const styles = createStyles(
-    theme,
-    fontSizeMultiplier,
-    isBoldTextEnabled,
-    isDyslexiaFontEnabled,
-    lineHeightMultiplier,
-    letterSpacing
+  const styles = useMemo(
+    () =>
+      createStyles(
+        theme,
+        fontSizeMultiplier,
+        isBoldTextEnabled,
+        isDyslexiaFontEnabled,
+        lineHeightMultiplier,
+        letterSpacing
+      ),
+    [
+      theme,
+      fontSizeMultiplier,
+      isBoldTextEnabled,
+      isDyslexiaFontEnabled,
+      lineHeightMultiplier,
+      letterSpacing,
+    ]
   );
 
   const [welcomeMessageShown, setWelcomeMessageShown] = useState(false);
@@ -536,9 +243,6 @@ const HomeScreen: React.FC<
   useFocusEffect(
     useCallback(() => {
       if (pendingNotification) {
-        console.log(
-          "[HomeScreen] Notificação pendente (Módulo) encontrada. Mostrando modal..."
-        );
         showModal(pendingNotification.title, pendingNotification.message);
         dequeueNotification();
       }
@@ -547,15 +251,13 @@ const HomeScreen: React.FC<
 
   useEffect(() => {
     if (dbUser && !welcomeMessageShown && !pendingNotification) {
-      const title = `🎉 Seja Bem-Vindo(a)!`;
-      const message = `Olá, ${dbUser.name}! Estamos felizes em ver você por aqui.`;
-
-      const showWelcomeModal = () => {
-        showModal(title, message);
+      const timer = setTimeout(() => {
+        showModal(
+          `🎉 Seja Bem-Vindo(a)!`,
+          `Olá, ${dbUser.name}! Estamos felizes em ver você por aqui.`
+        );
         setWelcomeMessageShown(true);
-      };
-
-      const timer = setTimeout(showWelcomeModal, 500);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [dbUser, welcomeMessageShown, pendingNotification, showModal]);
@@ -565,10 +267,21 @@ const HomeScreen: React.FC<
       setLoadingUser(false);
       return;
     }
+
+    const now = Date.now();
+    if (userCache && now - userCacheTime < USER_CACHE_TTL) {
+      setDbUser(userCache);
+      setLoadingUser(false);
+      return;
+    }
+
     setLoadingUser(true);
     try {
       const uResult = await progressService.getUserById(user.userId);
-      setDbUser(uResult as APIt.User | null);
+      const userData = uResult as APIt.User | null;
+      userCache = userData;
+      userCacheTime = now;
+      setDbUser(userData);
     } catch (err) {
       console.error("Erro ao buscar usuário:", err);
       setDbUser(null);
@@ -583,30 +296,120 @@ const HomeScreen: React.FC<
     }, [fetchData])
   );
 
-  const canStartModule = (
-    moduleId: number,
-    completedModules: number[]
-  ): boolean => {
-    if (moduleId === 1) return true;
-    return completedModules.includes(moduleId - 1);
-  };
+  const canStartModule = useCallback(
+    (moduleId: number, completedModules: number[]): boolean => {
+      if (moduleId === 1) return true;
+      return completedModules.includes(moduleId - 1);
+    },
+    []
+  );
 
-  const openModule = async (moduleId: number, completedModules: number[]) => {
-    if (!user?.userId) return;
-    const allowed = canStartModule(moduleId, completedModules);
-    if (!allowed) {
-      Alert.alert("Bloqueado", "Conclua o módulo anterior para avançar.");
-      return;
-    }
-    navigation.navigate("ModuleContent", { moduleId: String(moduleId) });
-  };
+  const openModule = useCallback(
+    async (moduleId: number, completedModules: number[]) => {
+      if (!user?.userId) return;
+      const allowed = canStartModule(moduleId, completedModules);
+      if (!allowed) {
+        Alert.alert("Bloqueado", "Conclua o módulo anterior para avançar.");
+        return;
+      }
+      navigation.navigate("ModuleContent", { moduleId: String(moduleId) });
+    },
+    [user?.userId, canStartModule, navigation]
+  );
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     Alert.alert("Sair", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
       { text: "Sair", onPress: () => signOut() },
     ]);
-  };
+  }, [signOut]);
+
+  const completedModuleNumbers = useMemo(() => {
+    const rawModules = dbUser?.modulesCompleted;
+    if (Array.isArray(rawModules)) {
+      return rawModules.filter((n): n is number => typeof n === "number");
+    }
+    return [];
+  }, [dbUser?.modulesCompleted]);
+
+  const statsData = useMemo(
+    () => [
+      {
+        iconName: "hand-coin" as const,
+        value: dbUser?.coins ?? 0,
+        label: "Moedas",
+      },
+      {
+        iconName: "trophy-variant" as const,
+        value: (dbUser?.points ?? 0).toLocaleString("pt-BR"),
+        label: "Pontos",
+      },
+      {
+        iconName: "book-multiple" as const,
+        value: `${completedModuleNumbers.length}/${DEFAULT_MODULES.length}`,
+        label: "Módulos",
+      },
+    ],
+    [dbUser?.coins, dbUser?.points, completedModuleNumbers.length]
+  );
+
+  const featuresData = useMemo(
+    () => [
+      {
+        title: "Escrita",
+        subtitle: "Teste sua velocidade",
+        iconName: "keyboard-variant" as const,
+        gradientType: "writing",
+        screen: "WritingChallengeIntro" as const,
+      },
+      {
+        title: "Jornada",
+        subtitle: "Seu caminho",
+        iconName: "road-variant" as const,
+        gradientType: "journey",
+        screen: "LearningPath" as const,
+      },
+      {
+        title: "Ranking",
+        subtitle: "Líderes",
+        iconName: "podium-gold" as const,
+        gradientType: "ranking",
+        screen: "Ranking" as const,
+      },
+      {
+        title: "Progresso",
+        subtitle: "Estatísticas",
+        iconName: "rocket-launch-outline" as const,
+        gradientType: "progress",
+        screen: "Progress" as const,
+      },
+      {
+        title: "Alfabeto",
+        subtitle: "Referência Braille",
+        iconName: "alphabetical" as const,
+        gradientType: "alphabet",
+        screen: "AlphabetSections" as const,
+      },
+      {
+        title: "Conquistas",
+        subtitle: "Suas medalhas",
+        iconName: "medal-outline" as const,
+        gradientType: "achievements",
+        screen: "Achievements" as const,
+      },
+    ],
+    []
+  );
+
+  const modulesData = useMemo(
+    () =>
+      DEFAULT_MODULES.map((item) => ({
+        ...item,
+        completed: completedModuleNumbers.includes(item.moduleId),
+        isLocked: !canStartModule(item.moduleId, completedModuleNumbers),
+      })),
+    [completedModuleNumbers, canStartModule]
+  );
 
   if (loadingUser || !dbUser) {
     return (
@@ -618,15 +421,74 @@ const HomeScreen: React.FC<
     );
   }
 
-  const rawModules = dbUser.modulesCompleted;
-  const completedModuleNumbers: number[] = (() => {
-    if (Array.isArray(rawModules)) {
-      return rawModules.filter((n): n is number => typeof n === "number");
-    }
-    return [];
-  })();
-  const completedCount = completedModuleNumbers.length;
-  const modulesProgressString = `${completedCount}/${DEFAULT_MODULES.length}`;
+  // Header com Stats centralizados
+  const ListHeader = (
+    <>
+      <View style={styles.header}>
+        <View>
+          <AccessibleHeader level={1} style={styles.headerTitle}>
+            Olá, {dbUser.name ?? user?.name ?? "Usuário"}!
+          </AccessibleHeader>
+          <AccessibleText baseSize={16} style={styles.headerSubtitle}>
+            Continue aprendendo com ASAC
+          </AccessibleText>
+        </View>
+        <AccessibleButton onPress={handleLogout} style={styles.headerIcon}>
+          <MaterialCommunityIcons
+            name="logout"
+            size={22}
+            color={theme.buttonText ?? "#FFFFFF"}
+          />
+        </AccessibleButton>
+      </View>
+
+      {/* ✅ Centralização: Usando View simples com flex e justify */}
+      <View style={styles.statsWrapper}>
+        {statsData.map((stat, index) => (
+          <StatCard
+            key={stat.label}
+            iconName={stat.iconName}
+            value={stat.value}
+            label={stat.label}
+            styles={styles}
+          />
+        ))}
+      </View>
+
+      <View style={styles.modulesSection}>
+        <View style={styles.modulesSectionHeader}>
+          <Text style={styles.modulesTitle}>Seus Módulos</Text>
+          <AccessibleButton
+            onPress={() => navigation.navigate("Settings")}
+            style={styles.smallButton}
+            accessibilityText="Configurações do aplicativo"
+          >
+            <MaterialCommunityIcons
+              name="cog"
+              size={(styles.smallIcon as TextStyle).fontSize}
+              color={(styles.smallIcon as TextStyle).color}
+            />
+          </AccessibleButton>
+        </View>
+      </View>
+    </>
+  );
+
+  // Footer com Features
+  const ListFooter = (
+    <View style={styles.featuresSection}>
+      <View style={styles.featuresRow}>
+        {featuresData.map((feature, index) => (
+          <FeatureButton
+            key={feature.title}
+            {...feature}
+            onPress={() => navigation.navigate(feature.screen)}
+            styles={styles}
+          />
+        ))}
+      </View>
+    </View>
+  );
 
   return (
     <View
@@ -640,161 +502,229 @@ const HomeScreen: React.FC<
         backgroundColor={theme.background}
       />
 
-      <ScrollView
-        style={styles.container}
+      <FlatList
+        data={modulesData}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <ModuleItem
+            module={item}
+            completed={item.completed}
+            isLocked={item.isLocked}
+            onPress={() => openModule(item.moduleId, completedModuleNumbers)}
+            styles={styles}
+          />
+        )}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <AccessibleHeader level={1} style={styles.headerTitle}>
-              Olá, {dbUser.name ?? user?.name ?? "Usuário"}!
-            </AccessibleHeader>
-            <AccessibleText baseSize={16} style={styles.headerSubtitle}>
-              Continue aprendendo com ASAC
-            </AccessibleText>
-          </View>
-          <AccessibleButton onPress={handleLogout} style={styles.headerIcon}>
-            <MaterialCommunityIcons
-              name="logout"
-              size={22}
-              color={theme.buttonText ?? "#FFFFFF"}
-            />
-          </AccessibleButton>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsContainer}>
-          <StatCard
-            iconName="hand-coin"
-            value={dbUser.coins ?? 0}
-            label="Moedas"
-            styles={styles}
-          />
-          <StatCard
-            iconName="trophy-variant"
-            value={(dbUser.points ?? 0).toLocaleString("pt-BR")}
-            label="Pontos"
-            styles={styles}
-          />
-          <StatCard
-            iconName="book-multiple"
-            value={modulesProgressString}
-            label="Módulos"
-            styles={styles}
-          />
-        </View>
-
-        {/* MÓDULOS COM CONFIG E ALFABETO */}
-        <View style={styles.modulesSection}>
-          <View style={styles.modulesSectionHeader}>
-            <Text style={styles.modulesTitle}>Seus Módulos</Text>
-            <View style={styles.headerButtons}>
-              <AccessibleButton
-                onPress={() => navigation.navigate("Settings")}
-                style={styles.smallButton}
-                accessibilityText="Configurações do aplicativo"
-              >
-                <MaterialCommunityIcons
-                  name="cog"
-                  size={(styles.smallIcon as TextStyle).fontSize}
-                  color={(styles.smallIcon as TextStyle).color}
-                />
-              </AccessibleButton>
-
-              <AccessibleButton
-                onPress={() => navigation.navigate("AlphabetSections")}
-                style={styles.smallButton}
-                accessibilityText="Alfabeto Braille"
-              >
-                <MaterialCommunityIcons
-                  name="alphabetical"
-                  size={(styles.smallIcon as TextStyle).fontSize}
-                  color={(styles.smallIcon as TextStyle).color}
-                />
-              </AccessibleButton>
-            </View>
-          </View>
-
-          <View style={styles.modulesList}>
-            {DEFAULT_MODULES.map((item) => {
-              const isCompleted = completedModuleNumbers.includes(
-                item.moduleId
-              );
-              const isLocked = !canStartModule(
-                item.moduleId,
-                completedModuleNumbers
-              );
-              return (
-                <ModuleItem
-                  key={item.id}
-                  module={item}
-                  completed={isCompleted}
-                  isLocked={isLocked}
-                  onPress={() =>
-                    openModule(item.moduleId, completedModuleNumbers)
-                  }
-                  styles={styles}
-                />
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 🎨 FEATURES EM DESTAQUE (LADO A LADO) */}
-        <View style={styles.featuresSection}>
-          <View style={styles.featuresRow}>
-            <FeatureButton
-              title="Escrita"
-              subtitle="Teste sua velocidade"
-              iconName="keyboard-variant"
-              gradientType="writing"
-              onPress={() => navigation.navigate("WritingChallengeIntro")}
-              styles={styles}
-            />
-
-            <FeatureButton
-              title="Contrações"
-              subtitle="Aprenda atalhos"
-              iconName="alpha-c-box-outline"
-              gradientType="contractions"
-              onPress={() => navigation.navigate("ContractionsHome")}
-              styles={styles}
-            />
-          </View>
-        </View>
-
-        {/* AÇÕES RÁPIDAS */}
-        <View style={styles.actionsContainer}>
-          <ActionButton
-            iconName="podium-gold"
-            label="Ranking"
-            onPress={() => navigation.navigate("Ranking")}
-            styles={styles}
-          />
-          <ActionButton
-            iconName="road-variant"
-            label="Jornada"
-            onPress={() => navigation.navigate("LearningPath")}
-            styles={styles}
-          />
-          <ActionButton
-            iconName="medal-outline"
-            label="Conquistas"
-            onPress={() => navigation.navigate("Achievements")}
-            styles={styles}
-          />
-          <ActionButton
-            iconName="rocket-launch-outline"
-            label="Progresso"
-            onPress={() => navigation.navigate("Progress")}
-            styles={styles}
-          />
-        </View>
-      </ScrollView>
+        ListHeaderComponent={ListHeader}
+        ListFooterComponent={ListFooter}
+        // Props de otimização
+        removeClippedSubviews={Platform.OS === "android"}
+        initialNumToRender={4}
+        maxToRenderPerBatch={3}
+        windowSize={5}
+      />
     </View>
   );
 };
 
 export default HomeScreen;
+
+const createStyles = (
+  theme: Theme,
+  fontMultiplier: number,
+  isBold: boolean,
+  isDyslexiaFontEnabled: boolean,
+  lineHeightMultiplier: number,
+  letterSpacing: number
+) =>
+  StyleSheet.create({
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    container: { flex: 1, backgroundColor: theme.background },
+    scrollContent: { paddingBottom: 40 },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 8,
+      paddingHorizontal: 16,
+    },
+    headerTitle: {
+      fontSize: 22 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "700",
+      color: theme.text,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    headerSubtitle: {
+      fontSize: 13 * fontMultiplier,
+      color: theme.text,
+      opacity: 0.8,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    headerIcon: {
+      backgroundColor: theme.button ?? "#191970",
+      borderRadius: 10,
+      padding: 6,
+    },
+    // ✅ Estilo novo para centralizar Stats
+    statsWrapper: {
+      flexDirection: "row",
+      justifyContent: "center", // Centraliza horizontalmente
+      alignItems: "center",
+      gap: 12, // Espaçamento entre os cards
+      marginVertical: 16,
+      paddingHorizontal: 16,
+    },
+    statCard: {
+      width: BOX_SIZE,
+      height: BOX_SIZE,
+      backgroundColor: theme.card,
+      borderRadius: 14,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 4,
+      // Sombra leve para destaque
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    },
+    statIcon: {
+      fontSize: 24 * fontMultiplier,
+      color: theme.cardText,
+    } as TextStyle,
+    statValue: {
+      color: theme.cardText,
+      fontSize: 14 * fontMultiplier,
+      fontWeight: isBold ? "900" : "bold",
+      marginTop: 4,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      textAlign: "center",
+    },
+    statLabel: {
+      color: theme.cardText,
+      fontSize: 10 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "600",
+      textAlign: "center",
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    modulesSection: { paddingHorizontal: 16, marginBottom: 12 },
+    modulesSectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 10,
+    },
+    modulesTitle: {
+      fontSize: 16 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "700",
+      color: theme.text,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      flex: 1,
+    },
+    smallButton: {
+      width: 44,
+      height: 44,
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    smallIcon: {
+      fontSize: 22 * fontMultiplier,
+      color: theme.cardText,
+    } as TextStyle,
+    moduleItem: {
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
+      marginHorizontal: 16,
+      elevation: 1,
+    },
+    moduleIconContainer: {
+      backgroundColor: theme.background,
+      borderRadius: 22,
+      padding: 8,
+      marginRight: 10,
+    },
+    moduleIcon: {
+      fontSize: 20 * fontMultiplier,
+      color: theme.text,
+    } as TextStyle,
+    moduleTextContainer: { flex: 1, justifyContent: "center" },
+    moduleTitle: {
+      color: theme.cardText,
+      fontSize: 14 * fontMultiplier,
+      fontWeight: isBold ? "900" : "bold",
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    moduleStatusIndicator: {
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      marginLeft: 8,
+    },
+    lockIcon: {
+      fontSize: 22 * fontMultiplier,
+      color: theme.text,
+      marginLeft: 8,
+    } as TextStyle,
+    featuresSection: { paddingHorizontal: 16, marginTop: 12 },
+    // Ajustado para wrap (quebra de linha) para usar com map
+    featuresRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+      gap: GAP_SIZE,
+    },
+    featureButton: {
+      width: FEATURE_BUTTON_WIDTH,
+      height: FEATURE_BUTTON_HEIGHT,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 12,
+      justifyContent: "space-between",
+      marginBottom: GAP_SIZE, // Espaço vertical entre linhas
+      elevation: 2,
+    },
+    featureIconContainer: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    featureWriting: { backgroundColor: "#FF6B6B" },
+    featureJourney: { backgroundColor: "#4ECDC4" },
+    featureRanking: { backgroundColor: "#FFD93D" },
+    featureProgress: { backgroundColor: "#6C5CE7" },
+    featureAlphabet: { backgroundColor: "#54A0FF" },
+    featureAchievements: { backgroundColor: "#FA8231" },
+    featureIcon: {
+      fontSize: 24 * fontMultiplier,
+      color: "#FFFFFF",
+    } as TextStyle,
+    featureTitle: {
+      color: theme.cardText,
+      fontSize: 14 * fontMultiplier,
+      fontWeight: isBold ? "bold" : "700",
+      marginTop: 8,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+    featureSubtitle: {
+      color: theme.cardText,
+      fontSize: 10 * fontMultiplier,
+      opacity: 0.7,
+      marginTop: 2,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+    },
+  });

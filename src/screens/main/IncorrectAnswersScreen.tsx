@@ -1,14 +1,13 @@
-// src/screens/main/IncorrectAnswersScreen.tsx (CORRIGIDO)
-import React, { useState, useCallback, useEffect, useRef } from "react";
+// src/screens/main/IncorrectAnswersScreen.tsx - OTIMIZADO
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   StatusBar,
   ActivityIndicator,
   ColorValue,
-  Animated,
   Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -25,11 +24,6 @@ import { useSettings } from "../../hooks/useSettings";
 import { useAuthStore } from "../../store/authStore";
 import progressService from "../../services/progressService";
 import { RootStackParamList } from "../../navigation/types";
-import {
-  Gesture,
-  GestureDetector,
-  Directions,
-} from "react-native-gesture-handler";
 
 type IncorrectAnswer = {
   id: string;
@@ -38,13 +32,6 @@ type IncorrectAnswer = {
   questionText: string;
   userAnswer: string;
   correctAnswer: string;
-};
-
-type IncorrectAnswerCardProps = {
-  item: IncorrectAnswer;
-  styles: ReturnType<typeof createStyles>;
-  theme: Theme;
-  index: number;
 };
 
 type IncorrectAnswersRouteProp = RouteProp<
@@ -64,119 +51,71 @@ function isColorDark(color: ColorValue | undefined): boolean {
   return luminance < 149;
 }
 
-const IncorrectAnswerCard = ({
-  item,
-  styles,
-  theme,
-  index,
-}: IncorrectAnswerCardProps) => {
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        delay: index * 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        delay: index * 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [slideAnim, fadeAnim, index, pulseAnim]);
-
+// ✅ OTIMIZAÇÃO 1: Card sem animações pesadas
+const IncorrectAnswerCard = React.memo<{
+  item: IncorrectAnswer;
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+}>(({ item, styles, theme }) => {
   const questionNum = item.questionNumber.toString().split("-").pop() || "?";
 
   return (
-    <Animated.View
-      style={{
-        opacity: fadeAnim,
-        transform: [{ translateY: slideAnim }],
-      }}
-    >
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Animated.View
-            style={[
-              styles.questionNumberBadge,
-              { transform: [{ scale: pulseAnim }] },
-            ]}
-          >
-            <Text style={styles.questionNumber}>{questionNum}</Text>
-          </Animated.View>
-          <View style={styles.errorIndicator}>
-            <MaterialCommunityIcons
-              name="alert-circle"
-              size={24}
-              color="#F44336"
-            />
-          </View>
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.questionNumberBadge}>
+          <Text style={styles.questionNumber}>{questionNum}</Text>
+        </View>
+        <View style={styles.errorIndicator}>
+          <MaterialCommunityIcons
+            name="alert-circle"
+            size={24}
+            color="#F44336"
+          />
+        </View>
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={styles.questionSection}>
+          <MaterialCommunityIcons
+            name="help-circle-outline"
+            size={20}
+            color={theme.text}
+            style={styles.sectionIcon}
+          />
+          <Text style={styles.questionText}>{item.questionText}</Text>
         </View>
 
-        <View style={styles.cardBody}>
-          <View style={styles.questionSection}>
-            <MaterialCommunityIcons
-              name="help-circle-outline"
-              size={20}
-              color={theme.text}
-              style={styles.sectionIcon}
-            />
-            <Text style={styles.questionText}>{item.questionText}</Text>
+        <View style={styles.divider} />
+
+        <View style={styles.answersContainer}>
+          <View style={[styles.answerBox, styles.wrongAnswerBox]}>
+            <View style={styles.answerHeader}>
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={20}
+                color="#F44336"
+              />
+              <Text style={styles.answerLabel}>Sua resposta</Text>
+            </View>
+            <Text style={styles.userAnswer}>{item.userAnswer}</Text>
           </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.answersContainer}>
-            <View style={[styles.answerBox, styles.wrongAnswerBox]}>
-              <View style={styles.answerHeader}>
-                <MaterialCommunityIcons
-                  name="close-circle"
-                  size={20}
-                  color="#F44336"
-                />
-                <Text style={styles.answerLabel}>Sua resposta</Text>
-              </View>
-              <Text style={styles.userAnswer}>{item.userAnswer}</Text>
+          <View style={[styles.answerBox, styles.correctAnswerBox]}>
+            <View style={styles.answerHeader}>
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={20}
+                color="#4CAF50"
+              />
+              <Text style={styles.answerLabel}>Resposta correta</Text>
             </View>
-
-            <View style={[styles.answerBox, styles.correctAnswerBox]}>
-              <View style={styles.answerHeader}>
-                <MaterialCommunityIcons
-                  name="check-circle"
-                  size={20}
-                  color="#4CAF50"
-                />
-                <Text style={styles.answerLabel}>Resposta correta</Text>
-              </View>
-              <Text style={styles.correctAnswer}>{item.correctAnswer}</Text>
-            </View>
+            <Text style={styles.correctAnswer}>{item.correctAnswer}</Text>
           </View>
         </View>
       </View>
-    </Animated.View>
+    </View>
   );
-};
+});
 
 export default function IncorrectAnswersScreen({
   route,
@@ -201,21 +140,30 @@ export default function IncorrectAnswersScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  const styles = createStyles(
-    theme,
-    fontSizeMultiplier,
-    isBoldTextEnabled,
-    lineHeightMultiplier,
-    letterSpacing,
-    isDyslexiaFontEnabled
+  // ✅ OTIMIZAÇÃO 2: Memoizar estilos
+  const styles = useMemo(
+    () =>
+      createStyles(
+        theme,
+        fontSizeMultiplier,
+        isBoldTextEnabled,
+        lineHeightMultiplier,
+        letterSpacing,
+        isDyslexiaFontEnabled
+      ),
+    [
+      theme,
+      fontSizeMultiplier,
+      isBoldTextEnabled,
+      lineHeightMultiplier,
+      letterSpacing,
+      isDyslexiaFontEnabled,
+    ]
   );
 
   const statusBarStyle = isColorDark(theme.background)
     ? "light-content"
     : "dark-content";
-
-  const headerFadeAnim = useRef(new Animated.Value(0)).current;
-  const headerScaleAnim = useRef(new Animated.Value(0.9)).current;
 
   const fetchIncorrectAnswers = useCallback(async () => {
     if (!user?.userId) {
@@ -223,6 +171,7 @@ export default function IncorrectAnswersScreen({
       return;
     }
     setLoading(true);
+
     try {
       const progress = await progressService.getModuleProgressByUser(
         user.userId,
@@ -234,32 +183,31 @@ export default function IncorrectAnswersScreen({
           Array.isArray(progress.errorDetails) ? progress.errorDetails : []
         ) as any[];
 
+        // ✅ OTIMIZAÇÃO 3: Processar erros de forma mais eficiente
         const aggregatedErrors = errors.map((err: any, idx: number) => ({
           id: `${progress.id}-${idx}`,
           moduleNumber: moduleNumber,
-          questionNumber: err.questionId ?? `${idx + 1}`,
+          questionNumber: err.questionId ?? err.question_id ?? `${idx + 1}`,
           questionText:
-            err.questionText ?? err.question ?? "Pergunta não disponível",
+            err.questionText ??
+            err.question ??
+            err.text ??
+            "Pergunta não disponível",
           userAnswer:
-            err.userAnswer ?? err.answer ?? err.selected ?? "Não respondida",
-          correctAnswer: err.expectedAnswer ?? err.correctAnswer ?? "N/A",
+            err.userAnswer ??
+            err.answer ??
+            err.selected ??
+            err.user_answer ??
+            "Não respondida",
+          correctAnswer:
+            err.expectedAnswer ??
+            err.correctAnswer ??
+            err.correct_answer ??
+            err.expected ??
+            "N/A",
         }));
 
         setIncorrectAnswers(aggregatedErrors);
-
-        Animated.parallel([
-          Animated.timing(headerFadeAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-          Animated.spring(headerScaleAnim, {
-            toValue: 1,
-            friction: 6,
-            tension: 40,
-            useNativeDriver: true,
-          }),
-        ]).start();
       } else {
         setIncorrectAnswers([]);
       }
@@ -269,7 +217,7 @@ export default function IncorrectAnswersScreen({
     } finally {
       setLoading(false);
     }
-  }, [user?.userId, moduleNumber, headerFadeAnim, headerScaleAnim]);
+  }, [user?.userId, moduleNumber]);
 
   useFocusEffect(
     useCallback(() => {
@@ -279,93 +227,99 @@ export default function IncorrectAnswersScreen({
 
   const handleGoBack = () => navigation.goBack();
 
-  // ✅ Só criar gesture em plataformas mobile
-  const flingRight =
-    Platform.OS !== "web"
-      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handleGoBack)
-      : undefined;
+  // ✅ OTIMIZAÇÃO 4: Renderizar card com useCallback
+  const renderCard = useCallback(
+    ({ item }: { item: IncorrectAnswer }) => (
+      <IncorrectAnswerCard item={item} styles={styles} theme={theme} />
+    ),
+    [styles, theme]
+  );
 
-  const renderContent = () => (
+  // ✅ OTIMIZAÇÃO 5: Header memoizado
+  const ListHeaderComponent = useMemo(
+    () => (
+      <View style={styles.statsCard}>
+        <View style={styles.statsIconContainer}>
+          {incorrectAnswers.length === 0 ? (
+            <MaterialCommunityIcons
+              name="check-circle"
+              size={64}
+              color="#4CAF50"
+            />
+          ) : (
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={64}
+              color="#F44336"
+            />
+          )}
+        </View>
+        <Text style={styles.statsTitle}>
+          {incorrectAnswers.length}{" "}
+          {incorrectAnswers.length === 1 ? "Erro" : "Erros"}
+        </Text>
+        <Text style={styles.statsSubtitle}>
+          {incorrectAnswers.length === 0
+            ? "🎉 Perfeito! Você acertou todas as questões!"
+            : "Revise suas respostas incorretas abaixo"}
+        </Text>
+      </View>
+    ),
+    [incorrectAnswers.length, styles]
+  );
+
+  const ListEmptyComponent = useMemo(
+    () => (
+      <View style={styles.emptyContainer}>
+        <MaterialCommunityIcons name="trophy" size={80} color="#FFD700" />
+        <Text style={styles.emptyText}>Excelente trabalho!</Text>
+        <Text style={styles.emptySubtext}>
+          Continue assim e conquiste ainda mais pontos! 🚀
+        </Text>
+      </View>
+    ),
+    [styles]
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar
+          barStyle={statusBarStyle}
+          backgroundColor={theme.background}
+        />
+        <ScreenHeader title={`Módulo ${moduleNumber} - Erros`} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.text} />
+          <Text style={{ color: theme.text, marginTop: 10 }}>
+            Carregando...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
     <View style={styles.container}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
       <ScreenHeader title={`Módulo ${moduleNumber} - Erros`} />
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.text} />
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <Animated.View
-            style={[
-              styles.statsCard,
-              {
-                opacity: headerFadeAnim,
-                transform: [{ scale: headerScaleAnim }],
-              },
-            ]}
-          >
-            <View style={styles.statsIconContainer}>
-              {incorrectAnswers.length === 0 ? (
-                <MaterialCommunityIcons
-                  name="check-circle"
-                  size={64}
-                  color="#4CAF50"
-                />
-              ) : (
-                <MaterialCommunityIcons
-                  name="alert-circle-outline"
-                  size={64}
-                  color="#F44336"
-                />
-              )}
-            </View>
-            <Text style={styles.statsTitle}>
-              {incorrectAnswers.length}{" "}
-              {incorrectAnswers.length === 1 ? "Erro" : "Erros"}
-            </Text>
-            <Text style={styles.statsSubtitle}>
-              {incorrectAnswers.length === 0
-                ? "🎉 Perfeito! Você acertou todas as questões!"
-                : "Revise suas respostas incorretas abaixo"}
-            </Text>
-          </Animated.View>
-
-          {incorrectAnswers.length > 0 ? (
-            <View style={styles.errorsSection}>
-              {incorrectAnswers.map((item, index) => (
-                <IncorrectAnswerCard
-                  key={item.id}
-                  item={item}
-                  styles={styles}
-                  theme={theme}
-                  index={index}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="trophy" size={80} color="#FFD700" />
-              <Text style={styles.emptyText}>Excelente trabalho!</Text>
-              <Text style={styles.emptySubtext}>
-                Continue assim e conquiste ainda mais pontos! 🚀
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      )}
+      <FlatList
+        data={incorrectAnswers}
+        keyExtractor={(item) => item.id}
+        renderItem={renderCard}
+        ListHeaderComponent={ListHeaderComponent}
+        ListEmptyComponent={ListEmptyComponent}
+        contentContainerStyle={styles.scrollContainer}
+        // ✅ OTIMIZAÇÃO 6: Props de performance
+        removeClippedSubviews={Platform.OS === "android"}
+        maxToRenderPerBatch={3}
+        updateCellsBatchingPeriod={50}
+        windowSize={5}
+        initialNumToRender={3}
+      />
     </View>
   );
-
-  // ✅ Envolver com GestureDetector apenas em mobile
-  if (Platform.OS !== "web" && flingRight) {
-    return (
-      <GestureDetector gesture={flingRight}>{renderContent()}</GestureDetector>
-    );
-  }
-
-  // ✅ Em web, retornar diretamente sem GestureDetector
-  return renderContent();
 }
 
 const createStyles = (
@@ -414,9 +368,6 @@ const createStyles = (
       marginTop: 8,
       textAlign: "center",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-    },
-    errorsSection: {
-      marginBottom: 20,
     },
     card: {
       backgroundColor: theme.card,

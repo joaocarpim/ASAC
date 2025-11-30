@@ -4,6 +4,7 @@
     "slug": "asacapp",
     "owner": "danielfatec",
     "version": "1.0.0",
+    "jsEngine": "hermes",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",

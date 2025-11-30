@@ -1,5 +1,5 @@
-// src/screens/module/ModuleQuizScreen.tsx
-import React, { useState, useEffect, useCallback } from "react";
+// src/screens/module/ModuleQuizScreen.tsx - OTIMIZADO
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -18,13 +18,10 @@ import ConfettiCannon from "react-native-confetti-cannon";
 import { RootStackScreenProps } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
 import { useProgressStore } from "../../store/progressStore";
-
 import progressService, { ErrorDetail } from "../../services/progressService";
-
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
 import {
-  AccessibleView,
   AccessibleButton,
   AccessibleHeader,
 } from "../../components/AccessibleComponents";
@@ -35,8 +32,6 @@ import {
 } from "../../navigation/moduleQuestionTypes";
 import { useSettings } from "../../hooks/useSettings";
 import { Audio } from "expo-av";
-
-// ✅ Importar Observer e Subject
 import { ExplanationSubject } from "../../services/ExplanationSubject";
 import { ExplanationObserver } from "../../observers/ExplanationObserver";
 
@@ -66,10 +61,7 @@ export default function ModuleQuizScreen({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
-
-  // ✅ Novo estado para bloquear o botão "Próximo"
   const [isNextButtonLocked, setIsNextButtonLocked] = useState(true);
-
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongCount, setWrongCount] = useState(0);
   const [errorDetails, setErrorDetails] = useState<ErrorDetail[]>([]);
@@ -91,30 +83,41 @@ export default function ModuleQuizScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  const styles = getStyles(
-    theme,
-    fontSizeMultiplier,
-    isBoldTextEnabled,
-    lineHeightMultiplier,
-    letterSpacing,
-    isDyslexiaFontEnabled
+  // ✅ OTIMIZAÇÃO 1: Memoizar estilos
+  const styles = useMemo(
+    () =>
+      getStyles(
+        theme,
+        fontSizeMultiplier,
+        isBoldTextEnabled,
+        lineHeightMultiplier,
+        letterSpacing,
+        isDyslexiaFontEnabled
+      ),
+    [
+      theme,
+      fontSizeMultiplier,
+      isBoldTextEnabled,
+      lineHeightMultiplier,
+      letterSpacing,
+      isDyslexiaFontEnabled,
+    ]
   );
 
+  // ✅ OTIMIZAÇÃO 2: Carregar sons de forma assíncrona
   useEffect(() => {
-    async function loadSounds() {
+    const loadSounds = async () => {
       try {
-        const { sound: correct } = await Audio.Sound.createAsync(
-          require("../../../assets/som/correct.mp3")
-        );
-        const { sound: wrong } = await Audio.Sound.createAsync(
-          require("../../../assets/som/incorrect.mp3")
-        );
-        setCorrectSound(correct);
-        setWrongSound(wrong);
+        const [correctRes, wrongRes] = await Promise.all([
+          Audio.Sound.createAsync(require("../../../assets/som/correct.mp3")),
+          Audio.Sound.createAsync(require("../../../assets/som/incorrect.mp3")),
+        ]);
+        setCorrectSound(correctRes.sound);
+        setWrongSound(wrongRes.sound);
       } catch (err) {
         console.warn("Erro ao carregar sons:", err);
       }
-    }
+    };
     loadSounds();
 
     return () => {
@@ -148,7 +151,7 @@ export default function ModuleQuizScreen({
     };
 
     init();
-  }, [moduleId]);
+  }, [moduleId, user?.userId, navigation, setActive]);
 
   useEffect(() => {
     if (!isLoading && speakText && questions[currentQuestionIndex]) {
@@ -158,22 +161,24 @@ export default function ModuleQuizScreen({
         }`
       );
     }
-  }, [currentQuestionIndex, questions, isLoading]);
+  }, [currentQuestionIndex, questions, isLoading, speakText]);
 
-  const handleSelect = (index: number) => {
-    if (!isAnswerChecked) setSelectedAnswer(index);
-  };
+  const handleSelect = useCallback(
+    (index: number) => {
+      if (!isAnswerChecked) setSelectedAnswer(index);
+    },
+    [isAnswerChecked]
+  );
 
   const handleConfirm = useCallback(() => {
     if (selectedAnswer === null) return;
 
     const q = questions[currentQuestionIndex];
     setIsAnswerChecked(true);
-    setIsNextButtonLocked(true); // 🔒 Bloqueia o botão próximo inicialmente
+    setIsNextButtonLocked(true);
 
     const isCorrect = selectedAnswer === q.correctAnswer;
 
-    // Feedback Auditivo e Tátil
     if (isCorrect) {
       playSound(correctSound);
       Vibration.vibrate(70);
@@ -195,32 +200,35 @@ export default function ModuleQuizScreen({
       ]);
     }
 
-    // 📢 DISPARAR NOTIFICAÇÃO DE EXPLICAÇÃO
-    // Pequeno delay para garantir que o feedback visual da seleção ocorra antes
     setTimeout(() => {
       const title = isCorrect ? "Correto! 🎉" : "Atenção! 🧐";
       const message =
         q.explanation || (isCorrect ? "Você acertou!" : "Resposta incorreta.");
-      const type = isCorrect ? "success" : "info"; // Usa 'info' para erro/explicação neutra
+      const type = isCorrect ? "success" : "info";
 
       ExplanationSubject.notify({
         title,
         message,
         type,
         onDismiss: () => {
-          // 🔓 Desbloqueia o botão quando o usuário interagir com a notificação
           setIsNextButtonLocked(false);
         },
       });
     }, 500);
-  }, [selectedAnswer, currentQuestionIndex, questions]);
+  }, [
+    selectedAnswer,
+    currentQuestionIndex,
+    questions,
+    correctSound,
+    wrongSound,
+  ]);
 
   const handleNext = useCallback(() => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((p) => p + 1);
       setSelectedAnswer(null);
       setIsAnswerChecked(false);
-      setIsNextButtonLocked(true); // Reseta para a próxima pergunta
+      setIsNextButtonLocked(true);
       return;
     }
 
@@ -250,9 +258,15 @@ export default function ModuleQuizScreen({
     navigation,
     moduleId,
     errorDetails,
+    stopTimer,
+    activeProgressId,
   ]);
 
-  const current = questions[currentQuestionIndex];
+  // ✅ OTIMIZAÇÃO 3: Memoizar questão atual
+  const current = useMemo(
+    () => questions[currentQuestionIndex],
+    [questions, currentQuestionIndex]
+  );
 
   if (isLoading)
     return (
@@ -269,45 +283,12 @@ export default function ModuleQuizScreen({
       </SafeAreaView>
     );
 
-  const progressPercentage =
-    ((currentQuestionIndex + 1) / questions.length) * 100;
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.background} />
 
-      {/* ✅ Observer da Explicação */}
       <ExplanationObserver />
 
-      {/* HEADER COM PROGRESSO */}
-      <View style={styles.header}>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBarBackground}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${progressPercentage}%` },
-              ]}
-            />
-          </View>
-          <Text style={styles.questionCounter}>
-            Pergunta {currentQuestionIndex + 1} de {questions.length}
-          </Text>
-        </View>
-
-        <View style={styles.scoreRow}>
-          <View style={styles.scoreBadge}>
-            <Text style={styles.scoreBadgeEmoji}>✅</Text>
-            <Text style={styles.scoreBadgeText}>{correctCount}</Text>
-          </View>
-          <View style={[styles.scoreBadge, styles.scoreBadgeWrong]}>
-            <Text style={styles.scoreBadgeEmoji}>❌</Text>
-            <Text style={styles.scoreBadgeText}>{wrongCount}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* ÁREA DE SCROLL */}
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
@@ -345,25 +326,19 @@ export default function ModuleQuizScreen({
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* REMOVIDO: explanationBox antigo foi substituído pela notificação */}
         </View>
       </ScrollView>
 
-      {/* FOOTER COM BOTÃO */}
       <View style={styles.footer}>
         <AccessibleButton
           style={[
             styles.button,
-            // Desabilita visualmente se não selecionou nada OU se já respondeu mas não clicou na notificação
             (selectedAnswer === null && !isAnswerChecked) ||
             (isAnswerChecked && isNextButtonLocked)
               ? styles.buttonDisabled
               : {},
           ]}
-          // Ação: Se não respondeu -> Confirma. Se respondeu E destravou -> Próximo.
           onPress={isAnswerChecked ? handleNext : handleConfirm}
-          // Desabilitado se: (Não selecionou nada) OU (Já respondeu mas botão está travado)
           disabled={
             (selectedAnswer === null && !isAnswerChecked) ||
             (isAnswerChecked && isNextButtonLocked)
@@ -379,7 +354,7 @@ export default function ModuleQuizScreen({
           <Text style={styles.buttonText}>
             {isAnswerChecked
               ? isNextButtonLocked
-                ? "Leia a Explicação ☝️" // Texto muda para orientar usuário
+                ? "Leia a Explicação ☝️"
                 : currentQuestionIndex === questions.length - 1
                 ? "Finalizar Quiz"
                 : "Próxima Pergunta →"
@@ -388,11 +363,11 @@ export default function ModuleQuizScreen({
         </AccessibleButton>
       </View>
 
-      {/* CONFETTI */}
+      {/* Confetti reduzido */}
       {showConfetti && (
         <View style={styles.confettiContainer} pointerEvents="none">
           <ConfettiCannon
-            count={120}
+            count={60}
             origin={{ x: WINDOW_WIDTH / 2, y: -20 }}
             fadeOut
             fallSpeed={3000}
@@ -416,7 +391,6 @@ const getStyles = (
       flex: 1,
       backgroundColor: theme.background,
     },
-
     loadingContainer: {
       flex: 1,
       alignItems: "center",
@@ -424,91 +398,20 @@ const getStyles = (
       backgroundColor: theme.background,
       paddingHorizontal: wp(5),
     },
-
     loadingText: {
       color: theme.text,
       fontSize: normalize(16),
       marginTop: hp(2),
       textAlign: "center",
     },
-
-    header: {
-      paddingHorizontal: wp(4),
-      paddingTop: hp(5),
-      paddingBottom: hp(2),
-      backgroundColor: theme.card,
-      borderBottomWidth: 1,
-      borderBottomColor: "rgba(255,255,255,0.1)",
-    },
-
-    progressContainer: {
-      marginBottom: hp(1.5),
-    },
-
-    progressBarBackground: {
-      height: hp(1),
-      backgroundColor: "rgba(255,255,255,0.2)",
-      borderRadius: 10,
-      overflow: "hidden",
-      marginBottom: hp(1),
-    },
-
-    progressBarFill: {
-      height: "100%",
-      backgroundColor: theme.button,
-      borderRadius: 10,
-    },
-
-    questionCounter: {
-      color: theme.cardText,
-      fontSize: Math.min(normalize(13), wp(3.8)),
-      fontWeight: "600",
-      textAlign: "center",
-    },
-
-    scoreRow: {
-      flexDirection: "row",
-      justifyContent: "center",
-      gap: wp(4),
-    },
-
-    scoreBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "rgba(76, 175, 80, 0.2)",
-      paddingHorizontal: wp(3),
-      paddingVertical: hp(0.8),
-      borderRadius: 20,
-      borderWidth: 2,
-      borderColor: "#4CAF50",
-    },
-
-    scoreBadgeWrong: {
-      backgroundColor: "rgba(244, 67, 54, 0.2)",
-      borderColor: "#F44336",
-    },
-
-    scoreBadgeEmoji: {
-      fontSize: normalize(14),
-      marginRight: wp(1),
-    },
-
-    scoreBadgeText: {
-      color: theme.cardText,
-      fontSize: normalize(14),
-      fontWeight: "bold",
-    },
-
     scrollArea: {
       flex: 1,
     },
-
     scrollContent: {
       paddingHorizontal: wp(4),
-      paddingVertical: hp(2),
+      paddingTop: hp(15),
       paddingBottom: hp(3),
     },
-
     questionCard: {
       backgroundColor: theme.card,
       borderRadius: 16,
@@ -523,7 +426,6 @@ const getStyles = (
         android: { elevation: 6 },
       }),
     },
-
     questionText: {
       fontSize: Math.min(normalize(17) * fontMultiplier, wp(5.2)),
       fontWeight: isBold ? "bold" : "700",
@@ -532,11 +434,9 @@ const getStyles = (
       lineHeight: Math.min(normalize(24) * lineHeightMultiplier, wp(7)),
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-
     optionsContainer: {
       gap: hp(1.5),
     },
-
     option: {
       flexDirection: "row",
       alignItems: "center",
@@ -547,33 +447,20 @@ const getStyles = (
       backgroundColor: "rgba(255,255,255,0.05)",
       minHeight: hp(7),
     },
-
     optionSelected: {
       backgroundColor: "rgba(33, 150, 243, 0.2)",
       borderColor: "#2196F3",
-      ...Platform.select({
-        ios: {
-          shadowColor: "#2196F3",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-        },
-        android: { elevation: 3 },
-      }),
     },
-
     optionCorrect: {
       backgroundColor: "rgba(76, 175, 80, 0.25)",
       borderColor: "#4CAF50",
       borderWidth: 3,
     },
-
     optionWrong: {
       backgroundColor: "rgba(244, 67, 54, 0.25)",
       borderColor: "#F44336",
       borderWidth: 3,
     },
-
     optionNumber: {
       width: wp(7),
       height: wp(7),
@@ -583,13 +470,11 @@ const getStyles = (
       justifyContent: "center",
       marginRight: wp(3),
     },
-
     optionNumberText: {
       color: theme.cardText,
       fontSize: normalize(12),
       fontWeight: "bold",
     },
-
     optionText: {
       flex: 1,
       color: theme.cardText,
@@ -597,7 +482,6 @@ const getStyles = (
       lineHeight: Math.min(normalize(20), wp(5.5)),
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-
     footer: {
       padding: wp(4),
       paddingBottom: Platform.OS === "ios" ? hp(1) : hp(2),
@@ -605,7 +489,6 @@ const getStyles = (
       borderTopWidth: 1,
       borderTopColor: "rgba(255,255,255,0.1)",
     },
-
     button: {
       backgroundColor: theme.button,
       marginBottom: 60,
@@ -624,19 +507,16 @@ const getStyles = (
         android: { elevation: 4 },
       }),
     },
-
     buttonDisabled: {
       opacity: 0.5,
       backgroundColor: "#666",
     },
-
     buttonText: {
       color: theme.buttonText,
       fontSize: Math.min(normalize(15), wp(4.5)),
       fontWeight: "bold",
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-
     confettiContainer: {
       position: "absolute",
       top: 0,

@@ -46,11 +46,9 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
   const isTablet = width >= 768;
   const isDesktop = width >= 1024;
 
-  // Responsividade adaptativa
   const FONT_SCALE = width > 0 ? Math.min(width / 375, 1.2) : 1;
   const scaleFont = (size: number) => Math.round(size * FONT_SCALE);
 
-  // Layout responsivo: 2 colunas mobile, 3 tablet, até 4 desktop
   const columnsCount = isDesktop ? 3 : isTablet ? 3 : 2;
   const maxWidth = Math.min(width, 1200);
   const horizontalPadding = isWeb ? 40 : 20;
@@ -144,7 +142,6 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          {/* Cabeçalho com espaçamento profissional */}
           <View style={styles.headerSection}>
             <AccessibleHeader
               level={1}
@@ -158,7 +155,6 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             </Text>
           </View>
 
-          {/* Grid de opções com layout profissional */}
           <View style={styles.optionsContainer}>
             {contrastOptions.map((option) => (
               <OptionCard
@@ -176,7 +172,6 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
             ))}
           </View>
 
-          {/* Botão de ação com melhor UX */}
           <View style={styles.actionSection}>
             <AccessibleButton
               style={[
@@ -221,13 +216,15 @@ const OptionCard: React.FC<OptionCardProps> = ({
 
   const styles = createStyles(scaleFont);
 
+  // Mapeamento de estilos atualizado com cor do Texto do ícone (iconText)
   const cardStyles: Record<
     ContrastMode,
     {
       backgroundColor: string;
       color: string;
       borderColor: string;
-      iconBg: string;
+      iconBg: string; // Cor do círculo (ponto levantado)
+      iconText: string; // Cor do número dentro
     }
   > = {
     blue_yellow: {
@@ -235,36 +232,44 @@ const OptionCard: React.FC<OptionCardProps> = ({
       color: colors.blueText,
       borderColor: colors.blueText,
       iconBg: colors.blueText,
+      iconText: colors.yellowBg,
     },
     black_white: {
       backgroundColor: colors.black,
       color: colors.white,
       borderColor: colors.white,
       iconBg: colors.white,
+      iconText: colors.black,
     },
     white_black: {
+      // CLARO: Fundo branco, Borda preta
       backgroundColor: colors.white,
       color: colors.black,
       borderColor: colors.black,
-      iconBg: colors.black,
+      iconBg: colors.black, // Ponto PRETO (Solicitado)
+      iconText: colors.white, // Número BRANCO (Solicitado)
     },
     sepia: {
+      // SÉPIA: Fundo Bege
       backgroundColor: colors.sepiaBg,
       color: colors.sepiaText,
       borderColor: colors.sepiaText,
-      iconBg: colors.sepiaText,
+      iconBg: colors.sepiaText, // Ponto MARROM (Solicitado)
+      iconText: colors.white, // Número BRANCO (Solicitado)
     },
     grayscale: {
       backgroundColor: colors.grayBg,
       color: colors.grayText,
       borderColor: colors.grayText,
       iconBg: colors.grayText,
+      iconText: colors.grayBg,
     },
     cyan_dark: {
       backgroundColor: colors.cyanDarkBg,
       color: colors.cyanText,
       borderColor: colors.cyanText,
       iconBg: colors.cyanText,
+      iconText: colors.cyanDarkBg,
     },
   };
 
@@ -293,7 +298,6 @@ const OptionCard: React.FC<OptionCardProps> = ({
             isSelected && styles.selectedCard,
           ]}
         >
-          {/* Indicador visual de seleção */}
           {isSelected && (
             <View
               style={[styles.selectedBadge, { backgroundColor: "#0066CC" }]}
@@ -302,15 +306,24 @@ const OptionCard: React.FC<OptionCardProps> = ({
             </View>
           )}
 
-          {/* Preview colorido */}
+          {/* Preview: Círculo com número dentro */}
           <View
             style={[
               styles.colorPreview,
               { backgroundColor: cardStyles[mode].iconBg },
             ]}
-          />
+          >
+            <Text
+              style={{
+                color: cardStyles[mode].iconText,
+                fontWeight: "bold",
+                fontSize: 18,
+              }}
+            >
+              1
+            </Text>
+          </View>
 
-          {/* Textos do card */}
           <Text style={[styles.cardLabel, { color: cardStyles[mode].color }]}>
             {label}
           </Text>
@@ -432,6 +445,9 @@ const createStyles = (
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.2,
       shadowRadius: 2,
+      // Flexbox para centralizar o número
+      alignItems: "center",
+      justifyContent: "center",
     },
     cardLabel: {
       fontSize: scaleFont(16),

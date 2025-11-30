@@ -49,17 +49,10 @@ export const BRAILLE_NUMBERS: { [key: string]: number[] } = {
 export const BRAILLE_SYMBOLS: { [key: string]: number[] } = {
   ",": [2],
   ";": [2, 3],
-  ".": [2, 5, 6], // Ponto final (na escrita literária)
-
-  // CORRIGIDO: Era [2, 3, 6] (padrão inglês). Em PT é [2, 6].
+  ".": [3], 
   "?": [2, 6],
-
   "!": [2, 3, 5],
-
-  // CORRIGIDO: Era [1, 2, 3, 5, 6]. Em PT é [1, 2, 6].
   "(": [1, 2, 6],
-
-  // CORRIGIDO: Era [2, 3, 4, 5, 6]. Em PT é [3, 4, 5].
   ")": [3, 4, 5],
 };
 

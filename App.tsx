@@ -50,10 +50,6 @@ import IncorrectAnswersScreen from "./src/screens/main/IncorrectAnswersScreen";
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStepScreen";
 import LoginScreen from "./src/screens/auth/LoginScreen";
-import ForgotPasswordScreen from "./src/screens/auth/ForgotPasswordScreen";
-import ResetPasswordScreen from "./src/screens/auth/ResetPasswordScreen";
-import ConfirmSignUpScreen from "./src/screens/auth/ConfirmSignUpScreen";
-import NewPasswordScreen from "./src/screens/auth/NewPasswordScreen";
 import HomeScreen from "./src/screens/main/HomeScreen";
 import RankingScreen from "./src/screens/main/RankingScreen";
 import AchievementsScreen from "./src/screens/main/AchievementsScreen";
@@ -76,11 +72,6 @@ import WritingChallengeIntroScreen from "./src/screens/writing/WritingChallengeI
 import WritingChallengeRoulleteScreen from "./src/screens/writing/WritingChallengeRoulleteScreen";
 import WritingChallengeGameScreen from "./src/screens/writing/WritingChallengeGameScreen";
 import WritingChallengeSuccessScreen from "./src/screens/writing/WritingChallengeSuccessScreen";
-import ContractionsHomeScreen from "./src/screens/contractions/ContractionsHomeScreen";
-import ContractionsLessonScreen from "./src/screens/contractions/ContractionsLessonScreen";
-import ContractionsRoulleteScreen from "./src/screens/contractions/ContractionsRoulleteScreen";
-import ContractionsGameScreen from "./src/screens/contractions/ContractionsGameScreen";
-import ContractionsSuccessScreen from "./src/screens/contractions/ContractionsSuccessScreen";
 
 /* ============================================================
   📱 APP NAVIGATION
@@ -156,22 +147,6 @@ function AppNavigation() {
                 <Stack.Screen name="Welcome" component={WelcomeScreen} />
                 <Stack.Screen name="Tutorial" component={TutorialStep1Screen} />
                 <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen
-                  name="ForgotPassword"
-                  component={ForgotPasswordScreen}
-                />
-                <Stack.Screen
-                  name="ResetPassword"
-                  component={ResetPasswordScreen}
-                />
-                <Stack.Screen
-                  name="ConfirmSignUp"
-                  component={ConfirmSignUpScreen}
-                />
-                <Stack.Screen
-                  name="NewPassword"
-                  component={NewPasswordScreen}
-                />
               </>
             )}
 
@@ -260,26 +235,6 @@ function AppNavigation() {
                 <Stack.Screen
                   name="WritingChallengeSuccess"
                   component={WritingChallengeSuccessScreen}
-                />
-                <Stack.Screen
-                  name="ContractionsHome"
-                  component={ContractionsHomeScreen}
-                />
-                <Stack.Screen
-                  name="ContractionsLesson"
-                  component={ContractionsLessonScreen}
-                />
-                <Stack.Screen
-                  name="ContractionsRoullete"
-                  component={ContractionsRoulleteScreen}
-                />
-                <Stack.Screen
-                  name="ContractionsGame"
-                  component={ContractionsGameScreen}
-                />
-                <Stack.Screen
-                  name="ContractionsSuccess"
-                  component={ContractionsSuccessScreen}
                 />
               </>
             )}
