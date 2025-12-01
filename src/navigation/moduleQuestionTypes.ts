@@ -383,14 +383,14 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q3-4",
         question: "Qual a representação em Braille do ponto final?",
         options: [
-          "Pontos 2, 5, 6",
+          "Pontos 3",
           "Ponto 2",
           "Pontos 2, 3, 6",
           "Pontos 2, 3, 5",
         ],
         correctAnswer: 0,
         explanation:
-          "O ponto final é representado pelos pontos 2, 5 e 6 na célula Braille.",
+          "O ponto final é representado pelos pontos 3 na célula Braille.",
         order: 4,
         difficulty: "easy",
         points: 15,
@@ -471,7 +471,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         options: [
           "Ponto 2",
           "Pontos 2, 6",
-          "Pontos 2, 5, 6",
+          "Pontos 3",
           "Pontos 2, 3, 5, 6", // Esta opção está tecnicamente errada (é 2,3,5), mas mantemos para consistência
         ],
         correctAnswer: 2,

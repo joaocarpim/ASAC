@@ -47,6 +47,7 @@ import IncorrectAnswersScreen from "./src/screens/main/IncorrectAnswersScreen";
 // ===============================
 // TELAS
 // ===============================
+import ForgotPasswordScreen from "./src/screens/auth/ForgotPasswordScreen";
 import WelcomeScreen from "./src/screens/onboarding/welcome";
 import TutorialStep1Screen from "./src/screens/onboarding/TutorialStepScreen";
 import LoginScreen from "./src/screens/auth/LoginScreen";
@@ -147,6 +148,11 @@ function AppNavigation() {
                 <Stack.Screen name="Welcome" component={WelcomeScreen} />
                 <Stack.Screen name="Tutorial" component={TutorialStep1Screen} />
                 <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen
+                  name="ForgotPassword"
+                  component={ForgotPasswordScreen}
+                  options={{ headerShown: false }}
+                />
               </>
             )}
 

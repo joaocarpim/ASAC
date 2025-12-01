@@ -182,7 +182,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
               accessibilityText="Botão Prosseguir. Confirma a seleção e avança para a tela inicial."
             >
               <Text
-                style={[styles.buttonText, { color: PREVIEW_COLORS.white }]}
+                style={[styles.buttonText, { color: PREVIEW_COLORS.yellowBg }]}
               >
                 Confirmar e Prosseguir
               </Text>
@@ -216,15 +216,14 @@ const OptionCard: React.FC<OptionCardProps> = ({
 
   const styles = createStyles(scaleFont);
 
-  // Mapeamento de estilos atualizado com cor do Texto do ícone (iconText)
   const cardStyles: Record<
     ContrastMode,
     {
       backgroundColor: string;
       color: string;
       borderColor: string;
-      iconBg: string; // Cor do círculo (ponto levantado)
-      iconText: string; // Cor do número dentro
+      iconBg: string;
+      iconText: string;
     }
   > = {
     blue_yellow: {
@@ -242,20 +241,18 @@ const OptionCard: React.FC<OptionCardProps> = ({
       iconText: colors.black,
     },
     white_black: {
-      // CLARO: Fundo branco, Borda preta
       backgroundColor: colors.white,
       color: colors.black,
       borderColor: colors.black,
-      iconBg: colors.black, // Ponto PRETO (Solicitado)
-      iconText: colors.white, // Número BRANCO (Solicitado)
+      iconBg: colors.black,
+      iconText: colors.white,
     },
     sepia: {
-      // SÉPIA: Fundo Bege
       backgroundColor: colors.sepiaBg,
       color: colors.sepiaText,
       borderColor: colors.sepiaText,
-      iconBg: colors.sepiaText, // Ponto MARROM (Solicitado)
-      iconText: colors.white, // Número BRANCO (Solicitado)
+      iconBg: colors.sepiaText,
+      iconText: colors.white,
     },
     grayscale: {
       backgroundColor: colors.grayBg,
@@ -290,9 +287,9 @@ const OptionCard: React.FC<OptionCardProps> = ({
             styles.card,
             {
               backgroundColor: cardStyles[mode].backgroundColor,
-              borderWidth: isSelected ? 3 : 2,
+              borderWidth: isSelected ? 4 : 2,
               borderColor: isSelected
-                ? "#0066CC"
+                ? "#003D99"
                 : cardStyles[mode].borderColor,
             },
             isSelected && styles.selectedCard,
@@ -300,13 +297,12 @@ const OptionCard: React.FC<OptionCardProps> = ({
         >
           {isSelected && (
             <View
-              style={[styles.selectedBadge, { backgroundColor: "#0066CC" }]}
+              style={[styles.selectedBadge, { backgroundColor: "#003D99" }]}
             >
               <Text style={styles.checkmark}>✓</Text>
             </View>
           )}
 
-          {/* Preview: Círculo com número dentro */}
           <View
             style={[
               styles.colorPreview,
@@ -445,7 +441,6 @@ const createStyles = (
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.2,
       shadowRadius: 2,
-      // Flexbox para centralizar o número
       alignItems: "center",
       justifyContent: "center",
     },

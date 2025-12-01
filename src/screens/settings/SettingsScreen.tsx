@@ -44,8 +44,7 @@ export default function SettingsScreen() {
     toggleDyslexiaFont,
   } = useSettings();
 
-  // --- LOG ---
-  console.log("[SettingsScreen Render] Estado atual das configs:", {
+  console.log("[SettingsScreen] Estado atual:", {
     fontSize: fontSizeMultiplier,
     bold: isBoldTextEnabled,
     lineHeight: lineHeightMultiplier,
@@ -53,7 +52,7 @@ export default function SettingsScreen() {
     dyslexia: isDyslexiaFontEnabled,
   });
 
-  const MAX_FONT_SIZE_MULTIPLIER = 1.2;
+  const MAX_FONT_SIZE_MULTIPLIER = 1.4;
 
   const fadeAnims = Array.from(
     { length: 7 },
@@ -86,7 +85,6 @@ export default function SettingsScreen() {
 
   const handleGoBack = () => navigation.goBack();
 
-  // Gesto de voltar
   const flingRight =
     Platform.OS !== "web"
       ? Gesture.Fling()
@@ -221,9 +219,9 @@ export default function SettingsScreen() {
             step={step}
             value={value}
             onSlidingComplete={onValueChange}
-            minimumTrackTintColor={theme.button}
-            maximumTrackTintColor={theme.card}
-            thumbTintColor={theme.button}
+            minimumTrackTintColor={styles.sliderActive.backgroundColor}
+            maximumTrackTintColor={styles.sliderInactive.backgroundColor}
+            thumbTintColor={styles.sliderThumb.backgroundColor}
           />
         )}
       </SettingCard>
@@ -246,9 +244,16 @@ export default function SettingsScreen() {
           <Switch
             value={value}
             onValueChange={onValueChange}
-            trackColor={{ false: "#767577", true: theme.button }}
-            thumbColor={value ? theme.buttonText : "#f4f3f4"}
-            ios_backgroundColor="#767577"
+            trackColor={{
+              false: styles.switchTrackOff.backgroundColor,
+              true: styles.switchTrackOn.backgroundColor,
+            }}
+            thumbColor={
+              value
+                ? styles.switchThumbOn.backgroundColor
+                : styles.switchThumbOff.backgroundColor
+            }
+            ios_backgroundColor={styles.switchTrackOff.backgroundColor}
           />
         </View>
       </SettingCard>
@@ -328,7 +333,6 @@ export default function SettingsScreen() {
                 <AccessibleText baseSize={24} style={styles.cardLabel}>
                   Modo de Contraste
                 </AccessibleText>
-                {/* Descrição removida conforme solicitado */}
               </View>
               <AccessibleButton
                 onPress={() => navigation.navigate("Contrast" as never)}
@@ -362,21 +366,56 @@ const createStyles = (
   lineHeightMultiplier: number,
   letterSpacing: number,
   isDyslexiaFont: boolean
-) =>
-  StyleSheet.create({
+) => {
+  // Sistema de cores alternativas para evitar conflitos
+  const getAlternativeColors = () => {
+    // Se o fundo é azul escuro, use amarelo/laranja para elementos interativos
+    const isBlueTheme =
+      theme.background.toLowerCase().includes("blue") ||
+      theme.background === "#000033" ||
+      theme.background === "#001a33";
+
+    return {
+      // Badge de valor - cor contrastante
+      badgeBackground: isBlueTheme ? "#FFA500" : theme.button,
+      badgeText: isBlueTheme ? "#000000" : theme.buttonText,
+
+      // Slider - cores bem contrastantes
+      sliderActive: isBlueTheme ? "#FFD700" : theme.button,
+      sliderInactive: isBlueTheme ? "#4A4A4A" : theme.card,
+      sliderThumb: isBlueTheme ? "#FFA500" : theme.button,
+
+      // Switch - cores distintas
+      switchTrackOn: isBlueTheme ? "#32CD32" : theme.button,
+      switchTrackOff: isBlueTheme ? "#696969" : "#B8860B",
+      switchThumbOn: isBlueTheme ? "#90EE90" : theme.card,
+      switchThumbOff: isBlueTheme ? "#D3D3D3" : "#FFE066",
+
+      // Botões Web Slider
+      buttonBackground: isBlueTheme ? "#FFA500" : theme.button,
+      buttonText: isBlueTheme ? "#000000" : theme.buttonText,
+      buttonDisabled: isBlueTheme ? "#666666" : theme.card,
+
+      // Botão de mudança
+      changeButtonBg: isBlueTheme ? "#32CD32" : theme.button,
+      changeButtonText: isBlueTheme ? "#000000" : theme.buttonText,
+    };
+  };
+
+  const colors = getAlternativeColors();
+
+  return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.background },
     scrollView: { flex: 1 },
     scrollContent: { paddingHorizontal: 16, paddingTop: 8 },
     section: { marginBottom: 32 },
     sectionTitle: {
       color: theme.text,
-      // Título ligeiramente maior que o label de 24
       fontSize: 28 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "700",
+      fontWeight: isBold ? "800" : "700",
       marginBottom: 16,
       marginLeft: 4,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais ao Título
       lineHeight: 32 * fontMultiplier * lineHeightMultiplier,
       letterSpacing: letterSpacing,
     },
@@ -385,6 +424,8 @@ const createStyles = (
       borderRadius: 16,
       padding: 16,
       marginBottom: 12,
+      borderWidth: 2,
+      borderColor: theme.text + "20", // Borda sutil para melhor definição
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
@@ -399,48 +440,56 @@ const createStyles = (
     },
     cardLabel: {
       color: theme.cardText,
-      // FONTE 24 (SOLICITADO)
       fontSize: 24 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "600",
+      fontWeight: isBold ? "800" : "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      // Aplicando configurações globais ao Label
-      lineHeight: 28 * fontMultiplier * lineHeightMultiplier, // Ajustado para não cortar a fonte 24
+      lineHeight: 28 * fontMultiplier * lineHeightMultiplier,
       letterSpacing: letterSpacing,
       flex: 1,
     },
-    // cardSubtitle removido
     valueBadge: {
-      backgroundColor: theme.button,
+      backgroundColor: colors.badgeBackground,
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 12,
-      minWidth: 70, // Aumentado um pouco para acomodar fonte maior
+      minWidth: 70,
       alignItems: "center",
+      borderWidth: 2,
+      borderColor: "#000000",
     },
     valueText: {
-      color: theme.buttonText,
-      fontSize: 16 * fontMultiplier, // Aumentado proporcionalmente
-      fontWeight: isBold ? "bold" : "600",
+      color: colors.badgeText,
+      fontSize: 16 * fontMultiplier,
+      fontWeight: isBold ? "800" : "700",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       lineHeight: 20 * fontMultiplier * lineHeightMultiplier,
       letterSpacing: letterSpacing,
     },
     slider: { width: "100%", height: 40 },
+    sliderActive: { backgroundColor: colors.sliderActive },
+    sliderInactive: { backgroundColor: colors.sliderInactive },
+    sliderThumb: { backgroundColor: colors.sliderThumb },
     switchRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
     },
+    switchTrackOn: { backgroundColor: colors.switchTrackOn },
+    switchTrackOff: { backgroundColor: colors.switchTrackOff },
+    switchThumbOn: { backgroundColor: colors.switchThumbOn },
+    switchThumbOff: { backgroundColor: colors.switchThumbOff },
     changeButton: {
-      backgroundColor: theme.button,
+      backgroundColor: colors.changeButtonBg,
       paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 12,
+      borderWidth: 2,
+      borderColor: "#000000",
     },
     changeButtonText: {
-      color: theme.buttonText,
+      color: colors.changeButtonText,
       fontSize: 16 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "600",
+      fontWeight: isBold ? "800" : "700",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       lineHeight: 20 * fontMultiplier * lineHeightMultiplier,
       letterSpacing: letterSpacing,
@@ -452,19 +501,21 @@ const createStyles = (
       paddingVertical: 8,
     },
     webSliderButton: {
-      backgroundColor: theme.button,
+      backgroundColor: colors.buttonBackground,
       width: 44,
       height: 44,
       borderRadius: 22,
       justifyContent: "center",
       alignItems: "center",
+      borderWidth: 2,
+      borderColor: "#000000",
     },
     webSliderButtonDisabled: {
-      backgroundColor: theme.card,
-      opacity: 0.7,
+      backgroundColor: colors.buttonDisabled,
+      opacity: 0.5,
     },
     webSliderButtonText: {
-      color: theme.buttonText,
+      color: colors.buttonText,
       fontSize: 24,
       fontWeight: "bold",
       lineHeight: 26,
@@ -472,7 +523,7 @@ const createStyles = (
     webSliderValue: {
       color: theme.cardText,
       fontSize: 20 * fontMultiplier,
-      fontWeight: isBold ? "bold" : "700",
+      fontWeight: isBold ? "800" : "700",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       minWidth: 80,
       textAlign: "center",
@@ -480,3 +531,4 @@ const createStyles = (
       letterSpacing: letterSpacing,
     },
   });
+};

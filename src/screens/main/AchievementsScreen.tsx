@@ -1,4 +1,4 @@
-// src/screens/main/AchievementsScreen.tsx - OTIMIZADO
+// src/screens/main/AchievementsScreen.tsx
 import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
@@ -23,15 +23,15 @@ import { useSettings } from "../../hooks/useSettings";
 import { useAuthStore } from "../../store/authStore";
 import { generateClient } from "aws-amplify/api";
 import { listProgresses } from "../../graphql/queries";
+import {
+  Gesture,
+  GestureDetector,
+  Directions,
+} from "react-native-gesture-handler";
 
 const MODULE_EMOJIS = ["🎓", "🏆", "⭐"];
 const ACHIEVEMENT_EMOJIS = ["🥉", "🥈", "🥇", "🏆", "💎"];
-const CARD_COLORS = ["#CD7F32", "#C0C0C0", "#DAA520", "#4CAF50", "#8A2BE2"];
-
-// ✅ Cache simples em memória
-let progressCache: any = null;
-let cacheTime = 0;
-const CACHE_DURATION = 10000; // 10 segundos
+const FALLBACK_COLORS = ["#CD7F32", "#C0C0C0", "#DAA520", "#4CAF50", "#8A2BE2"];
 
 export default function AchievementsScreen() {
   const navigation = useNavigation();
@@ -49,15 +49,17 @@ export default function AchievementsScreen() {
   const [completedModulesList, setCompletedModulesList] = useState<number[]>(
     []
   );
+  const [attemptedModulesList, setAttemptedModulesList] = useState<number[]>(
+    []
+  );
   const [achievements, setAchievements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [emblemsByPerformance, setEmblemsByPerformance] = useState<
-    { moduleNumber: number; accuracy: number }[]
+    { moduleNumber: number; accuracy: number; passed: boolean }[]
   >([]);
   const modulosTotais = 3;
 
-  // ✅ OTIMIZAÇÃO 1: Memoizar estilos
   const styles = useMemo(
     () =>
       createStyles(
@@ -78,96 +80,111 @@ export default function AchievementsScreen() {
     ]
   );
 
-  const fetchAchievements = useCallback(
-    async (isRefresh = false) => {
-      if (!user?.userId) {
-        setLoading(false);
-        return;
-      }
+  const fetchAchievements = useCallback(async () => {
+    if (!user?.userId) {
+      setLoading(false);
+      return;
+    }
 
-      // ✅ OTIMIZAÇÃO 2: Usar cache se ainda válido
-      const now = Date.now();
-      if (!isRefresh && progressCache && now - cacheTime < CACHE_DURATION) {
-        console.log("📦 Usando cache...");
-        processProgressData(progressCache);
-        setLoading(false);
-        return;
-      }
+    if (!refreshing) setLoading(true);
 
-      if (!isRefresh) setLoading(true);
+    try {
+      const client = generateClient();
+      const progressResult: any = await client.graphql({
+        query: listProgresses,
+        variables: {
+          filter: { userId: { eq: user.userId } },
+          limit: 1000,
+        },
+        authMode: "userPool",
+      });
 
-      try {
-        const client = generateClient();
+      const rawList = progressResult?.data?.listProgresses?.items || [];
+      processProgressData(rawList);
+    } catch (error) {
+      console.error("❌ Erro ao buscar conquistas:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.userId, refreshing]);
 
-        // ✅ OTIMIZAÇÃO 3: Query mais simples, sem cache buster desnecessário
-        const progressResult: any = await client.graphql({
-          query: listProgresses,
-          variables: {
-            filter: { userId: { eq: user.userId } },
-            limit: 100, // Limitar resultados
-          },
-          authMode: "userPool",
-        });
-
-        const rawList = progressResult?.data?.listProgresses?.items || [];
-
-        // ✅ Salvar no cache
-        progressCache = rawList;
-        cacheTime = now;
-
-        processProgressData(rawList);
-      } catch (error) {
-        console.error("❌ Erro ao buscar conquistas:", error);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [user?.userId]
-  );
-
-  // ✅ OTIMIZAÇÃO 4: Separar processamento de dados
   const processProgressData = useCallback(
     (rawList: any[]) => {
       const validAttempts = rawList.filter(
         (p: any) => p && p.moduleNumber && p.userId === user?.userId
       );
 
+      const sortedAttempts = validAttempts.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        const dateB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+      const latestByModule: Record<number, any> = {};
+      sortedAttempts.forEach((p) => {
+        const modNum = Number(p.moduleNumber);
+        if (!latestByModule[modNum]) {
+          latestByModule[modNum] = p;
+        }
+      });
+
+      const latestAttempts = Object.values(latestByModule);
+
       const uniqueCompletedModules = (
         [
-          ...new Set(validAttempts.map((p: any) => Number(p.moduleNumber))),
+          ...new Set(
+            latestAttempts
+              .filter((p: any) => {
+                const acc = Number(p.accuracy || 0);
+                return acc >= 70;
+              })
+              .map((p: any) => Number(p.moduleNumber))
+          ),
+        ] as number[]
+      ).sort((a, b) => a - b);
+
+      const uniqueAttemptedModules = (
+        [
+          ...new Set(latestAttempts.map((p: any) => Number(p.moduleNumber))),
         ] as number[]
       ).sort((a, b) => a - b);
 
       setCompletedModulesList(uniqueCompletedModules);
+      setAttemptedModulesList(uniqueAttemptedModules);
       setProgressoAtual(uniqueCompletedModules.length);
 
-      const calculatedAchievements = uniqueCompletedModules.map((modNum) => ({
-        id: `achievement-${modNum}`, // ✅ Adicionar ID único
-        title: `Módulo ${modNum} Concluído`,
-        description: `Você concluiu o Módulo ${modNum}!`,
-        moduleNumber: modNum,
-      }));
+      const calculatedAchievements = uniqueAttemptedModules.map((modNum) => {
+        const isPassed = uniqueCompletedModules.includes(modNum);
+        const lastAttempt = latestByModule[modNum];
+        const accuracy = Math.round(Number(lastAttempt?.accuracy || 0));
+
+        return {
+          id: `achievement-${modNum}`,
+          title: isPassed
+            ? `Módulo ${modNum} Concluído`
+            : `Módulo ${modNum} Tentado`,
+          description: isPassed
+            ? `Você concluiu o Módulo ${modNum} com ${accuracy}% de acerto!`
+            : `Última tentativa: ${accuracy}%. Continue praticando!`,
+          moduleNumber: modNum,
+          passed: isPassed,
+          accuracy: accuracy,
+        };
+      });
 
       setAchievements(calculatedAchievements);
 
-      // ✅ OTIMIZAÇÃO 5: Processamento mais eficiente
-      const latestByModule = validAttempts.reduce((acc, p) => {
-        const modNum = Number(p.moduleNumber);
-        if (
-          !acc[modNum] ||
-          new Date(p.updatedAt || p.createdAt) >
-            new Date(acc[modNum].updatedAt || acc[modNum].createdAt)
-        ) {
-          acc[modNum] = p;
-        }
-        return acc;
-      }, {} as Record<number, any>);
+      const modulePerformance = latestAttempts.map((p: any) => {
+        const acc = Number(p.accuracy ?? 0);
+        const passed = acc >= 70;
 
-      const modulePerformance = Object.values(latestByModule).map((p: any) => ({
-        moduleNumber: Number(p.moduleNumber),
-        accuracy: Number(p.accuracy ?? 0),
-      }));
+        return {
+          moduleNumber: Number(p.moduleNumber),
+          accuracy: acc,
+          passed: passed,
+        };
+      });
 
       setEmblemsByPerformance(modulePerformance);
     },
@@ -176,8 +193,7 @@ export default function AchievementsScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    progressCache = null; // ✅ Limpar cache no refresh manual
-    fetchAchievements(true);
+    fetchAchievements();
   }, [fetchAchievements]);
 
   useFocusEffect(
@@ -188,106 +204,163 @@ export default function AchievementsScreen() {
 
   const handleGoBack = () => navigation.goBack();
 
-  // ✅ OTIMIZAÇÃO 6: Renderizar ícones de forma eficiente
+  const flingRight =
+    Platform.OS !== "web"
+      ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handleGoBack)
+      : undefined;
+
+  // ---------------------------------------------------------
+  // 1. ÍCONES DOS MÓDULOS (TOPO) - Adaptado para Tema
+  // ---------------------------------------------------------
   const renderModuleIcons = useMemo(() => {
     return Array.from({ length: modulosTotais }, (_, i) => {
       const moduleNum = i + 1;
       const isCompleted = completedModulesList.includes(moduleNum);
-      const progressData = emblemsByPerformance.find(
-        (p) => p.moduleNumber === moduleNum
-      );
-      const accuracy = progressData?.accuracy ?? 0;
-      const hasHighAccuracy = accuracy >= 70;
+      const isAttempted = attemptedModulesList.includes(moduleNum);
+
+      // CORRIGIDO: Usando theme.text no lugar de theme.border
+      let borderColor = theme.text;
+      let iconColor = theme.text;
+
+      if (isCompleted) {
+        borderColor = theme.text;
+      } else if (isAttempted) {
+        borderColor = theme.cardText;
+        iconColor = theme.cardText;
+      }
 
       return (
         <View
           key={moduleNum}
           style={[
             styles.moduloIconContainer,
-            isCompleted && hasHighAccuracy && styles.moduloIconCompleted,
-            isCompleted && !hasHighAccuracy && styles.moduloIconLowAccuracy,
+            { borderColor: borderColor },
+            isCompleted && styles.moduloIconCompleted,
+            isAttempted && !isCompleted && styles.moduloIconAttempted,
           ]}
         >
-          {!isCompleted ? (
+          {!isAttempted ? (
             <MaterialCommunityIcons name="lock" size={28} color={theme.text} />
-          ) : hasHighAccuracy ? (
+          ) : isCompleted ? (
             <Text style={styles.moduloEmoji}>{MODULE_EMOJIS[i]}</Text>
           ) : (
             <MaterialCommunityIcons
-              name="check"
-              size={28}
-              color={theme.cardText}
+              name="check-circle"
+              size={32}
+              color={theme.text}
             />
           )}
         </View>
       );
     });
-  }, [completedModulesList, emblemsByPerformance, styles, theme]);
+  }, [completedModulesList, attemptedModulesList, styles, theme]);
 
-  // ✅ OTIMIZAÇÃO 7: Usar FlatList em vez de map
+  // ---------------------------------------------------------
+  // 2. LISTA DE CONQUISTAS - Adaptado para Tema
+  // ---------------------------------------------------------
   const renderAchievementCard = useCallback(
     ({ item, index }: { item: any; index: number }) => {
-      const bgColor = CARD_COLORS[index % CARD_COLORS.length];
+      // CORRIGIDO: Usando theme.text no lugar de theme.border
+      const accentColor = item.passed
+        ? FALLBACK_COLORS[index % FALLBACK_COLORS.length]
+        : theme.text;
 
       return (
-        <View style={[styles.achievementCard, { backgroundColor: bgColor }]}>
-          <View style={styles.achievementIconContainer}>
+        <View
+          style={[
+            styles.achievementCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.text, // CORRIGIDO
+              borderLeftWidth: 6,
+              borderLeftColor: accentColor,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.achievementIconContainer,
+              // CORRIGIDO: Usando theme.text na borda
+              { backgroundColor: theme.background, borderColor: theme.text },
+            ]}
+          >
             <Text style={styles.achievementEmoji}>
-              {ACHIEVEMENT_EMOJIS[index % ACHIEVEMENT_EMOJIS.length]}
+              {item.passed
+                ? ACHIEVEMENT_EMOJIS[index % ACHIEVEMENT_EMOJIS.length]
+                : "🔄"}
             </Text>
           </View>
           <View style={styles.achievementTextContainer}>
-            <Text style={styles.achievementTitle}>{item.title}</Text>
-            <Text style={styles.achievementDate}>{item.description}</Text>
+            <Text style={[styles.achievementTitle, { color: theme.cardText }]}>
+              {item.title}
+            </Text>
+            <Text style={[styles.achievementDate, { color: theme.cardText }]}>
+              {item.description}
+            </Text>
           </View>
         </View>
       );
     },
-    [styles]
+    [styles, theme]
   );
 
+  // ---------------------------------------------------------
+  // 3. BOXES DE PORCENTAGEM (PERFORMANCE) - Adaptado para Tema
+  // ---------------------------------------------------------
   const renderPerformanceCard = useCallback(
     ({
       item,
-      index,
     }: {
-      item: { moduleNumber: number; accuracy: number };
-      index: number;
+      item: { moduleNumber: number; accuracy: number; passed: boolean };
     }) => (
-      <View style={styles.emblemCard}>
+      <View
+        style={[
+          styles.emblemCard,
+          {
+            backgroundColor: theme.card,
+            // CORRIGIDO: Usando theme.text no lugar de theme.border
+            borderColor: theme.text,
+            borderWidth: 2,
+          },
+        ]}
+      >
         <Text style={styles.emblemEmoji}>
           {MODULE_EMOJIS[(item.moduleNumber - 1) % MODULE_EMOJIS.length]}
         </Text>
-        <Text style={styles.emblemAccuracy}>{item.accuracy}%</Text>
-        <Text style={styles.emblemModule}>Módulo {item.moduleNumber}</Text>
+        <Text style={[styles.emblemAccuracy, { color: theme.cardText }]}>
+          {Math.round(item.accuracy)}%
+        </Text>
+        <Text style={[styles.emblemModule, { color: theme.cardText }]}>
+          Módulo {item.moduleNumber}
+        </Text>
+        {!item.passed && (
+          <View
+            style={[
+              styles.notPassedBadge,
+              { borderColor: theme.text, backgroundColor: "transparent" },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={12}
+              color={theme.text}
+            />
+            <Text style={[styles.emblemStatus, { color: theme.text }]}>
+              Não aprovado
+            </Text>
+          </View>
+        )}
       </View>
     ),
-    [styles]
+    [styles, theme]
   );
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.page}>
-        <StatusBar
-          barStyle={theme.statusBarStyle}
-          backgroundColor={theme.background}
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.text} />
-          <Text style={styles.loadingText}>Carregando...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
+  const renderContent = () => (
     <View style={styles.page}>
       <StatusBar
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
-
-      {/* Header fixo */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleGoBack} accessibilityLabel="Voltar">
           <MaterialCommunityIcons
@@ -302,109 +375,166 @@ export default function AchievementsScreen() {
         <View style={styles.headerIconPlaceholder} />
       </View>
 
-      {/* ✅ OTIMIZAÇÃO 8: FlatList com ListHeaderComponent */}
-      <FlatList
-        data={achievements}
-        keyExtractor={(item) => item.id}
-        renderItem={renderAchievementCard}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.text}
-            colors={[theme.button || "#000"]}
-          />
-        }
-        ListHeaderComponent={
-          <>
-            <AccessibleView accessibilityText="Medalha de conquistas">
-              <Text style={styles.seloEmoji}>🎖️</Text>
-            </AccessibleView>
-
-            {/* Módulos */}
-            <View style={styles.achievementsContainer}>
-              <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
-                Módulos Concluídos
-              </Text>
-              <View style={styles.modulosRow}>{renderModuleIcons}</View>
-              <Text style={[styles.progressText, { color: theme.cardText }]}>
-                {progressoAtual} de {modulosTotais} módulos concluídos
-              </Text>
-            </View>
-
-            {/* Performance */}
-            <View style={styles.achievementsContainer}>
-              <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
-                🌟 Últimas Pontuações
-              </Text>
-              <Text
-                style={[styles.performanceSubtitle, { color: theme.cardText }]}
-              >
-                (Última pontuação registrada em cada módulo)
-              </Text>
-
-              {emblemsByPerformance.length > 0 ? (
-                <FlatList
-                  data={emblemsByPerformance}
-                  keyExtractor={(item) => `perf-${item.moduleNumber}`}
-                  renderItem={renderPerformanceCard}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.emblemsGrid}
-                />
-              ) : (
-                <View style={styles.emptyPerformance}>
-                  <MaterialCommunityIcons
-                    name="information-outline"
-                    size={36}
-                    color={theme.cardText}
-                    style={{ opacity: 0.8 }}
-                  />
-                  <Text
-                    style={[styles.performanceInfo, { color: theme.cardText }]}
-                  >
-                    Suas pontuações aparecerão aqui após você finalizar um
-                    módulo.
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: theme.text, marginTop: 10 },
-              ]}
-            >
-              Suas Conquistas
-            </Text>
-          </>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <MaterialCommunityIcons
-              name="emoticon-sad-outline"
-              size={50}
-              color={theme.cardText}
-              style={{ opacity: 0.5 }}
+      {loading && !refreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.text} />
+          <Text style={styles.loadingText}>Carregando...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={achievements}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAchievementCard}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.text}
+              colors={[theme.button || "#000"]}
             />
-            <Text style={[styles.emptyTitle, { color: theme.cardText }]}>
-              Sem Conquistas Ainda
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: theme.cardText }]}>
-              Complete os módulos para ganhar emblemas!
-            </Text>
-          </View>
-        }
-        // ✅ OTIMIZAÇÃO 9: Performance props
-        removeClippedSubviews={Platform.OS === "android"}
-        maxToRenderPerBatch={5}
-        updateCellsBatchingPeriod={50}
-        windowSize={5}
-      />
+          }
+          ListHeaderComponent={
+            <>
+              <AccessibleView accessibilityText="Medalha de conquistas">
+                <Text style={styles.seloEmoji}>🎖️</Text>
+              </AccessibleView>
+
+              <View style={styles.achievementsContainer}>
+                <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+                  Módulos Concluídos
+                </Text>
+                <View style={styles.modulosRow}>{renderModuleIcons}</View>
+                <Text style={[styles.progressText, { color: theme.cardText }]}>
+                  {progressoAtual} de {modulosTotais} módulos concluídos
+                </Text>
+
+                {/* CORRIGIDO: Border top color usando theme.text */}
+                <View
+                  style={[
+                    styles.legendContainer,
+                    { borderTopColor: theme.text },
+                  ]}
+                >
+                  <View style={styles.legendItem}>
+                    <MaterialCommunityIcons
+                      name="lock"
+                      size={16}
+                      color={theme.cardText}
+                    />
+                    <Text
+                      style={[styles.legendText, { color: theme.cardText }]}
+                    >
+                      Bloqueado
+                    </Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <MaterialCommunityIcons
+                      name="check-circle"
+                      size={16}
+                      color={theme.cardText}
+                    />
+                    <Text
+                      style={[styles.legendText, { color: theme.cardText }]}
+                    >
+                      Tentado
+                    </Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <Text style={{ fontSize: 16 }}>🏆</Text>
+                    <Text
+                      style={[styles.legendText, { color: theme.cardText }]}
+                    >
+                      Concluído
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.achievementsContainer}>
+                <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+                  🌟 Última Pontuação
+                </Text>
+                <Text
+                  style={[
+                    styles.performanceSubtitle,
+                    { color: theme.cardText },
+                  ]}
+                >
+                  (Sua última tentativa em cada módulo)
+                </Text>
+
+                {emblemsByPerformance.length > 0 ? (
+                  <FlatList
+                    data={emblemsByPerformance}
+                    keyExtractor={(item) => `perf-${item.moduleNumber}`}
+                    renderItem={renderPerformanceCard}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.emblemsGrid}
+                  />
+                ) : (
+                  <View style={styles.emptyPerformance}>
+                    <MaterialCommunityIcons
+                      name="information-outline"
+                      size={36}
+                      color={theme.cardText}
+                      style={{ opacity: 0.8 }}
+                    />
+                    <Text
+                      style={[
+                        styles.performanceInfo,
+                        { color: theme.cardText },
+                      ]}
+                    >
+                      Suas pontuações aparecerão aqui após tentar algum módulo.
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    color: theme.text,
+                    marginTop: 10,
+                    marginBottom: 10,
+                    alignSelf: "center",
+                  },
+                ]}
+              >
+                Suas Conquistas
+              </Text>
+            </>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              <MaterialCommunityIcons
+                name="emoticon-sad-outline"
+                size={50}
+                color={theme.cardText}
+                style={{ opacity: 0.5 }}
+              />
+              <Text style={[styles.emptyTitle, { color: theme.cardText }]}>
+                Sem Conquistas Ainda
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: theme.cardText }]}>
+                Complete os módulos para ganhar emblemas!
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
+
+  if (Platform.OS !== "web" && flingRight) {
+    return (
+      <GestureDetector gesture={flingRight}>{renderContent()}</GestureDetector>
+    );
+  }
+  return renderContent();
 }
 
 const createStyles = (
@@ -439,6 +569,8 @@ const createStyles = (
       opacity: 0.8,
       fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
+      lineHeight: 18 * fontMultiplier * lineHeight,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     headerIconPlaceholder: { width: 28 },
@@ -450,12 +582,16 @@ const createStyles = (
       padding: 20,
       marginBottom: 20,
       alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.text, // CORRIGIDO
     },
     sectionTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       marginBottom: 10,
       textAlign: "center",
+      lineHeight: 18 * fontMultiplier * lineHeight,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     performanceSubtitle: {
@@ -463,6 +599,8 @@ const createStyles = (
       opacity: 0.8,
       textAlign: "center",
       marginBottom: 15,
+      lineHeight: 12 * fontMultiplier * lineHeight,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     modulosRow: {
@@ -478,47 +616,78 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
       marginHorizontal: 8,
-      opacity: 0.6,
       borderWidth: 2,
-      borderColor: theme.cardText,
     },
-    moduloIconCompleted: { opacity: 1, borderColor: "#4CD964" },
-    moduloIconLowAccuracy: { opacity: 1, borderColor: theme.cardText },
+    moduloIconCompleted: { opacity: 1 },
+    moduloIconAttempted: { opacity: 1 },
     moduloEmoji: { fontSize: 32 },
     progressText: {
       fontSize: 14 * fontMultiplier,
       fontWeight: isBold ? "bold" : "normal",
+      lineHeight: 14 * fontMultiplier * lineHeight,
+      letterSpacing,
+      marginBottom: 15,
+      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
+    },
+    legendContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      width: "100%",
+      paddingTop: 10,
+      borderTopWidth: 1,
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    legendText: {
+      fontSize: 11 * fontMultiplier,
+      opacity: 1,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emblemsGrid: { paddingHorizontal: 6 },
     emblemCard: {
-      backgroundColor: "#FFD700",
       marginHorizontal: 6,
       borderRadius: 12,
       padding: 12,
       alignItems: "center",
-      minWidth: 80,
+      minWidth: 100,
     },
     emblemEmoji: { fontSize: 40 },
     emblemAccuracy: {
-      color: "#191970",
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: "bold",
       marginTop: 5,
     },
-    emblemModule: { color: "#191970", fontSize: 12, marginTop: 2 },
+    emblemModule: { fontSize: 12, marginTop: 2 },
+    notPassedBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderWidth: 1,
+      borderRadius: 10,
+    },
+    emblemStatus: {
+      fontSize: 9,
+      fontWeight: "bold",
+    },
     achievementCard: {
       borderRadius: 16,
       padding: 15,
       flexDirection: "row",
       alignItems: "center",
       marginBottom: 12,
+      borderWidth: 1,
     },
     achievementIconContainer: {
       width: 60,
       height: 60,
       borderRadius: 30,
-      backgroundColor: "#FFF",
+      borderWidth: 1,
       justifyContent: "center",
       alignItems: "center",
       marginRight: 15,
@@ -528,14 +697,16 @@ const createStyles = (
     achievementTitle: {
       fontSize: 16 * fontMultiplier,
       fontWeight: "bold",
-      color: "#FFFFFF",
       marginBottom: 4,
+      lineHeight: 16 * fontMultiplier * lineHeight,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     achievementDate: {
       fontSize: 12 * fontMultiplier,
-      color: "#FFFFFF",
       opacity: 0.9,
+      lineHeight: 12 * fontMultiplier * lineHeight,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptyCard: {
@@ -544,18 +715,25 @@ const createStyles = (
       padding: 30,
       alignItems: "center",
       marginTop: 20,
+      borderWidth: 1,
+      borderColor: theme.text, // CORRIGIDO
     },
     emptyTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       marginTop: 15,
       marginBottom: 8,
+      lineHeight: 18 * fontMultiplier * lineHeight,
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptySubtitle: {
       fontSize: 14 * fontMultiplier,
       textAlign: "center",
       opacity: 0.8,
+      lineHeight: 20 * lineHeight,
+      fontWeight: isBold ? "bold" : "normal",
+      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptyPerformance: {
@@ -568,6 +746,7 @@ const createStyles = (
       textAlign: "center",
       maxWidth: 280,
       fontSize: 13 * fontMultiplier,
+      lineHeight: 18 * lineHeight,
       opacity: 0.9,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },

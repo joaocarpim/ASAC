@@ -17,11 +17,9 @@ import {
 import { RootStackScreenProps } from "../../navigation/types";
 import { signIn, confirmSignIn } from "aws-amplify/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-// 'Hub' e 'useAuthStore' foram removidos pois não são mais necessários aqui
 
 const logo = require("../../assets/images/logo.png");
 
-// O componente CustomModal permanece o mesmo
 type CustomModalProps = {
   visible: boolean;
   title: string;
@@ -85,7 +83,6 @@ export default function LoginScreen({
     type: "error" as "success" | "error",
   });
 
-  // CORREÇÃO: Removido o 'onClose' do 'showModal' pois não vamos mais navegar daqui
   const showModal = (
     type: "success" | "error",
     title: string,
@@ -95,8 +92,6 @@ export default function LoginScreen({
   };
 
   const hideModal = () => setModalState({ ...modalState, visible: false });
-
-  // CORREÇÃO: Removida a função 'goToContrastSafely'
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -113,19 +108,8 @@ export default function LoginScreen({
         "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED"
       ) {
         setRequireNewPassword(true);
-        return; // Correto: Fica na tela para inserir nova senha
+        return;
       }
-
-      // CORREÇÃO:
-      // NÃO FAZEMOS MAIS NADA AQUI.
-      // O `signIn()` acima vai disparar o evento "signedIn".
-      // O seu `App.tsx` vai ouvir, chamar `checkUser()`,
-      // e o `Stack.Navigator` vai trocar a tela automaticamente.
-      //
-      // Linhas removidas:
-      // await checkUser();
-      // Hub.dispatch("auth", { event: "signedIn" });
-      // showModal("success", "Bem-vindo", "Login realizado com sucesso!", () => goToContrastSafely());
     } catch (error: any) {
       if (error?.name === "UserNotConfirmedException") {
         navigation.navigate("ConfirmSignUp", { email: email.trim() });
@@ -152,16 +136,6 @@ export default function LoginScreen({
     setLoading(true);
     try {
       await confirmSignIn({ challengeResponse: newPassword });
-
-      // CORREÇÃO:
-      // Mesmo caso do Login. Não fazemos mais nada aqui.
-      // O `confirmSignIn` também dispara um evento de auth
-      // que o App.tsx vai pegar.
-      //
-      // Linhas removidas:
-      // await checkUser();
-      // Hub.dispatch("auth", { event: "signedIn" });
-      // showModal("success", "Sucesso", "Senha atualizada!", () => goToContrastSafely());
     } catch (err: any) {
       Alert.alert("Erro", err.message || "Não foi possível redefinir a senha.");
     } finally {
@@ -206,7 +180,16 @@ export default function LoginScreen({
             secureTextEntry
             value={requireNewPassword ? newPassword : password}
             onChangeText={requireNewPassword ? setNewPassword : setPassword}
-          />          
+          />
+
+          {/* ✅ LINK PARA REDEFINIR SENHA */}
+          <View style={styles.linksContainer}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("ForgotPassword")}
+            >
+              <Text style={styles.linkText}>Esqueci minha senha</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -218,8 +201,8 @@ export default function LoginScreen({
             {loading
               ? "Aguarde..."
               : requireNewPassword
-                ? "Salvar Nova Senha"
-                : "Logar"}
+              ? "Salvar Nova Senha"
+              : "Logar"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -227,7 +210,6 @@ export default function LoginScreen({
   );
 }
 
-// Os estilos permanecem os mesmos
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFC700" },
   scrollContainer: {
@@ -263,9 +245,9 @@ const styles = StyleSheet.create({
   },
   linksContainer: {
     width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "flex-end",
     paddingHorizontal: 5,
+    marginBottom: 10,
   },
   linkText: { color: "#191970", fontWeight: "bold", fontSize: 14 },
   button: {

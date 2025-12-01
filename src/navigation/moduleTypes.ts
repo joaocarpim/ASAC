@@ -386,10 +386,10 @@ export const DEFAULT_QUIZZES: Quiz[] = [
       {
         id: "q3-3",
         question: "Como se representa o ponto final em Braille?",
-        options: ["Ponto 6", "Pontos 2, 5, 6", "Pontos 1, 2, 3", "Ponto 2"],
+        options: ["Ponto 6", "Pontos 3", "Pontos 1, 2, 3", "Ponto 2"],
         correctAnswer: 1,
         explanation:
-          "O ponto final é representado pelos pontos 2, 5 e 6, colocado no final da frase sem espaço.",
+          "O ponto final é representado pelos pontos 3, colocado no final da frase sem espaço.",
         order: 3,
         difficulty: "medium",
       },

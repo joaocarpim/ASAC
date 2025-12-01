@@ -1,6 +1,6 @@
-/* progressService.ts
-    VERSÃO 7.4 - Sincronização Cognito/DynamoDB corrigida
-*/
+// src/services/progressService.ts
+// VERSÃO 7.5 - Corrigido limite de busca e queries
+
 import { generateClient } from "aws-amplify/api";
 import {
   getUser,
@@ -132,13 +132,8 @@ export const getUserById = async (userId: string) => {
   }
 };
 
-// ================================
-// 🔥 FUNÇÃO CORRIGIDA - CRIAR USUÁRIO NO DYNAMODB DIRETAMENTE
-// ================================
-
 /**
  * Cria usuário DIRETAMENTE no DynamoDB (sem tentar criar no Cognito)
- * Usado quando o usuário já existe no Cognito mas não no DynamoDB
  */
 export const createUserInDB = async (
   userId: string,
@@ -153,7 +148,6 @@ export const createUserInDB = async (
   console.log(`[progressService] Email: ${email}`);
 
   try {
-    // ✅ Criar direto no DynamoDB sem passar pelo Cognito
     const input = {
       id: userId, // Sub do Cognito
       email: email,
@@ -198,7 +192,6 @@ export const createUserInDB = async (
       error
     );
 
-    // Se o erro for que o usuário já existe, buscar ele
     if (
       error.message?.includes("already exists") ||
       error.message?.includes("ConditionalCheckFailedException")
@@ -236,10 +229,8 @@ export const ensureUserExistsInDB = async (
 };
 
 // ================================
-// RESTO DO ARQUIVO ORIGINAL
-// (NÃO MEXI EM NADA)
+// 🔥 CORREÇÃO PRINCIPAL AQUI 🔥
 // ================================
-
 export const getModuleProgressByUser = async (
   userId: string,
   moduleId: string | number
@@ -254,6 +245,7 @@ export const getModuleProgressByUser = async (
           userId: { eq: userId },
           moduleId: { eq: mid },
         },
+        limit: 1000, // ✅ AUMENTADO: Garante que pegamos a tentativa mais recente mesmo se houver muitas
       },
       authMode: "userPool",
     });
@@ -261,13 +253,14 @@ export const getModuleProgressByUser = async (
     const list = result.data?.listProgresses?.items || [];
     if (list.length === 0) return null;
 
+    // Ordena do mais recente para o mais antigo baseado na data de atualização
     const sorted = list.sort(
       (a: any, b: any) =>
         new Date(b.updatedAt || b.createdAt).getTime() -
         new Date(a.updatedAt || a.createdAt).getTime()
     );
 
-    const progress = sorted[0];
+    const progress = sorted[0]; // Pega o primeiro (o mais recente)
     progress.errorDetails = normalizeErrorDetails(progress.errorDetails);
     return progress;
   } catch (err) {
