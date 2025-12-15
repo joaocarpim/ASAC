@@ -1,0 +1,216 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ASAC Full Stack (Cognito + AppSync + DynamoDB + Lambda)
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: asac
+
+  LambdaArtifactsBucket:
+    Type: String
+    Description: Bucket S3 onde estão os ZIPs das Lambdas
+
+Resources:
+
+####################
+# IAM ROLE (Lambda)
+####################
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${AWS::StackName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoAndCognitoAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - cognito-idp:*
+                Resource: "*"
+
+####################
+# Cognito
+####################
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${ProjectName}-${AWS::StackName}-user-pool"
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${ProjectName}-client"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+
+####################
+# DynamoDB
+####################
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-${AWS::StackName}-User"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byEmail
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+####################
+# Lambda Functions
+####################
+  AdminRegisterUserLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${AWS::StackName}-adminRegisterUser"
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: adminRegisterUser.zip
+      Timeout: 15
+      Environment:
+        Variables:
+          AUTH_USERPOOL_ID: !Ref UserPool
+          USER_TABLE_NAME: !Ref UserTable
+
+  AdminDeleteUserLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${AWS::StackName}-adminDeleteUser"
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: adminDeleteUser.zip
+      Timeout: 15
+      Environment:
+        Variables:
+          AUTH_USERPOOL_ID: !Ref UserPool
+          USER_TABLE_NAME: !Ref UserTable
+
+####################
+# AppSync
+####################
+  GraphQLApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: !Sub "${ProjectName}-${AWS::StackName}-api"
+      AuthenticationType: AMAZON_COGNITO_USER_POOLS
+      UserPoolConfig:
+        UserPoolId: !Ref UserPool
+        AwsRegion: us-east-1
+        DefaultAction: ALLOW
+
+  GraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Definition: |
+        type Query {
+          _empty: String
+        }
+
+        type Mutation {
+          adminRegisterUser(name: String!, email: String!, password: String!): String
+          adminDeleteCognitoUser(username: String!, userId: String): String
+        }
+
+        schema {
+          query: Query
+          mutation: Mutation
+        }
+
+####################
+# AppSync IAM Role
+####################
+  AppSyncLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${AWS::StackName}-appsync-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaInvoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: "*"
+
+####################
+# AppSync DataSources
+####################
+  AdminRegisterUserDS:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: AdminRegisterUserDS
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt AdminRegisterUserLambda.Arn
+      ServiceRoleArn: !GetAtt AppSyncLambdaRole.Arn
+
+  AdminDeleteUserDS:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: AdminDeleteUserDS
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt AdminDeleteUserLambda.Arn
+      ServiceRoleArn: !GetAtt AppSyncLambdaRole.Arn
+
+####################
+# Resolvers
+####################
+  AdminRegisterUserResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: adminRegisterUser
+      DataSourceName: !GetAtt AdminRegisterUserDS.Name
+
+  AdminDeleteUserResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: adminDeleteCognitoUser
+      DataSourceName: !GetAtt AdminDeleteUserDS.Name
