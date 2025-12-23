@@ -1,4 +1,4 @@
-// src/screens/module/ModuleResultScreen.tsx
+// src/screens/module/ModuleResultScreen.tsx - COM HAPPY.MP3 APÓS MODAL
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
@@ -10,6 +10,8 @@ import {
   StatusBar,
   Platform,
   SafeAreaView,
+  AccessibilityInfo,
+  findNodeHandle,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import ConfettiCannon from "react-native-confetti-cannon";
@@ -18,12 +20,6 @@ import { RootStackScreenProps } from "../../navigation/types";
 import { useSettings } from "../../hooks/useSettings";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
-
-import {
-  AccessibleView,
-  AccessibleHeader,
-  AccessibleText,
-} from "../../components/AccessibleComponents";
 
 import { Audio } from "expo-av";
 import { useAuthStore } from "../../store/authStore";
@@ -53,7 +49,7 @@ export default function ModuleResultScreen({
     accuracy,
     timeSpent,
     coinsEarned,
-    pointsEarned, // Certifique-se que sua tela de Quiz está enviando isso
+    pointsEarned,
     passed,
     progressId,
     errorDetails,
@@ -62,13 +58,15 @@ export default function ModuleResultScreen({
   const { user } = useAuthStore();
   const { showModal } = useModalStore();
 
-  const [successSound, setSuccessSound] = useState<Audio.Sound | null>(null);
-  const [failureSound, setFailureSound] = useState<Audio.Sound | null>(null);
+  const [happySound, setHappySound] = useState<Audio.Sound | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const isMounted = useRef(true);
+
+  const headerRef = useRef<View>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const { theme } = useContrast();
   const {
@@ -93,82 +91,153 @@ export default function ModuleResultScreen({
     onSwipeRight: () => navigation.replace("ModuleQuiz", { moduleId }),
   });
 
-  // 1. OTIMIZAÇÃO: Carregamento de som mais seguro e leve
+  const announceToTalkBack = useCallback((message: string) => {
+    if (Platform.OS === "android") {
+      AccessibilityInfo.announceForAccessibility(message);
+    } else {
+      AccessibilityInfo.setAccessibilityFocus(0);
+      setTimeout(() => {
+        AccessibilityInfo.announceForAccessibility(message);
+      }, 100);
+    }
+  }, []);
+
+  // ✅ Carrega apenas o som HAPPY
   useEffect(() => {
     isMounted.current = true;
     async function load() {
       try {
-        const { sound: success } = await Audio.Sound.createAsync(
+        const { sound: happy } = await Audio.Sound.createAsync(
           require("../../../assets/som/happy.mp3")
         );
-        const { sound: fail } = await Audio.Sound.createAsync(
-          require("../../../assets/som/incorrect.mp3")
-        );
-
         if (isMounted.current) {
-          setSuccessSound(success);
-          setFailureSound(fail);
+          setHappySound(happy);
         }
       } catch (err) {
         console.log("Erro ao carregar som:", err);
       }
     }
-    load();
+    if (Platform.OS !== "web") load();
 
     return () => {
       isMounted.current = false;
-      successSound?.unloadAsync();
-      failureSound?.unloadAsync();
+      happySound?.unloadAsync();
     };
   }, []);
 
-  // 2. CORREÇÃO: Lógica de exibição do Modal (Card de porcentagem) e Sons
+  // Foco inicial no Header
   useEffect(() => {
-    // Pequeno delay para garantir que a UI renderizou antes de travar a thread com som/modal
     const timer = setTimeout(() => {
-      if (passed) {
-        successSound?.playAsync();
-        setShowConfetti(true); // Ativa confetes
-
-        // Modal de Sucesso + Conquista
-        const title = "🎉 Módulo Concluído!";
-        const body = `Parabéns! Você desbloqueou novas conquistas e completou o módulo com ${accuracy}% de precisão!`;
-        showModal(title, body);
-
-        // Desliga confete depois de 2.5s para economizar bateria
-        setTimeout(() => {
-          if (isMounted.current) setShowConfetti(false);
-        }, 2500);
-      } else {
-        failureSound?.playAsync();
-
-        // Modal de Falha (AGORA APARECE SEMPRE)
-        const title = "Não foi dessa vez 😕";
-        const body = `Você atingiu ${accuracy}% de acerto. Você precisa de 70% para passar. Tente novamente!`;
-        showModal(title, body);
+      if (headerRef.current && Platform.OS !== "web") {
+        const reactTag = findNodeHandle(headerRef.current);
+        if (reactTag) {
+          AccessibilityInfo.setAccessibilityFocus(reactTag);
+        }
       }
+
+      const resultMessage = passed
+        ? `Parabéns! Aprovado no módulo ${moduleId}. ${accuracy}% de precisão.`
+        : `Não aprovado. ${accuracy}%. Tente novamente!`;
+
+      announceToTalkBack(resultMessage);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [passed, successSound, failureSound, accuracy]);
+  }, [passed, accuracy, moduleId, announceToTalkBack]);
+
+  // ✅ MODAL + SOM HAPPY APÓS CLICAR EM OK
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // 🔍 DEBUG
+      if (__DEV__) {
+        const errorsCount = wrongAnswers ?? 0;
+        console.log("═══════════════════════════════════════");
+        console.log("🔍 DEBUG - RESULTADO DO MÓDULO");
+        console.log("═══════════════════════════════════════");
+        console.log("📊 Total de questões:", totalQuestions);
+        console.log("✅ Acertos:", correctAnswers);
+        console.log("❌ Erros:", errorsCount);
+        console.log("🧮 Soma (acertos + erros):", correctAnswers + errorsCount);
+        console.log(
+          "⚠️ Diferença:",
+          totalQuestions - (correctAnswers + errorsCount)
+        );
+        console.log("📈 Precisão:", accuracy + "%");
+        console.log("✔️ Passou?:", passed);
+        console.log("═══════════════════════════════════════");
+      }
+
+      const title =
+        accuracy >= 70
+          ? passed
+            ? "Módulo Concluído!"
+            : "Bom Desempenho!"
+          : "Continue Praticando!";
+      const body =
+        accuracy >= 70
+          ? `Parabéns! ${accuracy}% de precisão!`
+          : `Você atingiu ${accuracy}%. Tente novamente!`;
+
+      // Mostra o modal
+      showModal(title, body);
+
+      // 🎵 TOCA SOM HAPPY logo após mostrar o modal
+      setTimeout(() => {
+        if (__DEV__) console.log("🎵 Tocando: happy.mp3");
+
+        if (happySound) {
+          happySound.setPositionAsync(0).then(() => {
+            happySound.playAsync();
+          });
+        }
+
+        // Confetti se passou
+        if (accuracy >= 70) {
+          setShowConfetti(true);
+          setTimeout(() => {
+            if (isMounted.current) setShowConfetti(false);
+          }, 2500);
+        }
+      }, 300);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [
+    passed,
+    happySound,
+    accuracy,
+    totalQuestions,
+    correctAnswers,
+    wrongAnswers,
+    showModal,
+  ]);
 
   const handleSaveProgress = useCallback(async () => {
     if (!user?.userId || !progressId) return;
-
     setSaving(true);
-
     try {
       const moduleNumber =
         parseInt(String(moduleId).replace(/\D/g, "")) || Number(moduleId) || 1;
-
       const achievementTitle = `Módulo ${moduleNumber} Concluído`;
       const errorCount = wrongAnswers ?? totalQuestions - correctAnswers;
 
-      let parsedErrors: ErrorDetail[] = [];
+      if (__DEV__) {
+        console.log("💾 Salvando progresso:");
+        console.log("- Erros calculados:", errorCount);
+        console.log("- Acertos:", correctAnswers);
+      }
 
+      let parsedErrors: ErrorDetail[] = [];
       if (errorDetails) {
         try {
-          parsedErrors = JSON.parse(errorDetails);
+          parsedErrors = JSON.parse(errorDetails as any);
+          if (__DEV__) {
+            console.log(
+              "- Detalhes de erros:",
+              parsedErrors.length,
+              "erros registrados"
+            );
+          }
         } catch {}
       }
 
@@ -184,19 +253,32 @@ export default function ModuleResultScreen({
         parsedErrors
       );
 
-      if (isMounted.current && result) setSaved(true);
+      if (isMounted.current && result) {
+        setSaved(true);
+        if (__DEV__) console.log("✅ Progresso salvo com sucesso!");
+      }
     } catch (e) {
-      console.log("Erro ao salvar progresso:", e);
+      console.log("❌ Erro ao salvar progresso:", e);
     } finally {
       if (isMounted.current) setSaving(false);
     }
-  }, []);
+  }, [
+    user?.userId,
+    progressId,
+    moduleId,
+    wrongAnswers,
+    totalQuestions,
+    correctAnswers,
+    errorDetails,
+    timeSpent,
+    coinsEarned,
+  ]);
 
   useEffect(() => {
     if (!saved && !saving) {
       handleSaveProgress();
     }
-  }, [saved, saving]);
+  }, [saved, saving, handleSaveProgress]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -222,135 +304,187 @@ export default function ModuleResultScreen({
       ? "Bom trabalho! Você passou!"
       : "Continue praticando! Você consegue.";
 
+  const headerAccessibilityLabel = `
+    ${passed ? "Parabéns!" : "Quase lá!"}. 
+    Módulo ${moduleId}. ${passed ? "Concluído" : "Tente Novamente"}.
+    ${saving ? "Sincronizando..." : saved ? "Progresso salvo." : ""}
+  `;
+
+  const scoreAccessibilityLabel = `
+    Sua pontuação final.
+    ${accuracy}% de precisão.
+    ${performanceMessage}
+  `;
+
+  const statsAccessibilityLabel = `
+    Resumo do desempenho.
+    Tempo total: ${formatTime(timeSpent)}.
+    Acertos: ${correctAnswers}.
+    Erros: ${wrongAnswers ?? 0}.
+    Moedas ganhas: ${coinsEarned}.
+  `;
+
   const content = (
     <SafeAreaView style={styles.container} {...panResponder}>
       <StatusBar barStyle={"light-content"} />
 
-      <AccessibleView
-        accessibilityText={`Resultado: ${
-          passed ? "Aprovado" : "Reprovado"
-        }. Precisão de ${accuracy} por cento.`}
+      <View
+        ref={headerRef}
         style={styles.header}
+        accessible={true}
+        focusable={true}
+        accessibilityRole="header"
+        accessibilityLabel={headerAccessibilityLabel}
       >
         <MaterialCommunityIcons
           name={passed ? "trophy" : "school"}
           size={normalize(52)}
           color={theme.text}
+          importantForAccessibility="no"
         />
-
-        <AccessibleHeader level={1} style={styles.headerTitle}>
+        <Text style={styles.headerTitle} importantForAccessibility="no">
           {passed ? "Parabéns!" : "Quase lá!"}
-        </AccessibleHeader>
-
-        <AccessibleText baseSize={15} style={styles.headerSubtitle}>
+        </Text>
+        <Text style={styles.headerSubtitle} importantForAccessibility="no">
           Módulo {moduleId} — {passed ? "Concluído" : "Tente Novamente"}
-        </AccessibleText>
+        </Text>
 
-        {/* Feedback visual de salvamento discreto */}
         {saving && (
-          <View style={styles.savingBadge}>
+          <View style={styles.savingBadge} importantForAccessibility="no">
             <ActivityIndicator size="small" color="#fff" />
             <Text style={styles.savingBadgeText}>Sincronizando...</Text>
           </View>
         )}
 
         {saved && !saving && (
-          <View style={styles.savedBadge}>
+          <View style={styles.savedBadge} importantForAccessibility="no">
             <MaterialCommunityIcons
               name="check-circle"
               size={normalize(16)}
               color="#4CAF50"
+              importantForAccessibility="no"
             />
             <Text style={styles.savedBadgeText}>Salvo</Text>
           </View>
         )}
-      </AccessibleView>
+      </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        importantForAccessibility="no"
       >
-        <View style={styles.resultCard}>
-          <View style={styles.scoreCircle}>
+        <View
+          style={styles.resultCard}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="text"
+          accessibilityLabel={scoreAccessibilityLabel}
+        >
+          <View style={styles.scoreCircle} importantForAccessibility="no">
             <Text style={[styles.scoreText, { color: accuracyColor }]}>
               {accuracy}%
             </Text>
             <Text style={styles.scoreLabel}>Precisão</Text>
           </View>
-
-          <Text style={styles.performanceMessage}>{performanceMessage}</Text>
+          <Text
+            style={styles.performanceMessage}
+            importantForAccessibility="no"
+          >
+            {performanceMessage}
+          </Text>
         </View>
 
-        {/* 3. CORREÇÃO: Exibindo cards mesmo na primeira vez (usando || 0) */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
+        <View
+          style={styles.statsGrid}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="text"
+          accessibilityLabel={statsAccessibilityLabel}
+        >
+          <View style={styles.statCard} importantForAccessibility="no">
             <MaterialCommunityIcons
               name="timer-sand"
               size={normalize(28)}
               color={theme.cardText}
+              importantForAccessibility="no"
             />
             <Text style={styles.statNumber}>{formatTime(timeSpent)}</Text>
             <Text style={styles.statLabel}>Tempo</Text>
           </View>
 
-          <View style={styles.statCard}>
+          <View style={styles.statCard} importantForAccessibility="no">
             <MaterialCommunityIcons
               name="check-circle-outline"
               size={normalize(28)}
               color="#4CAF50"
+              importantForAccessibility="no"
             />
             <Text style={styles.statNumber}>{correctAnswers || 0}</Text>
             <Text style={styles.statLabel}>Acertos</Text>
           </View>
 
-          <View style={styles.statCard}>
+          <View style={styles.statCard} importantForAccessibility="no">
             <MaterialCommunityIcons
               name="close-circle-outline"
               size={normalize(28)}
               color="#F44336"
+              importantForAccessibility="no"
             />
-            <Text style={styles.statNumber}>{wrongAnswers || 0}</Text>
+            <Text style={styles.statNumber}>{wrongAnswers ?? 0}</Text>
             <Text style={styles.statLabel}>Erros</Text>
           </View>
 
-          <View style={styles.statCard}>
+          <View style={styles.statCard} importantForAccessibility="no">
             <MaterialCommunityIcons
               name="hand-coin"
               size={normalize(28)}
               color="#FFC107"
+              importantForAccessibility="no"
             />
             <Text style={styles.statNumber}>+{coinsEarned || 0}</Text>
             <Text style={styles.statLabel}>Moedas</Text>
           </View>
         </View>
 
-        {/* Card extra de Pontos se houver */}
         {pointsEarned > 0 && (
-          <View style={[styles.tipBox, { borderColor: "#4ECDC4" }]}>
-            <MaterialCommunityIcons
-              name="star"
-              size={20}
-              color="#FFD700"
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.tipText}>
+          <View
+            style={[styles.tipBox, { borderColor: "#4ECDC4" }]}
+            accessible={true}
+            focusable={true}
+            accessibilityRole="text"
+            accessibilityLabel={`Você ganhou ${pointsEarned} pontos de experiência!`}
+          >
+            <Text style={styles.tipText} importantForAccessibility="no">
               +{pointsEarned} pontos de XP ganhos!
             </Text>
           </View>
         )}
 
-        <View style={styles.tipBox}>
-          <Text style={styles.tipIcon}>👈</Text>
-          <Text style={styles.tipText}>Arraste para a esquerda para sair.</Text>
+        <View
+          style={styles.tipBox}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="text"
+          accessibilityLabel="Dica: Arraste para a esquerda para voltar ao início, ou arraste para a direita para refazer."
+        >
+          <Text style={styles.tipText} importantForAccessibility="no">
+            Arraste p/ esquerda para sair ou direita p/ refazer.
+          </Text>
         </View>
       </ScrollView>
 
-      {/* 4. OTIMIZAÇÃO: Menos confetes para celulares fracos */}
       {showConfetti && (
-        <View style={styles.confettiContainer} pointerEvents="none">
+        <View
+          style={styles.confettiContainer}
+          pointerEvents="none"
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+        >
           <ConfettiCannon
-            count={50} // Reduzido de 160 para 50 para ficar leve
+            count={50}
             origin={{ x: WINDOW_WIDTH / 2, y: -20 }}
             fadeOut={true}
             fallSpeed={3000}
@@ -383,23 +517,19 @@ const createStyles = (
       flex: 1,
       backgroundColor: theme.background,
     },
-
     scroll: {
       flex: 1,
     },
-
     scrollContent: {
       paddingHorizontal: wp(4),
       paddingBottom: hp(5),
     },
-
     header: {
       paddingTop: hp(3),
       paddingBottom: hp(2),
       alignItems: "center",
       paddingHorizontal: wp(4),
     },
-
     headerTitle: {
       fontSize: Math.min(normalize(28) * fontMultiplier, wp(8)),
       fontWeight: "bold",
@@ -409,7 +539,6 @@ const createStyles = (
       textAlign: "center",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
-
     headerSubtitle: {
       fontSize: Math.min(normalize(16) * fontMultiplier, wp(4.5)),
       color: theme.text,
@@ -417,7 +546,6 @@ const createStyles = (
       fontWeight: "400",
       textAlign: "center",
     },
-
     savingBadge: {
       marginTop: hp(1),
       flexDirection: "row",
@@ -427,44 +555,39 @@ const createStyles = (
       borderRadius: 20,
       alignItems: "center",
     },
-
     savingBadgeText: {
       marginLeft: wp(2),
       color: "#fff",
       fontWeight: "600",
       fontSize: normalize(13),
     },
-
     savedBadge: {
       marginTop: hp(1),
       flexDirection: "row",
-      backgroundColor: "rgba(76,175,80,0.1)", // Mais transparente
+      backgroundColor: "rgba(76,175,80,0.1)",
       paddingHorizontal: wp(3),
       paddingVertical: hp(0.7),
       borderRadius: 20,
       alignItems: "center",
     },
-
     savedBadgeText: {
       marginLeft: wp(1.5),
       color: "#4CAF50",
       fontWeight: "700",
       fontSize: normalize(13),
     },
-
     resultCard: {
       backgroundColor: theme.card,
       marginVertical: hp(2),
       padding: wp(6),
       borderRadius: 14,
       alignItems: "center",
-      elevation: 2, // Sombra leve
+      elevation: 2,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
     },
-
     scoreCircle: {
       width: wp(30),
       height: wp(30),
@@ -478,18 +601,15 @@ const createStyles = (
       borderColor: theme.cardText,
       marginBottom: hp(2),
     },
-
     scoreText: {
       fontSize: Math.min(normalize(34) * fontMultiplier, wp(10)),
       fontWeight: "bold",
     },
-
     scoreLabel: {
       color: theme.text,
       marginTop: hp(0.5),
       fontSize: Math.min(normalize(14), wp(3.8)),
     },
-
     performanceMessage: {
       marginTop: hp(1),
       textAlign: "center",
@@ -502,7 +622,6 @@ const createStyles = (
       ),
       paddingHorizontal: wp(2),
     },
-
     statsGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -510,7 +629,6 @@ const createStyles = (
       marginTop: hp(1),
       marginBottom: hp(2),
     },
-
     statCard: {
       backgroundColor: theme.card,
       width: "48%",
@@ -521,23 +639,20 @@ const createStyles = (
       marginBottom: hp(1.5),
       minHeight: hp(12),
       justifyContent: "center",
-      elevation: 1, // Sombra bem leve
+      elevation: 1,
     },
-
     statNumber: {
       color: theme.cardText,
       fontSize: Math.min(normalize(22) * fontMultiplier, wp(6)),
       fontWeight: "bold",
       marginTop: hp(0.7),
     },
-
     statLabel: {
       color: theme.cardText,
       opacity: 0.85,
       marginTop: hp(0.4),
       fontSize: Math.min(normalize(14), wp(3.8)),
     },
-
     tipBox: {
       flexDirection: "row",
       alignItems: "center",
@@ -549,14 +664,11 @@ const createStyles = (
       borderWidth: 1,
       borderColor: theme.button + "50",
     },
-    tipIcon: {
-      fontSize: 20,
-      marginRight: 10,
-    },
     tipText: {
       color: theme.cardText,
       fontSize: 14,
       fontWeight: "500",
+      textAlign: "center",
     },
     confettiContainer: {
       position: "absolute",

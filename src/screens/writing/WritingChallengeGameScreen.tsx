@@ -7,6 +7,10 @@ import {
   Animated,
   SafeAreaView,
   StatusBar,
+  AccessibilityInfo,
+  findNodeHandle,
+  Platform,
+  Text, // Importante: Usaremos Text nativo dentro dos grupos
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Audio } from "expo-av";
@@ -15,13 +19,10 @@ import { RootStackParamList } from "../../navigation/types";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
-import {
-  AccessibleView,
-  AccessibleText,
-  AccessibleButton,
-} from "../../components/AccessibleComponents";
+import { AccessibleText } from "../../components/AccessibleComponents"; // Usado apenas onde não há agrupamento
 
-// Mapeamento Braille
+//
+
 const BRAILLE_MAP: { [key: string]: number[] } = {
   A: [1],
   B: [1, 2],
@@ -101,6 +102,7 @@ export default function WritingChallengeGameScreen({
 
   const shakeAnimation = useRef(new Animated.Value(0)).current;
   const flashAnimation = useRef(new Animated.Value(0)).current;
+  const firstDotRef = useRef<View>(null);
 
   const { theme } = useContrast();
   const { fontSizeMultiplier, isBoldTextEnabled, isDyslexiaFontEnabled } =
@@ -122,6 +124,18 @@ export default function WritingChallengeGameScreen({
       soundIncorrect = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" && firstDotRef.current) {
+      const reactTag = findNodeHandle(firstDotRef.current);
+      if (reactTag) {
+        setTimeout(
+          () => AccessibilityInfo.setAccessibilityFocus(reactTag),
+          200
+        );
+      }
+    }
+  }, [currentIndex]);
 
   const handleDotToggle = (dotNumber: number) => {
     setPressedDots((prev) => {
@@ -180,10 +194,7 @@ export default function WritingChallengeGameScreen({
     const currentLetter = word[currentIndex];
     const correctDots = BRAILLE_MAP[currentLetter];
 
-    if (!correctDots) {
-      console.error(`Letra "${currentLetter}" não encontrada no BRAILLE_MAP!`);
-      return;
-    }
+    if (!correctDots) return;
 
     const isCorrect =
       pressedDots.length === correctDots.length &&
@@ -194,6 +205,9 @@ export default function WritingChallengeGameScreen({
       setFeedbackMessage("✓ Correto!");
       setShowFeedback(true);
       triggerFlash(true);
+
+      if (Platform.OS === "android")
+        AccessibilityInfo.announceForAccessibility("Correto! Próxima letra.");
 
       setTimeout(() => {
         setShowFeedback(false);
@@ -215,24 +229,30 @@ export default function WritingChallengeGameScreen({
       triggerShake();
       triggerFlash(false);
 
+      if (Platform.OS === "android")
+        AccessibilityInfo.announceForAccessibility(
+          "Incorreto. Tente novamente."
+        );
+
       setTimeout(() => {
         setShowFeedback(false);
       }, 1500);
     }
   };
 
+  // Renderiza a palavra alvo.
+  // IMPORTANTE: Use Text NATIVO aqui, não AccessibleText, para não quebrar o agrupamento do pai.
   const renderChallengeWord = () => {
     return word.split("").map((letter, index) => {
       const isCurrent = index === currentIndex;
       return (
-        <AccessibleText
+        <Text
           key={index}
           style={[styles.letter, isCurrent && styles.currentLetter]}
-          accessibilityHint={isCurrent ? "Letra atual" : ""}
-          baseSize={isCurrent ? 48 : 36}
+          importantForAccessibility="no" // O pai vai ler tudo
         >
           {letter}
-        </AccessibleText>
+        </Text>
       );
     });
   };
@@ -241,6 +261,7 @@ export default function WritingChallengeGameScreen({
     const isPressed = pressedDots.includes(number);
     return (
       <TouchableOpacity
+        ref={number === 1 ? (firstDotRef as any) : undefined}
         style={[
           styles.dot,
           isPressed && {
@@ -250,7 +271,13 @@ export default function WritingChallengeGameScreen({
         ]}
         onPress={() => handleDotToggle(number)}
         accessibilityLabel={`Ponto ${number}`}
-        accessibilityState={{ selected: isPressed }}
+        accessibilityRole="togglebutton"
+        accessibilityState={{ checked: isPressed }}
+        accessibilityHint={
+          isPressed
+            ? "Toque duas vezes para desmarcar"
+            : "Toque duas vezes para marcar"
+        }
       />
     );
   };
@@ -272,46 +299,81 @@ export default function WritingChallengeGameScreen({
           backgroundColor={theme.background}
         />
 
-        <AccessibleView
+        {/* 1. Box de Instrução (Topo) */}
+        {/* accessible={true} AGRUPA tudo dentro. focusable={true} permite TAB. */}
+        <View
+          style={styles.instructionBox}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="text"
+          accessibilityLabel="Instrução: Escreva as letras para formar a palavra"
+        >
+          <MaterialCommunityIcons
+            name="information-outline"
+            size={24}
+            color={theme.text}
+            style={{ marginRight: 8 }}
+            importantForAccessibility="no"
+          />
+          <Text style={styles.instructionText} importantForAccessibility="no">
+            Escreva as letras para formar a palavra
+          </Text>
+        </View>
+
+        {/* 2. Container da Palavra Alvo (Logo abaixo) */}
+        <View
           style={styles.wordContainer}
-          accessibilityLabel={`Palavra: ${word}`}
-          accessibilityText="Palavra a ser escrita"
+          accessible={true} // Agrupa as letras em um único foco
+          focusable={true} // Permite TAB
+          accessibilityRole="text" // Leitor entende como texto
+          accessibilityLabel={`Palavra alvo: ${word}. Letra atual: ${word[currentIndex]}`}
         >
           {renderChallengeWord()}
-        </AccessibleView>
+        </View>
 
-        <AccessibleView
+        {/* 3. Letras Completadas (Aparece conforme acerta) */}
+        <View
           style={styles.completedContainer}
-          accessibilityText="Letras já completadas"
+          accessible={true}
+          focusable={completedCells.length > 0}
+          // Se não houver letras, não foca
+          accessibilityLabel={
+            completedCells.length > 0
+              ? `Letras completadas: ${completedCells.join(", ")}`
+              : ""
+          }
         >
           {completedCells.map((cell, index) => (
-            <AccessibleText
+            <Text
               key={index}
               style={styles.completedCell}
-              accessibilityLabel={`Letra ${cell} completa`}
-              baseSize={26}
+              importantForAccessibility="no"
             >
               {cell}
-            </AccessibleText>
+            </Text>
           ))}
-        </AccessibleView>
+        </View>
 
+        {/* Feedback Visual/Sonoro */}
         {showFeedback && (
-          <View style={styles.feedbackContainer}>
-            <AccessibleText
+          <View
+            style={styles.feedbackContainer}
+            accessibilityLiveRegion="assertive"
+          >
+            <Text
               style={[
                 styles.feedbackText,
                 feedbackMessage.includes("✓")
                   ? styles.feedbackCorrect
                   : styles.feedbackIncorrect,
               ]}
-              baseSize={20}
             >
               {feedbackMessage}
-            </AccessibleText>
+            </Text>
           </View>
         )}
 
+        {/* Área Braille */}
         <View style={styles.brailleInputArea}>
           <Animated.View
             style={[
@@ -319,43 +381,46 @@ export default function WritingChallengeGameScreen({
               { transform: [{ translateX: shakeAnimation }] },
             ]}
           >
-            <AccessibleView
-              style={styles.dotColumn}
-              accessibilityText="Coluna esquerda dos pontos Braille, 1, 2, 3"
-            >
+            {/* Colunas ignoradas (NO) para permitir foco direto nos botões */}
+            <View style={styles.dotColumn} importantForAccessibility="no">
               <BrailleDot number={1} />
               <BrailleDot number={2} />
               <BrailleDot number={3} />
-            </AccessibleView>
-            <AccessibleView
-              style={styles.dotColumn}
-              accessibilityText="Coluna direita dos pontos Braille, 4, 5, 6"
-            >
+            </View>
+            <View style={styles.dotColumn} importantForAccessibility="no">
               <BrailleDot number={4} />
               <BrailleDot number={5} />
               <BrailleDot number={6} />
-            </AccessibleView>
+            </View>
           </Animated.View>
 
-          <AccessibleButton
+          {/* Botão Verificar (Nativo) */}
+          <TouchableOpacity
             style={styles.checkButton}
             onPress={handleCheckAnswer}
-            accessibilityText="Verificar resposta"
+            activeOpacity={0.8}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Verificar resposta"
+            accessibilityHint="Confirma os pontos selecionados"
+            focusable={true}
           >
             <MaterialCommunityIcons
               name="check-circle-outline"
               size={22 * fontSizeMultiplier}
               color={theme.buttonText ?? "#FFFFFF"}
+              importantForAccessibility="no"
             />
-            <AccessibleText style={styles.checkButtonText} baseSize={16}>
+            <Text style={styles.checkButtonText} importantForAccessibility="no">
               Verificar
-            </AccessibleText>
-          </AccessibleButton>
+            </Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </Animated.View>
   );
 }
+
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -363,19 +428,39 @@ const createStyles = (
   isDyslexiaFontEnabled: boolean
 ) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.background,
-    },
+    container: { flex: 1, backgroundColor: theme.background },
     safeArea: {
       flex: 1,
       alignItems: "center",
-      justifyContent: "center", // 👈 LIBERA O MOVIMENTO
+      justifyContent: "center",
       paddingVertical: 16,
+    },
+    // Estilo da Box de Instrução
+    instructionBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.card,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: `${theme.button}30`,
+      maxWidth: "90%",
+    },
+    instructionText: {
+      fontSize: 16 * fontMultiplier,
+      color: theme.text,
+      fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      fontWeight: isBold ? "bold" : "500",
+      flexShrink: 1,
     },
     wordContainer: {
       flexDirection: "row",
-      marginBottom: 12,
+      marginBottom: 10,
+      padding: 10,
+      borderRadius: 8,
+      backgroundColor: "transparent", // Garante que a área de toque/foco englobe o texto
     },
     letter: {
       fontSize: 36 * fontMultiplier,
@@ -393,7 +478,8 @@ const createStyles = (
     },
     completedContainer: {
       flexDirection: "row",
-      height: 100,
+      height: 50,
+      marginBottom: 5,
     },
     completedCell: {
       fontSize: 26 * fontMultiplier,
@@ -416,28 +502,21 @@ const createStyles = (
       shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.3,
       shadowRadius: 4,
+      zIndex: 10,
     },
     feedbackText: {
       fontSize: 20 * fontMultiplier,
       fontWeight: "bold",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
-    feedbackCorrect: {
-      color: "#4CD964",
-    },
-    feedbackIncorrect: {
-      color: "#FF3B30",
-    },
-
-    // 🔼 SUBINDO TUDO
+    feedbackCorrect: { color: "#4CD964" },
+    feedbackIncorrect: { color: "#FF3B30" },
     brailleInputArea: {
       justifyContent: "flex-start",
       alignItems: "center",
       width: "100%",
-      marginTop: -40, // 🔼 sobe o conjunto inteiro
+      marginTop: 10,
     },
-
-    // 🔼 SUBINDO A CÉLULA BRAILLE
     brailleCellOutline: {
       flexDirection: "row",
       justifyContent: "space-around",
@@ -451,14 +530,9 @@ const createStyles = (
       paddingVertical: 10,
       paddingHorizontal: 10,
       elevation: 6,
-      marginBottom: 4, // 🔼 diminui espaço e puxa pra cima
-      marginTop: -20, // 🔼 sobe ainda mais a sela
+      marginBottom: 20,
     },
-
-    dotColumn: {
-      justifyContent: "space-around",
-      height: "100%",
-    },
+    dotColumn: { justifyContent: "space-around", height: "100%" },
     dot: {
       width: 54,
       height: 54,
@@ -468,8 +542,6 @@ const createStyles = (
       borderColor: theme.button ?? "#191970",
       marginVertical: 8,
     },
-
-    // 🔼 SUBINDO O BOTÃO
     checkButton: {
       flexDirection: "row",
       alignItems: "center",
@@ -479,9 +551,7 @@ const createStyles = (
       paddingHorizontal: 28,
       borderRadius: 24,
       elevation: 4,
-      marginTop: 10, // 🔼 botão mais próximo da célula
     },
-
     checkButtonText: {
       color: theme.buttonText ?? "#FFFFFF",
       fontSize: 16 * fontMultiplier,

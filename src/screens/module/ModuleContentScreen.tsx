@@ -18,12 +18,6 @@ import ScreenHeader from "../../components/layout/ScreenHeader";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
 
-import {
-  AccessibleView,
-  AccessibleHeader,
-  AccessibleText,
-} from "../../components/AccessibleComponents";
-
 import { useAccessibility } from "../../context/AccessibilityProvider";
 import { useSettings } from "../../hooks/useSettings";
 
@@ -109,6 +103,7 @@ export default function ModuleContentScreen({
     setIsLoading(false);
   }, [moduleId]);
 
+  // Leitura automática ao mudar de página (opcional, mantida da lógica original)
   useEffect(() => {
     if (!isLoading && moduleData && speakText) {
       const section = moduleData.sections?.[currentPageIndex];
@@ -146,37 +141,48 @@ export default function ModuleContentScreen({
   const content = (
     <View style={styles.container} {...panResponder}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={theme.background} />
+
+      {/* Header Nativo para navegação correta */}
       <ScreenHeader title={moduleData.title || "Módulo"} />
 
-      <ScrollView contentContainerStyle={styles.scrollWrapper}>
-        <AccessibleView
+      <ScrollView
+        contentContainerStyle={styles.scrollWrapper}
+        // Impede que a ScrollView receba foco, passando direto para o cartão
+        importantForAccessibility="no"
+      >
+        {/* CARTÃO DE CONTEÚDO PRINCIPAL */}
+        <View
           style={styles.contentCard}
-          accessibilityText={`Página ${currentPageIndex + 1}. ${
-            currentSection?.title ?? ""
-          }`}
+          // Acessibilidade Unificada
+          accessible={true}
+          focusable={true} // Permite TAB
+          accessibilityRole="text" // Leitor trata como bloco de texto
+          // Label constrói a frase completa
+          accessibilityLabel={
+            currentSection
+              ? `Página ${currentPageIndex + 1}. Título: ${
+                  currentSection.order
+                }. ${currentSection.title}. Conteúdo: ${currentSection.content}`
+              : "Nenhum conteúdo disponível."
+          }
         >
           <View style={styles.cardInner}>
             {currentSection ? (
-              <>
-                <AccessibleHeader level={2} style={styles.contentTitle}>
+              // Usando View/Text nativos com importantForAccessibility="no" para evitar foco duplo
+              <View importantForAccessibility="no">
+                <Text style={styles.contentTitle}>
                   {currentSection.order}. {currentSection.title}
-                </AccessibleHeader>
+                </Text>
 
-                <AccessibleText baseSize={16} style={styles.contentBody}>
-                  {currentSection.content}
-                </AccessibleText>
-              </>
+                <Text style={styles.contentBody}>{currentSection.content}</Text>
+              </View>
             ) : (
-              <Text selectable={false} style={styles.emptyText}>
+              <Text style={styles.emptyText} importantForAccessibility="no">
                 Nenhum conteúdo.
               </Text>
             )}
           </View>
-        </AccessibleView>
-
-        <Text selectable={false} style={styles.pageIndicator}>
-          {currentPageIndex + 1} / {totalPages}
-        </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -193,7 +199,7 @@ export default function ModuleContentScreen({
 
 //
 // ========================================================
-// 🎨 ESTILOS OTIMIZADOS PARA CONTRASTE E LEITURA
+// 🎨 ESTILOS OTIMIZADOS
 // ========================================================
 //
 const getStyles = (
@@ -227,9 +233,8 @@ const getStyles = (
 
     errorText: {
       fontSize: Math.min(normalize(18) * fontMultiplier, wp(6)),
-      color: theme.text, // ✅ Usa cor de texto padrão (contrasta com background)
+      color: theme.text,
       textAlign: "center",
-      userSelect: "none",
     },
 
     scrollWrapper: {
@@ -243,10 +248,9 @@ const getStyles = (
       maxWidth: Math.min(wp(95), 900),
       borderRadius: 20,
       paddingVertical: hp(4),
-      backgroundColor: theme.card, // ✅ Fundo do card
-      userSelect: "none",
+      backgroundColor: theme.card,
 
-      // Bordas e sombras para separar do fundo
+      // Bordas e sombras
       borderWidth: 1,
       borderColor: "rgba(0,0,0,0.08)",
 
@@ -270,7 +274,7 @@ const getStyles = (
       fontSize: Math.min(normalize(24) * fontMultiplier, wp(7)),
       fontWeight: isBold ? "bold" : "700",
       marginBottom: hp(2),
-      color: theme.cardText, // ✅ Garante contraste com theme.card
+      color: theme.cardText,
       textAlign: "left",
       letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Bold" : undefined,
@@ -282,28 +286,24 @@ const getStyles = (
         normalize(28) * fontMultiplier * lineHeightMultiplier,
         wp(8)
       ),
-      color: theme.cardText, // ✅ Garante contraste com theme.card
+      color: theme.cardText,
       textAlign: "left",
-      userSelect: "none",
       letterSpacing,
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
     },
 
     emptyText: {
       fontSize: normalize(16),
-      color: theme.cardText, // ✅ Garante contraste
+      color: theme.cardText,
       textAlign: "center",
-      userSelect: "none",
     },
 
     pageIndicator: {
-      marginTop: hp(3),
       fontSize: Math.min(normalize(16), wp(4.5)),
-      // ✅ Usa theme.text pois está FORA do card (sobre theme.background)
       color: theme.text,
       opacity: 0.8,
       fontWeight: "bold",
-      userSelect: "none",
       fontFamily: isDyslexiaFontEnabled ? "OpenDyslexic-Regular" : undefined,
+      textAlign: "center",
     },
   });

@@ -65,8 +65,6 @@ export default function BraillePracticeScreen() {
     [theme, fontSizeMultiplier, isBoldTextEnabled, isDyslexiaFontEnabled]
   );
 
-  console.log("🔵 [BraillePractice] Tela renderizada - Index:", currentIndex);
-
   const soundObjects = useMemo(
     () => ({
       correct: new Audio.Sound(),
@@ -88,9 +86,8 @@ export default function BraillePracticeScreen() {
         await soundObjects.happy.loadAsync(
           require("../../../assets/som/happy.mp3")
         );
-        console.log("🔊 [BraillePractice] Sons carregados");
       } catch (error) {
-        console.warn("❌ [BraillePractice] Erro ao carregar sons:", error);
+        console.warn("❌ Erro ao carregar sons:", error);
       }
     };
     loadSounds();
@@ -103,9 +100,8 @@ export default function BraillePracticeScreen() {
     async (soundType: "correct" | "incorrect" | "happy") => {
       try {
         await soundObjects[soundType].replayAsync();
-        console.log(`🔊 [BraillePractice] Som tocado: ${soundType}`);
       } catch (error) {
-        console.warn(`❌ [BraillePractice] Erro ao tocar ${soundType}:`, error);
+        console.warn(`❌ Erro ao tocar ${soundType}:`, error);
       }
     },
     [soundObjects]
@@ -113,20 +109,15 @@ export default function BraillePracticeScreen() {
 
   const setupNewChallenge = useCallback(() => {
     if (currentIndex >= initialShuffledChars.length) {
-      console.log("🎉 [BraillePractice] Sessão completa!");
       setSessionComplete(true);
       playSound("happy");
-      AccessibilityInfo.announceForAccessibility(
-        "Parabéns! Você concluiu a sessão!"
-      );
+      // Anúncio via API direta garante que o usuário ouça, independente do foco visual
+      AccessibilityInfo.announceForAccessibility("Sessão concluída! Parabéns!");
       return;
     }
     setActiveDots([]);
     setFeedback("");
     setIsCorrect(null);
-    console.log(
-      `🔄 [BraillePractice] Novo desafio: ${initialShuffledChars[currentIndex]}`
-    );
   }, [
     currentIndex,
     initialShuffledChars.length,
@@ -139,14 +130,12 @@ export default function BraillePracticeScreen() {
   }, [currentIndex, setupNewChallenge]);
 
   const handleNext = useCallback(() => {
-    console.log("➡️ [BraillePractice] Avançando para próximo");
     setCurrentIndex((prevIndex) => prevIndex + 1);
   }, []);
 
   const handleDotPress = useCallback(
     (dotNumber: number) => {
       if (isCorrect) return;
-      console.log(`👆 [BraillePractice] Dot ${dotNumber} pressionado`);
       setActiveDots((prev) =>
         prev.includes(dotNumber)
           ? prev.filter((d) => d !== dotNumber)
@@ -164,20 +153,16 @@ export default function BraillePracticeScreen() {
     const sortedUserPattern = [...activeDots].sort();
     const sortedCorrectPattern = [...correctPattern].sort();
 
-    console.log(`🔍 [BraillePractice] Verificando resposta:`);
-    console.log(`   User: [${sortedUserPattern}]`);
-    console.log(`   Correct: [${sortedCorrectPattern}]`);
-
     if (
       JSON.stringify(sortedUserPattern) === JSON.stringify(sortedCorrectPattern)
     ) {
-      console.log("✅ [BraillePractice] Resposta CORRETA!");
       setFeedback("Correto! 🎉");
       setIsCorrect(true);
       playSound("correct");
-      AccessibilityInfo.announceForAccessibility("Correto!");
+      AccessibilityInfo.announceForAccessibility(
+        "Correto! Botão Próximo disponível."
+      );
     } else {
-      console.log("❌ [BraillePractice] Resposta INCORRETA");
       setFeedback("Tente Novamente. 🤔");
       setIsCorrect(false);
       playSound("incorrect");
@@ -188,29 +173,22 @@ export default function BraillePracticeScreen() {
   const panGesture = useMemo(
     () =>
       Platform.OS !== "web"
-        ? Gesture.Pan()
-            .onStart(() => {
-              console.log("👆 [BraillePractice] Pan gesture iniciado");
-            })
-            .onEnd((event) => {
-              console.log(
-                `✅ [BraillePractice] Pan finalizado - X: ${event.translationX.toFixed(
-                  0
-                )}, Y: ${event.translationY.toFixed(0)}`
-              );
-              if (
-                event.translationX > 50 &&
-                Math.abs(event.translationX) > Math.abs(event.translationY)
-              ) {
-                console.log("🔙 [BraillePractice] Swipe RIGHT → Voltando");
-                navigation.goBack();
-              }
-            })
+        ? Gesture.Pan().onEnd((event) => {
+            if (
+              event.translationX > 50 &&
+              Math.abs(event.translationX) > Math.abs(event.translationY)
+            ) {
+              navigation.goBack();
+            }
+          })
         : Gesture.Pan(),
     [navigation]
   );
 
   const renderContent = () => {
+    // -----------------------------------------------------------
+    // TELA DE PARABÉNS (SESSÃO CONCLUÍDA) - CORRIGIDA
+    // -----------------------------------------------------------
     if (sessionComplete) {
       return (
         <View style={styles.container}>
@@ -224,34 +202,50 @@ export default function BraillePracticeScreen() {
             barStyle={theme.statusBarStyle}
             backgroundColor={theme.background}
           />
-          <MaterialCommunityIcons
-            name="party-popper"
-            size={60}
-            color="#FFD700"
-            importantForAccessibility="no"
-          />
-          <Text
-            style={styles.completionTitle}
+
+          {/* CORREÇÃO DE DETECÇÃO: 
+             Usamos 'accessibilityRole="header"' que tem alta prioridade no Android.
+             Removemos 'accessibilityLiveRegion' daqui para evitar conflitos de foco.
+          */}
+          <View
             accessible={true}
+            focusable={true}
             accessibilityRole="header"
+            accessibilityLabel={`Parabéns! Você concluiu a sessão ${title}!`}
+            style={{ alignItems: "center", width: "100%", marginBottom: 40 }}
           >
-            Parabéns!
-          </Text>
-          <Text style={styles.completionSubtitle} accessible={true}>
-            Você concluiu a sessão "{title}"!
-          </Text>
+            {/* Esconde os elementos visuais individuais */}
+            <View
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden={true}
+              style={{ alignItems: "center" }}
+            >
+              <MaterialCommunityIcons
+                name="party-popper"
+                size={80}
+                color="#FFD700"
+                style={{ marginBottom: 20 }}
+              />
+              <Text style={styles.completionTitle}>Parabéns!</Text>
+              <Text style={styles.completionSubtitle}>
+                Você concluiu a sessão "{title}"!
+              </Text>
+            </View>
+          </View>
+
+          {/* Botão Voltar - Bloco Único */}
           <TouchableOpacity
             style={styles.button}
-            onPress={() => {
-              console.log("🔙 [BraillePractice] Voltando para jornada");
-              navigation.goBack();
-            }}
+            onPress={() => navigation.goBack()}
             accessible={true}
-            accessibilityLabel="Voltar para a Jornada"
+            focusable={true}
             accessibilityRole="button"
+            accessibilityLabel="Voltar para a Jornada"
           >
             <Text
               style={[styles.buttonText, { color: theme.buttonText ?? "#FFF" }]}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden={true}
             >
               Voltar para a Jornada
             </Text>
@@ -260,6 +254,9 @@ export default function BraillePracticeScreen() {
       );
     }
 
+    // -----------------------------------------------------------
+    // TELA DE PRÁTICA NORMAL
+    // -----------------------------------------------------------
     const currentCharacter = initialShuffledChars[currentIndex];
 
     return (
@@ -268,35 +265,48 @@ export default function BraillePracticeScreen() {
           barStyle={theme.statusBarStyle}
           backgroundColor={theme.background}
         />
-        <View style={styles.header}>
-          <Text
-            style={styles.titleHeader}
-            accessible={true}
-            accessibilityRole="header"
+
+        {/* Header Agrupado */}
+        <View
+          style={styles.header}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="header"
+          accessibilityLabel={`${title}. Progresso: ${currentIndex + 1} de ${
+            initialShuffledChars.length
+          }`}
+        >
+          <View
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden={true}
           >
-            {title}
-          </Text>
+            <Text style={styles.titleHeader}>{title}</Text>
+            <Text style={styles.progressIndicator}>
+              {currentIndex + 1} / {initialShuffledChars.length}
+            </Text>
+          </View>
+        </View>
+
+        {/* Prompt Agrupado */}
+        <View
+          accessible={true}
+          focusable={true}
+          accessibilityRole="text"
+          accessibilityLabel={`Forme a letra: ${currentCharacter}`}
+          style={{ marginVertical: 10 }}
+        >
           <Text
-            style={styles.progressIndicator}
-            accessible={true}
-            accessibilityLabel={`Progresso: ${currentIndex + 1} de ${
-              initialShuffledChars.length
-            }`}
+            style={styles.prompt}
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden={true}
           >
-            {currentIndex + 1} / {initialShuffledChars.length}
+            Forme: <Text style={styles.letter}>{currentCharacter}</Text>
           </Text>
         </View>
-        <Text style={styles.prompt} accessible={true}>
-          Forme: <Text style={styles.letter}>{currentCharacter}</Text>
-        </Text>
 
-        {/* ✅ CORREÇÃO: CELA DIVIDIDA EM DUAS COLUNAS */}
-        <View
-          style={styles.brailleCell}
-          accessible={true}
-          accessibilityLabel="Cela Braille com 6 pontos interativos"
-        >
-          {/* COLUNA ESQUERDA (1, 2, 3) */}
+        {/* Cela Braille (Pontos Individuais - Interativos) */}
+        <View style={styles.brailleCell}>
+          {/* COLUNA ESQUERDA */}
           <View style={styles.column}>
             {[1, 2, 3].map((dotNumber) => {
               const isActive = activeDots.includes(dotNumber);
@@ -307,12 +317,13 @@ export default function BraillePracticeScreen() {
                   onPress={() => handleDotPress(dotNumber)}
                   disabled={!!isCorrect}
                   accessible={true}
+                  focusable={true}
                   accessibilityLabel={`Ponto ${dotNumber}`}
                   accessibilityState={{ selected: isActive }}
-                  accessibilityHint={`Toque para ${
-                    isActive ? "desativar" : "ativar"
-                  }`}
-                  accessibilityRole="button"
+                  accessibilityHint={
+                    isActive ? "Toque para desmarcar" : "Toque para marcar"
+                  }
+                  accessibilityRole="togglebutton"
                 >
                   <View
                     style={[
@@ -322,7 +333,7 @@ export default function BraillePracticeScreen() {
                   >
                     <Text
                       style={styles.dotNumber}
-                      importantForAccessibility="no"
+                      importantForAccessibility="no-hide-descendants"
                     >
                       {dotNumber}
                     </Text>
@@ -332,7 +343,7 @@ export default function BraillePracticeScreen() {
             })}
           </View>
 
-          {/* COLUNA DIREITA (4, 5, 6) */}
+          {/* COLUNA DIREITA */}
           <View style={styles.column}>
             {[4, 5, 6].map((dotNumber) => {
               const isActive = activeDots.includes(dotNumber);
@@ -343,12 +354,13 @@ export default function BraillePracticeScreen() {
                   onPress={() => handleDotPress(dotNumber)}
                   disabled={!!isCorrect}
                   accessible={true}
+                  focusable={true}
                   accessibilityLabel={`Ponto ${dotNumber}`}
                   accessibilityState={{ selected: isActive }}
-                  accessibilityHint={`Toque para ${
-                    isActive ? "desativar" : "ativar"
-                  }`}
-                  accessibilityRole="button"
+                  accessibilityHint={
+                    isActive ? "Toque para desmarcar" : "Toque para marcar"
+                  }
+                  accessibilityRole="togglebutton"
                 >
                   <View
                     style={[
@@ -358,7 +370,7 @@ export default function BraillePracticeScreen() {
                   >
                     <Text
                       style={styles.dotNumber}
-                      importantForAccessibility="no"
+                      importantForAccessibility="no-hide-descendants"
                     >
                       {dotNumber}
                     </Text>
@@ -369,17 +381,29 @@ export default function BraillePracticeScreen() {
           </View>
         </View>
 
+        {/* Feedback Area - Agrupada */}
         <View style={styles.feedbackContainer}>
-          <Text
-            style={[
-              styles.feedback,
-              { color: isCorrect ? "#28a745" : "#dc3545" },
-            ]}
-            accessible={true}
-          >
-            {feedback}
-          </Text>
+          {!!feedback && (
+            <View
+              accessible={true}
+              focusable={true}
+              accessibilityRole="alert"
+              accessibilityLabel={feedback}
+            >
+              <Text
+                style={[
+                  styles.feedback,
+                  { color: isCorrect ? "#28a745" : "#dc3545" },
+                ]}
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden={true}
+              >
+                {feedback}
+              </Text>
+            </View>
+          )}
         </View>
+
         <View style={styles.actionContainer}>
           {isCorrect ? (
             <TouchableOpacity
@@ -389,7 +413,8 @@ export default function BraillePracticeScreen() {
               ]}
               onPress={handleNext}
               accessible={true}
-              accessibilityLabel="Ir para o próximo caractere"
+              focusable={true}
+              accessibilityLabel="Resposta correta. Toque duas vezes para ir para o próximo."
               accessibilityRole="button"
             >
               <Text
@@ -397,6 +422,8 @@ export default function BraillePracticeScreen() {
                   styles.buttonText,
                   { color: theme.buttonText ?? "#FFF" },
                 ]}
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden={true}
               >
                 Próximo
               </Text>
@@ -409,6 +436,7 @@ export default function BraillePracticeScreen() {
               ]}
               onPress={checkAnswer}
               accessible={true}
+              focusable={true}
               accessibilityLabel="Verificar resposta"
               accessibilityRole="button"
             >
@@ -417,6 +445,8 @@ export default function BraillePracticeScreen() {
                   styles.buttonText,
                   { color: theme.buttonText ?? "#FFF" },
                 ]}
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden={true}
               >
                 Verificar
               </Text>
@@ -426,8 +456,6 @@ export default function BraillePracticeScreen() {
       </View>
     );
   };
-
-  console.log(`🎨 [BraillePractice] Platform: ${Platform.OS}`);
 
   if (Platform.OS !== "web" && panGesture) {
     return (
@@ -456,6 +484,7 @@ const createStyles = (
     header: {
       alignItems: "center",
       marginTop: 40,
+      width: "100%",
     },
     titleHeader: {
       fontSize: 20 * fontMultiplier,
@@ -463,12 +492,14 @@ const createStyles = (
       color: theme.text,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
       marginBottom: 4,
+      textAlign: "center",
     },
     progressIndicator: {
       fontSize: 14 * fontMultiplier,
       color: theme.text,
       opacity: 0.7,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
+      textAlign: "center",
     },
     prompt: {
       fontSize: 20 * fontMultiplier,
@@ -482,13 +513,12 @@ const createStyles = (
       fontSize: 24 * fontMultiplier,
       fontWeight: "bold",
     },
-    // ✅ ESTILOS CORRIGIDOS
     brailleCell: {
       width: width * 0.5,
       height: width * 0.5 * 1.4,
       backgroundColor: theme.card,
       borderRadius: 20,
-      flexDirection: "row", // Garantir linha
+      flexDirection: "row",
       justifyContent: "space-evenly",
       alignItems: "center",
       paddingVertical: 10,
@@ -536,6 +566,7 @@ const createStyles = (
     feedbackContainer: {
       height: 28,
       justifyContent: "center",
+      width: "100%",
     },
     feedback: {
       fontSize: 18 * fontMultiplier,
@@ -566,6 +597,7 @@ const createStyles = (
       marginTop: 16,
       marginBottom: 8,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
+      textAlign: "center",
     },
     completionSubtitle: {
       fontSize: 18 * fontMultiplier,

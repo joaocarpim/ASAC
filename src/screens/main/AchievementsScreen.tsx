@@ -15,10 +15,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
-import {
-  AccessibleView,
-  AccessibleHeader,
-} from "../../components/AccessibleComponents";
+import { AccessibleHeader } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
 import { useAuthStore } from "../../store/authStore";
 import { generateClient } from "aws-amplify/api";
@@ -85,7 +82,6 @@ export default function AchievementsScreen() {
       setLoading(false);
       return;
     }
-
     if (!refreshing) setLoading(true);
 
     try {
@@ -124,31 +120,20 @@ export default function AchievementsScreen() {
       const latestByModule: Record<number, any> = {};
       sortedAttempts.forEach((p) => {
         const modNum = Number(p.moduleNumber);
-        if (!latestByModule[modNum]) {
-          latestByModule[modNum] = p;
-        }
+        if (!latestByModule[modNum]) latestByModule[modNum] = p;
       });
 
       const latestAttempts = Object.values(latestByModule);
-
-      const uniqueCompletedModules = (
-        [
-          ...new Set(
-            latestAttempts
-              .filter((p: any) => {
-                const acc = Number(p.accuracy || 0);
-                return acc >= 70;
-              })
-              .map((p: any) => Number(p.moduleNumber))
-          ),
-        ] as number[]
-      ).sort((a, b) => a - b);
-
-      const uniqueAttemptedModules = (
-        [
-          ...new Set(latestAttempts.map((p: any) => Number(p.moduleNumber))),
-        ] as number[]
-      ).sort((a, b) => a - b);
+      const uniqueCompletedModules = [
+        ...new Set(
+          latestAttempts
+            .filter((p: any) => Number(p.accuracy || 0) >= 70)
+            .map((p: any) => Number(p.moduleNumber))
+        ),
+      ].sort((a, b) => a - b);
+      const uniqueAttemptedModules = [
+        ...new Set(latestAttempts.map((p: any) => Number(p.moduleNumber))),
+      ].sort((a, b) => a - b);
 
       setCompletedModulesList(uniqueCompletedModules);
       setAttemptedModulesList(uniqueAttemptedModules);
@@ -158,7 +143,6 @@ export default function AchievementsScreen() {
         const isPassed = uniqueCompletedModules.includes(modNum);
         const lastAttempt = latestByModule[modNum];
         const accuracy = Math.round(Number(lastAttempt?.accuracy || 0));
-
         return {
           id: `achievement-${modNum}`,
           title: isPassed
@@ -172,20 +156,16 @@ export default function AchievementsScreen() {
           accuracy: accuracy,
         };
       });
-
       setAchievements(calculatedAchievements);
 
       const modulePerformance = latestAttempts.map((p: any) => {
         const acc = Number(p.accuracy ?? 0);
-        const passed = acc >= 70;
-
         return {
           moduleNumber: Number(p.moduleNumber),
           accuracy: acc,
-          passed: passed,
+          passed: acc >= 70,
         };
       });
-
       setEmblemsByPerformance(modulePerformance);
     },
     [user?.userId]
@@ -203,41 +183,85 @@ export default function AchievementsScreen() {
   );
 
   const handleGoBack = () => navigation.goBack();
-
   const flingRight =
     Platform.OS !== "web"
       ? Gesture.Fling().direction(Directions.RIGHT).onEnd(handleGoBack)
       : undefined;
 
-  // ---------------------------------------------------------
-  // 1. ÍCONES DOS MÓDULOS (TOPO) - Adaptado para Tema
-  // ---------------------------------------------------------
+  // =========================================================
+  // GERAÇÃO DE TEXTO ACESSÍVEL - ESCOPO 1 (Resumo Módulos)
+  // =========================================================
+  const scope1AccessibilityLabel = useMemo(() => {
+    const parts = ["Seção: Módulos Concluídos."];
+
+    const statusModules = Array.from({ length: modulosTotais }, (_, i) => {
+      const num = i + 1;
+      if (completedModulesList.includes(num)) return `Módulo ${num} Concluído`;
+      if (attemptedModulesList.includes(num)) return `Módulo ${num} Tentado`;
+      return `Módulo ${num} Bloqueado`;
+    }).join(", ");
+
+    parts.push(`Progresso: ${progressoAtual} de ${modulosTotais}.`);
+    parts.push(`Status: ${statusModules}.`);
+    parts.push(
+      "Legenda: Cadeado é Bloqueado, Check é Tentado, Troféu é Concluído."
+    );
+
+    return parts.join(" ");
+  }, [
+    progressoAtual,
+    modulosTotais,
+    completedModulesList,
+    attemptedModulesList,
+  ]);
+
+  // =========================================================
+  // GERAÇÃO DE TEXTO ACESSÍVEL - ESCOPO 2 (Última Pontuação)
+  // =========================================================
+  // ✅ AQUI ESTÁ A MÁGICA: Gera um resumo completo do Escopo 2
+  const scope2AccessibilityLabel = useMemo(() => {
+    let text = "Seção: Última Pontuação. Sua última tentativa em cada módulo. ";
+
+    if (emblemsByPerformance.length === 0) {
+      text += "Suas pontuações aparecerão aqui após tentar algum módulo.";
+    } else {
+      emblemsByPerformance.forEach((item) => {
+        const status = item.passed ? "Aprovado" : "Não aprovado";
+        const acc = Math.round(item.accuracy);
+        text += `Módulo ${item.moduleNumber}: ${acc}% de acerto, ${status}. `;
+      });
+    }
+
+    return text;
+  }, [emblemsByPerformance]);
+
+  // =========================================================
+  // RENDERIZADORES AUXILIARES
+  // =========================================================
+
   const renderModuleIcons = useMemo(() => {
     return Array.from({ length: modulosTotais }, (_, i) => {
       const moduleNum = i + 1;
       const isCompleted = completedModulesList.includes(moduleNum);
       const isAttempted = attemptedModulesList.includes(moduleNum);
 
-      // CORRIGIDO: Usando theme.text no lugar de theme.border
-      let borderColor = theme.text;
-      let iconColor = theme.text;
-
-      if (isCompleted) {
-        borderColor = theme.text;
-      } else if (isAttempted) {
-        borderColor = theme.cardText;
-        iconColor = theme.cardText;
-      }
-
       return (
         <View
           key={moduleNum}
           style={[
             styles.moduloIconContainer,
-            { borderColor: borderColor },
+            {
+              borderColor: isCompleted
+                ? theme.text
+                : isAttempted
+                ? theme.cardText
+                : theme.text,
+            },
             isCompleted && styles.moduloIconCompleted,
             isAttempted && !isCompleted && styles.moduloIconAttempted,
           ]}
+          // Importante: Filhos ignorados, o container PAI lê tudo
+          importantForAccessibility="no"
         >
           {!isAttempted ? (
             <MaterialCommunityIcons name="lock" size={28} color={theme.text} />
@@ -255,136 +279,334 @@ export default function AchievementsScreen() {
     });
   }, [completedModulesList, attemptedModulesList, styles, theme]);
 
-  // ---------------------------------------------------------
-  // 2. LISTA DE CONQUISTAS - Adaptado para Tema
-  // ---------------------------------------------------------
-  const renderAchievementCard = useCallback(
-    ({ item, index }: { item: any; index: number }) => {
-      // CORRIGIDO: Usando theme.text no lugar de theme.border
-      const accentColor = item.passed
-        ? FALLBACK_COLORS[index % FALLBACK_COLORS.length]
-        : theme.text;
+  const renderPerformanceCard = useCallback(
+    ({
+      item,
+    }: {
+      item: { moduleNumber: number; accuracy: number; passed: boolean };
+    }) => {
+      const roundedAccuracy = Math.round(item.accuracy);
 
       return (
         <View
           style={[
-            styles.achievementCard,
+            styles.emblemCard,
             {
               backgroundColor: theme.card,
-              borderColor: theme.text, // CORRIGIDO
-              borderLeftWidth: 6,
-              borderLeftColor: accentColor,
+              borderColor: theme.text,
+              borderWidth: 2,
             },
           ]}
+          // Importante: Filhos ignorados, o container PAI lê tudo
+          importantForAccessibility="no"
         >
-          <View
-            style={[
-              styles.achievementIconContainer,
-              // CORRIGIDO: Usando theme.text na borda
-              { backgroundColor: theme.background, borderColor: theme.text },
-            ]}
-          >
-            <Text style={styles.achievementEmoji}>
-              {item.passed
-                ? ACHIEVEMENT_EMOJIS[index % ACHIEVEMENT_EMOJIS.length]
-                : "🔄"}
-            </Text>
-          </View>
-          <View style={styles.achievementTextContainer}>
-            <Text style={[styles.achievementTitle, { color: theme.cardText }]}>
-              {item.title}
-            </Text>
-            <Text style={[styles.achievementDate, { color: theme.cardText }]}>
-              {item.description}
-            </Text>
-          </View>
+          <Text style={styles.emblemEmoji}>
+            {MODULE_EMOJIS[(item.moduleNumber - 1) % MODULE_EMOJIS.length]}
+          </Text>
+          <Text style={[styles.emblemAccuracy, { color: theme.cardText }]}>
+            {roundedAccuracy}%
+          </Text>
+          <Text style={[styles.emblemModule, { color: theme.cardText }]}>
+            Módulo {item.moduleNumber}
+          </Text>
+          {!item.passed && (
+            <View
+              style={[
+                styles.notPassedBadge,
+                { borderColor: theme.text, backgroundColor: "transparent" },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={12}
+                color={theme.text}
+              />
+              <Text style={[styles.emblemStatus, { color: theme.text }]}>
+                Não aprovado
+              </Text>
+            </View>
+          )}
         </View>
       );
     },
     [styles, theme]
   );
 
-  // ---------------------------------------------------------
-  // 3. BOXES DE PORCENTAGEM (PERFORMANCE) - Adaptado para Tema
-  // ---------------------------------------------------------
-  const renderPerformanceCard = useCallback(
-    ({
-      item,
-    }: {
-      item: { moduleNumber: number; accuracy: number; passed: boolean };
-    }) => (
-      <View
-        style={[
-          styles.emblemCard,
-          {
-            backgroundColor: theme.card,
-            // CORRIGIDO: Usando theme.text no lugar de theme.border
-            borderColor: theme.text,
-            borderWidth: 2,
-          },
-        ]}
-      >
-        <Text style={styles.emblemEmoji}>
-          {MODULE_EMOJIS[(item.moduleNumber - 1) % MODULE_EMOJIS.length]}
-        </Text>
-        <Text style={[styles.emblemAccuracy, { color: theme.cardText }]}>
-          {Math.round(item.accuracy)}%
-        </Text>
-        <Text style={[styles.emblemModule, { color: theme.cardText }]}>
-          Módulo {item.moduleNumber}
-        </Text>
-        {!item.passed && (
+  // =========================================================
+  // LIST HEADER (AGRUPA ESCOPOS 1 E 2 EM DOIS BOXES GIGANTES)
+  // =========================================================
+  const ListHeader = useMemo(() => {
+    return (
+      <View>
+        {/* -------------------------------------------------
+            ESCOPO 1: MÓDULOS CONCLUÍDOS (BOX COMPLETO)
+           ------------------------------------------------- */}
+        <View
+          style={styles.achievementsContainer}
+          // ACESSIBILIDADE: Agrupa tudo em um único foco
+          accessible={true}
+          focusable={true} // Permite TAB
+          importantForAccessibility="yes"
+          accessibilityLabel={scope1AccessibilityLabel}
+          accessibilityRole="summary"
+        >
+          {/* Elementos Visuais (Ignorados individualmente) */}
           <View
-            style={[
-              styles.notPassedBadge,
-              { borderColor: theme.text, backgroundColor: "transparent" },
-            ]}
+            style={{ alignItems: "center", marginBottom: 10, width: "100%" }}
+            importantForAccessibility="no-hide-descendants"
           >
-            <MaterialCommunityIcons
-              name="alert-circle-outline"
-              size={12}
-              color={theme.text}
-            />
-            <Text style={[styles.emblemStatus, { color: theme.text }]}>
-              Não aprovado
+            <Text style={styles.seloEmoji}>🎖️</Text>
+            <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+              Módulos Concluídos
             </Text>
           </View>
-        )}
-      </View>
-    ),
-    [styles, theme]
-  );
 
+          <View
+            style={styles.modulosRow}
+            importantForAccessibility="no-hide-descendants"
+          >
+            {renderModuleIcons}
+          </View>
+
+          <View
+            style={{ marginBottom: 15, width: "100%" }}
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Text style={[styles.progressText, { color: theme.cardText }]}>
+              {progressoAtual} de {modulosTotais} módulos concluídos
+            </Text>
+          </View>
+
+          <View
+            style={[styles.legendContainer, { borderTopColor: theme.text }]}
+            importantForAccessibility="no-hide-descendants"
+          >
+            <View style={styles.legendItem}>
+              <MaterialCommunityIcons
+                name="lock"
+                size={16}
+                color={theme.cardText}
+              />
+              <Text style={[styles.legendText, { color: theme.cardText }]}>
+                Bloqueado
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={16}
+                color={theme.cardText}
+              />
+              <Text style={[styles.legendText, { color: theme.cardText }]}>
+                Tentado
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <Text style={{ fontSize: 16 }}>🏆</Text>
+              <Text style={[styles.legendText, { color: theme.cardText }]}>
+                Concluído
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* -------------------------------------------------
+            ESCOPO 2: ÚLTIMA PONTUAÇÃO (BOX COMPLETO)
+           ------------------------------------------------- */}
+        <View
+          style={styles.achievementsContainer}
+          // ACESSIBILIDADE: Agrupa Título + Subtítulo + Cards em um único foco
+          accessible={true}
+          focusable={true} // Permite TAB
+          importantForAccessibility="yes"
+          accessibilityLabel={scope2AccessibilityLabel}
+          accessibilityRole="summary"
+        >
+          {/* Elementos Visuais (Ignorados individualmente) */}
+          <View
+            style={{ marginBottom: 15, width: "100%" }}
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
+              🌟 Última Pontuação
+            </Text>
+            <Text
+              style={[styles.performanceSubtitle, { color: theme.cardText }]}
+            >
+              (Sua última tentativa em cada módulo)
+            </Text>
+          </View>
+
+          {emblemsByPerformance.length > 0 ? (
+            <FlatList
+              data={emblemsByPerformance}
+              keyExtractor={(item) => `perf-${item.moduleNumber}`}
+              renderItem={renderPerformanceCard}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.emblemsGrid}
+              // Bloqueia foco nos itens internos para manter o "Escopo Único"
+              importantForAccessibility="no-hide-descendants"
+            />
+          ) : (
+            <View
+              style={styles.emptyPerformance}
+              importantForAccessibility="no-hide-descendants"
+            >
+              <MaterialCommunityIcons
+                name="information-outline"
+                size={36}
+                color={theme.cardText}
+                style={{ opacity: 0.8 }}
+              />
+              <Text style={[styles.performanceInfo, { color: theme.cardText }]}>
+                Suas pontuações aparecerão aqui após tentar algum módulo.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* -------------------------------------------------
+            ESCOPO 3: HEADER "SUAS CONQUISTAS"
+           ------------------------------------------------- */}
+        <View
+          accessible={true}
+          focusable={true}
+          importantForAccessibility="yes"
+          accessibilityRole="header"
+          accessibilityLabel="Seção: Suas Conquistas Detalhadas. Lista completa abaixo."
+          style={{
+            marginTop: 10,
+            marginBottom: 10,
+            alignSelf: "center",
+            width: "100%",
+          }}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: theme.text, textAlign: "center" },
+            ]}
+          >
+            Suas Conquistas Detalhadas
+          </Text>
+        </View>
+      </View>
+    );
+  }, [
+    theme,
+    styles,
+    scope1AccessibilityLabel,
+    scope2AccessibilityLabel, // Texto consolidado do Escopo 2
+    progressoAtual,
+    modulosTotais,
+    renderModuleIcons,
+    emblemsByPerformance,
+    renderPerformanceCard,
+  ]);
+
+  // =========================================================
+  // RENDER PRINCIPAL
+  // =========================================================
   const renderContent = () => (
     <View style={styles.page}>
       <StatusBar
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} accessibilityLabel="Voltar">
+        <TouchableOpacity
+          onPress={handleGoBack}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          style={{ padding: 10, margin: -10 }}
+        >
           <MaterialCommunityIcons
             name="arrow-left"
             size={28}
             color={theme.text}
           />
         </TouchableOpacity>
+
         <AccessibleHeader level={1} style={styles.headerTitle}>
           Minhas Conquistas
         </AccessibleHeader>
-        <View style={styles.headerIconPlaceholder} />
+
+        <View
+          style={styles.headerIconPlaceholder}
+          importantForAccessibility="no"
+        />
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.loadingContainer}>
+        <View
+          style={styles.loadingContainer}
+          accessible={true}
+          focusable={true}
+          accessibilityLabel="Carregando..."
+        >
           <ActivityIndicator size="large" color={theme.text} />
           <Text style={styles.loadingText}>Carregando...</Text>
         </View>
       ) : (
         <FlatList
+          ListHeaderComponent={ListHeader}
           data={achievements}
           keyExtractor={(item) => item.id}
-          renderItem={renderAchievementCard}
+          // Container da lista não deve roubar foco
+          importantForAccessibility="no"
+          renderItem={({ item, index }) => {
+            const accentColor = item.passed
+              ? FALLBACK_COLORS[index % FALLBACK_COLORS.length]
+              : theme.text;
+            return (
+              <View
+                style={[
+                  styles.achievementCard,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.text,
+                    borderLeftWidth: 6,
+                    borderLeftColor: accentColor,
+                  },
+                ]}
+                // ESCOPO 3 - ITEM (BOX COMPLETO)
+                accessible={true}
+                focusable={true}
+                importantForAccessibility="yes"
+                accessibilityLabel={`${item.title}. ${item.description}`}
+              >
+                <View
+                  style={styles.achievementIconContainer}
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Text style={styles.achievementEmoji}>
+                    {item.passed
+                      ? ACHIEVEMENT_EMOJIS[index % ACHIEVEMENT_EMOJIS.length]
+                      : "🔄"}
+                  </Text>
+                </View>
+                <View
+                  style={styles.achievementTextContainer}
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Text
+                    style={[styles.achievementTitle, { color: theme.cardText }]}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text
+                    style={[styles.achievementDate, { color: theme.cardText }]}
+                  >
+                    {item.description}
+                  </Text>
+                </View>
+              </View>
+            );
+          }}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
             <RefreshControl
@@ -394,122 +616,14 @@ export default function AchievementsScreen() {
               colors={[theme.button || "#000"]}
             />
           }
-          ListHeaderComponent={
-            <>
-              <AccessibleView accessibilityText="Medalha de conquistas">
-                <Text style={styles.seloEmoji}>🎖️</Text>
-              </AccessibleView>
-
-              <View style={styles.achievementsContainer}>
-                <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
-                  Módulos Concluídos
-                </Text>
-                <View style={styles.modulosRow}>{renderModuleIcons}</View>
-                <Text style={[styles.progressText, { color: theme.cardText }]}>
-                  {progressoAtual} de {modulosTotais} módulos concluídos
-                </Text>
-
-                {/* CORRIGIDO: Border top color usando theme.text */}
-                <View
-                  style={[
-                    styles.legendContainer,
-                    { borderTopColor: theme.text },
-                  ]}
-                >
-                  <View style={styles.legendItem}>
-                    <MaterialCommunityIcons
-                      name="lock"
-                      size={16}
-                      color={theme.cardText}
-                    />
-                    <Text
-                      style={[styles.legendText, { color: theme.cardText }]}
-                    >
-                      Bloqueado
-                    </Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      size={16}
-                      color={theme.cardText}
-                    />
-                    <Text
-                      style={[styles.legendText, { color: theme.cardText }]}
-                    >
-                      Tentado
-                    </Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <Text style={{ fontSize: 16 }}>🏆</Text>
-                    <Text
-                      style={[styles.legendText, { color: theme.cardText }]}
-                    >
-                      Concluído
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.achievementsContainer}>
-                <Text style={[styles.sectionTitle, { color: theme.cardText }]}>
-                  🌟 Última Pontuação
-                </Text>
-                <Text
-                  style={[
-                    styles.performanceSubtitle,
-                    { color: theme.cardText },
-                  ]}
-                >
-                  (Sua última tentativa em cada módulo)
-                </Text>
-
-                {emblemsByPerformance.length > 0 ? (
-                  <FlatList
-                    data={emblemsByPerformance}
-                    keyExtractor={(item) => `perf-${item.moduleNumber}`}
-                    renderItem={renderPerformanceCard}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.emblemsGrid}
-                  />
-                ) : (
-                  <View style={styles.emptyPerformance}>
-                    <MaterialCommunityIcons
-                      name="information-outline"
-                      size={36}
-                      color={theme.cardText}
-                      style={{ opacity: 0.8 }}
-                    />
-                    <Text
-                      style={[
-                        styles.performanceInfo,
-                        { color: theme.cardText },
-                      ]}
-                    >
-                      Suas pontuações aparecerão aqui após tentar algum módulo.
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  {
-                    color: theme.text,
-                    marginTop: 10,
-                    marginBottom: 10,
-                    alignSelf: "center",
-                  },
-                ]}
-              >
-                Suas Conquistas
-              </Text>
-            </>
-          }
           ListEmptyComponent={
-            <View style={styles.emptyCard}>
+            <View
+              style={styles.emptyCard}
+              accessible={true}
+              focusable={true}
+              importantForAccessibility="yes"
+              accessibilityLabel="Sem conquistas ainda."
+            >
               <MaterialCommunityIcons
                 name="emoticon-sad-outline"
                 size={50}
@@ -518,9 +632,6 @@ export default function AchievementsScreen() {
               />
               <Text style={[styles.emptyTitle, { color: theme.cardText }]}>
                 Sem Conquistas Ainda
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: theme.cardText }]}>
-                Complete os módulos para ganhar emblemas!
               </Text>
             </View>
           }
@@ -569,9 +680,6 @@ const createStyles = (
       opacity: 0.8,
       fontSize: 18 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
-      lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing,
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     headerIconPlaceholder: { width: 28 },
     scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 30 },
@@ -583,24 +691,20 @@ const createStyles = (
       marginBottom: 20,
       alignItems: "center",
       borderWidth: 1,
-      borderColor: theme.text, // CORRIGIDO
+      borderColor: theme.text,
     },
     sectionTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
-      marginBottom: 10,
       textAlign: "center",
       lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     performanceSubtitle: {
       fontSize: 12 * fontMultiplier,
       opacity: 0.8,
       textAlign: "center",
-      marginBottom: 15,
-      lineHeight: 12 * fontMultiplier * lineHeight,
-      letterSpacing,
+      marginTop: 4,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     modulosRow: {
@@ -624,8 +728,6 @@ const createStyles = (
     progressText: {
       fontSize: 14 * fontMultiplier,
       fontWeight: isBold ? "bold" : "normal",
-      lineHeight: 14 * fontMultiplier * lineHeight,
-      letterSpacing,
       marginBottom: 15,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
@@ -636,11 +738,7 @@ const createStyles = (
       paddingTop: 10,
       borderTopWidth: 1,
     },
-    legendItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
+    legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
     legendText: {
       fontSize: 11 * fontMultiplier,
       opacity: 1,
@@ -655,11 +753,7 @@ const createStyles = (
       minWidth: 100,
     },
     emblemEmoji: { fontSize: 40 },
-    emblemAccuracy: {
-      fontSize: 18,
-      fontWeight: "bold",
-      marginTop: 5,
-    },
+    emblemAccuracy: { fontSize: 18, fontWeight: "bold", marginTop: 5 },
     emblemModule: { fontSize: 12, marginTop: 2 },
     notPassedBadge: {
       flexDirection: "row",
@@ -671,10 +765,7 @@ const createStyles = (
       borderWidth: 1,
       borderRadius: 10,
     },
-    emblemStatus: {
-      fontSize: 9,
-      fontWeight: "bold",
-    },
+    emblemStatus: { fontSize: 9, fontWeight: "bold" },
     achievementCard: {
       borderRadius: 16,
       padding: 15,
@@ -698,15 +789,11 @@ const createStyles = (
       fontSize: 16 * fontMultiplier,
       fontWeight: "bold",
       marginBottom: 4,
-      lineHeight: 16 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     achievementDate: {
       fontSize: 12 * fontMultiplier,
       opacity: 0.9,
-      lineHeight: 12 * fontMultiplier * lineHeight,
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptyCard: {
@@ -716,24 +803,13 @@ const createStyles = (
       alignItems: "center",
       marginTop: 20,
       borderWidth: 1,
-      borderColor: theme.text, // CORRIGIDO
+      borderColor: theme.text,
     },
     emptyTitle: {
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       marginTop: 15,
       marginBottom: 8,
-      lineHeight: 18 * fontMultiplier * lineHeight,
-      letterSpacing,
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-    },
-    emptySubtitle: {
-      fontSize: 14 * fontMultiplier,
-      textAlign: "center",
-      opacity: 0.8,
-      lineHeight: 20 * lineHeight,
-      fontWeight: isBold ? "bold" : "normal",
-      letterSpacing,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     emptyPerformance: {
@@ -746,7 +822,6 @@ const createStyles = (
       textAlign: "center",
       maxWidth: 280,
       fontSize: 13 * fontMultiplier,
-      lineHeight: 18 * lineHeight,
       opacity: 0.9,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },

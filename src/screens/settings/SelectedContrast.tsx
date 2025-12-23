@@ -10,15 +10,13 @@ import {
   useWindowDimensions,
   ScrollView,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { useContrast } from "../../hooks/useContrast";
 import { ContrastMode } from "../../types/contrast";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
-import {
-  AccessibleHeader,
-  AccessibleButton,
-} from "../../components/AccessibleComponents";
+import { AccessibleHeader } from "../../components/AccessibleComponents";
 
 type ContrastScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -40,15 +38,14 @@ interface OptionCardProps {
 const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
   const { changeContrastMode } = useContrast();
   const [selection, setSelection] = useState<ContrastMode>("blue_yellow");
-
   const { width } = useWindowDimensions();
-  const isWeb = Platform.OS === "web";
-  const isTablet = width >= 768;
-  const isDesktop = width >= 1024;
 
   const FONT_SCALE = width > 0 ? Math.min(width / 375, 1.2) : 1;
   const scaleFont = (size: number) => Math.round(size * FONT_SCALE);
 
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+  const isWeb = Platform.OS === "web";
   const columnsCount = isDesktop ? 3 : isTablet ? 3 : 2;
   const maxWidth = Math.min(width, 1200);
   const horizontalPadding = isWeb ? 40 : 20;
@@ -57,10 +54,7 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
     (maxWidth - horizontalPadding * 2 - gap * (columnsCount - 1)) /
     columnsCount;
 
-  console.log(`[ContrastScreen] Seleção: ${selection}, Largura: ${width}`);
-
   const handleContinue = () => {
-    console.log(`[ContrastScreen] Salvando: ${selection}`);
     changeContrastMode(selection);
     navigation.replace("Home");
   };
@@ -96,37 +90,37 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
       mode: "blue_yellow",
       label: "Azul Escuro",
       description: "Tema padrão",
-      hint: "Tema padrão do aplicativo com contraste azul e amarelo.",
+      hint: "Contraste azul e amarelo.",
     },
     {
       mode: "black_white",
       label: "Alto Contraste",
       description: "Fundo preto",
-      hint: "Alto contraste com fundo preto e texto branco.",
+      hint: "Fundo preto e texto branco.",
     },
     {
       mode: "white_black",
       label: "Claro",
       description: "Fundo branco",
-      hint: "Alto contraste com fundo branco e texto preto.",
+      hint: "Fundo branco e texto preto.",
     },
     {
       mode: "sepia",
       label: "Sépia",
       description: "Leitura confortável",
-      hint: "Reduz luz azul para leitura prolongada.",
+      hint: "Reduz luz azul.",
     },
     {
       mode: "grayscale",
       label: "Monocromático",
       description: "Sem cores",
-      hint: "Para visão acromática, apenas tons de cinza.",
+      hint: "Tons de cinza.",
     },
     {
       mode: "cyan_dark",
       label: "Ciano Escuro",
       description: "Para daltonismo",
-      hint: "Tema escuro otimizado para daltonismo.",
+      hint: "Otimizado para daltonismo.",
     },
   ];
 
@@ -136,23 +130,31 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
         backgroundColor={PREVIEW_COLORS.yellowBg}
         barStyle="dark-content"
       />
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          <View style={styles.headerSection}>
-            <AccessibleHeader
-              level={1}
-              style={[styles.title, { color: PREVIEW_COLORS.blueText }]}
-            >
-              Escolha seu Contraste
-            </AccessibleHeader>
-            <Text style={[styles.subtitle, { color: PREVIEW_COLORS.blueText }]}>
-              Selecione o tema que melhor atende suas necessidades de
-              acessibilidade
-            </Text>
+          {/* HEADER SECTION - AGRUPADO */}
+          <View
+            style={styles.headerSection}
+            accessible={true}
+            focusable={true}
+            importantForAccessibility="yes"
+            accessibilityRole="header"
+            accessibilityLabel="Escolha seu Contraste. Selecione o tema que melhor atende suas necessidades de acessibilidade."
+          >
+            <View importantForAccessibility="no-hide-descendants">
+              <Text style={[styles.title, { color: PREVIEW_COLORS.blueText }]}>
+                Escolha seu Contraste
+              </Text>
+              <Text
+                style={[styles.subtitle, { color: PREVIEW_COLORS.blueText }]}
+              >
+                Selecione o tema que melhor atende suas necessidades de
+                acessibilidade
+              </Text>
+            </View>
           </View>
 
           <View style={styles.optionsContainer}>
@@ -173,22 +175,29 @@ const ContrastScreen: React.FC<ContrastScreenProps> = ({ navigation }) => {
           </View>
 
           <View style={styles.actionSection}>
-            <AccessibleButton
+            <TouchableOpacity
               style={[
                 styles.button,
                 { backgroundColor: PREVIEW_COLORS.blueText },
               ]}
               onPress={handleContinue}
-              accessibilityText="Botão Prosseguir. Confirma a seleção e avança para a tela inicial."
+              accessible={true}
+              focusable={true}
+              accessibilityRole="button"
+              accessibilityLabel="Confirmar e Prosseguir"
             >
               <Text
                 style={[styles.buttonText, { color: PREVIEW_COLORS.yellowBg }]}
               >
                 Confirmar e Prosseguir
               </Text>
-            </AccessibleButton>
+            </TouchableOpacity>
 
-            <Text style={[styles.helpText, { color: PREVIEW_COLORS.blueText }]}>
+            {/* CORREÇÃO: Removemos focusable={true} deste Text */}
+            <Text
+              style={[styles.helpText, { color: PREVIEW_COLORS.blueText }]}
+              accessible={true}
+            >
               Você pode alterar essa configuração a qualquer momento
             </Text>
           </View>
@@ -210,22 +219,14 @@ const OptionCard: React.FC<OptionCardProps> = ({
   cardWidth,
 }) => {
   const isSelected = currentSelection === mode;
-  const accessibilityFullText = `${label}. ${description}. ${accessibilityHint} ${
-    isSelected ? "Atualmente selecionado." : "Toque para selecionar."
-  }`;
-
   const styles = createStyles(scaleFont);
 
-  const cardStyles: Record<
-    ContrastMode,
-    {
-      backgroundColor: string;
-      color: string;
-      borderColor: string;
-      iconBg: string;
-      iconText: string;
-    }
-  > = {
+  // Texto completo para evitar navegação interna
+  const a11yLabel = `${label}. ${description}. ${accessibilityHint}. ${
+    isSelected ? "Selecionado" : "Não selecionado"
+  }. Toque para selecionar.`;
+
+  const cardStyles = {
     blue_yellow: {
       backgroundColor: colors.yellowBg,
       color: colors.blueText,
@@ -270,30 +271,34 @@ const OptionCard: React.FC<OptionCardProps> = ({
     },
   };
 
-  const handlePress = () => {
-    console.log(`[OptionCard] Selecionado: ${mode}`);
-    onPress(mode);
-  };
+  const style = cardStyles[mode];
 
   return (
     <View style={[styles.cardWrapper, { width: cardWidth }]}>
-      <AccessibleButton
-        onPress={handlePress}
-        accessibilityText={accessibilityFullText}
+      <TouchableOpacity
+        onPress={() => onPress(mode)}
+        activeOpacity={0.8}
         style={{ flex: 1 }}
+        // BOX UNIFICADO FOCÁVEL
+        accessible={true}
+        focusable={true}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={a11yLabel}
+        importantForAccessibility="yes"
       >
         <View
           style={[
             styles.card,
             {
-              backgroundColor: cardStyles[mode].backgroundColor,
+              backgroundColor: style.backgroundColor,
               borderWidth: isSelected ? 4 : 2,
-              borderColor: isSelected
-                ? "#003D99"
-                : cardStyles[mode].borderColor,
+              borderColor: isSelected ? "#003D99" : style.borderColor,
             },
             isSelected && styles.selectedCard,
           ]}
+          // Esconde filhos para evitar duplo clique e forçar leitura do pai
+          importantForAccessibility="no-hide-descendants"
         >
           {isSelected && (
             <View
@@ -302,16 +307,12 @@ const OptionCard: React.FC<OptionCardProps> = ({
               <Text style={styles.checkmark}>✓</Text>
             </View>
           )}
-
           <View
-            style={[
-              styles.colorPreview,
-              { backgroundColor: cardStyles[mode].iconBg },
-            ]}
+            style={[styles.colorPreview, { backgroundColor: style.iconBg }]}
           >
             <Text
               style={{
-                color: cardStyles[mode].iconText,
+                color: style.iconText,
                 fontWeight: "bold",
                 fontSize: 18,
               }}
@@ -319,20 +320,19 @@ const OptionCard: React.FC<OptionCardProps> = ({
               1
             </Text>
           </View>
-
-          <Text style={[styles.cardLabel, { color: cardStyles[mode].color }]}>
+          <Text style={[styles.cardLabel, { color: style.color }]}>
             {label}
           </Text>
           <Text
             style={[
               styles.cardDescription,
-              { color: cardStyles[mode].color, opacity: 0.8 },
+              { color: style.color, opacity: 0.8 },
             ]}
           >
             {description}
           </Text>
         </View>
-      </AccessibleButton>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -345,11 +345,7 @@ const createStyles = (
   isWeb = false
 ) =>
   StyleSheet.create({
-    scrollContent: {
-      flexGrow: 1,
-      paddingBottom: 40,
-      alignItems: "center",
-    },
+    scrollContent: { flexGrow: 1, paddingBottom: 40, alignItems: "center" },
     container: {
       flex: 1,
       width: "100%",
@@ -386,10 +382,7 @@ const createStyles = (
       marginBottom: 32,
       gap: gap,
     },
-    cardWrapper: {
-      marginBottom: gap,
-      minHeight: 140,
-    },
+    cardWrapper: { marginBottom: gap, minHeight: 140 },
     card: {
       flex: 1,
       justifyContent: "center",
@@ -403,7 +396,6 @@ const createStyles = (
       shadowOpacity: 0.15,
       shadowRadius: 4,
       position: "relative",
-      overflow: "visible",
     },
     selectedCard: {
       elevation: 6,
@@ -426,11 +418,7 @@ const createStyles = (
       shadowOpacity: 0.3,
       shadowRadius: 3,
     },
-    checkmark: {
-      color: "#FFFFFF",
-      fontSize: 16,
-      fontWeight: "bold",
-    },
+    checkmark: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
     colorPreview: {
       width: 40,
       height: 40,
@@ -455,11 +443,7 @@ const createStyles = (
       textAlign: "center",
       lineHeight: scaleFont(16),
     },
-    actionSection: {
-      width: "100%",
-      alignItems: "center",
-      marginTop: 8,
-    },
+    actionSection: { width: "100%", alignItems: "center", marginTop: 8 },
     button: {
       paddingVertical: 18,
       paddingHorizontal: 40,

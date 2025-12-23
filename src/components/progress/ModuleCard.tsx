@@ -22,7 +22,7 @@ type ModuleCardProps = {
   timeSpent: number;
   onPress: () => void;
   index: number;
-  theme: any; // Mantido como 'any' para bater com seu código
+  theme: any;
   updatedAt?: string;
 };
 
@@ -80,6 +80,15 @@ export const ModuleCard = React.memo(
       const mins = Math.floor(seconds / 60);
       const secs = Math.round(seconds % 60);
       return `${mins}m ${secs}s`;
+    }, []);
+
+    const formatTimeAccessible = useCallback((seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      let text = "";
+      if (mins > 0) text += `${mins} minutos `;
+      if (secs > 0 || text === "") text += `${secs} segundos`;
+      return text;
     }, []);
 
     const formatDate = useCallback((dateString?: string) => {
@@ -154,6 +163,32 @@ export const ModuleCard = React.memo(
       [timeSpent, formatTime]
     );
 
+    // ✅ CONSTRUÇÃO DO TEXTO DE ACESSIBILIDADE
+    // Isso cria uma frase única que o TalkBack lerá ao focar no card
+    const cardAccessibilityLabel = useMemo(() => {
+      return `Módulo ${moduleNumber}. 
+      Status: ${accuracyInfo.text}, Precisão de ${accuracy}%.
+      ${totalQuestions} questões realizadas.
+      Data: ${formattedDate || "Não disponível"}.
+      Desempenho: ${correctAnswers} acertos e ${wrongAnswers} erros.
+      Tempo total: ${formatTimeAccessible(timeSpent)}.
+      ${
+        wrongAnswers > 0
+          ? "Toque duas vezes para ver detalhes dos erros."
+          : "Desempenho perfeito!"
+      }`;
+    }, [
+      moduleNumber,
+      accuracyInfo,
+      accuracy,
+      totalQuestions,
+      formattedDate,
+      correctAnswers,
+      wrongAnswers,
+      timeSpent,
+      formatTimeAccessible,
+    ]);
+
     return (
       <Animated.View
         style={{
@@ -162,52 +197,58 @@ export const ModuleCard = React.memo(
         }}
       >
         <TouchableOpacity
-          style={[styles.moduleCard, { backgroundColor: theme.card }]} // Fundo Azul
+          style={[styles.moduleCard, { backgroundColor: theme.card }]}
           onPress={onPress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           activeOpacity={1}
+          // ✅ ACESSIBILIDADE DE FOCO ÚNICO
+          accessible={true} // Diz ao sistema que este container é um elemento acessível
+          accessibilityRole="button" // Identifica como botão clicável
+          accessibilityLabel={cardAccessibilityLabel} // O texto completo a ser lido
+          // focusable={true} é implícito no TouchableOpacity, mas garante navegação por teclado
         >
+          {/* Todos os elementos abaixo são visuais. 
+             Como o Pai tem accessible={true}, o TalkBack ignora os filhos individualmente 
+             e foca apenas no Pai, lendo o accessibilityLabel definido acima.
+          */}
+
           <View style={styles.moduleHeader}>
             <View style={styles.moduleHeaderLeft}>
-              {/* ✅ CORREÇÃO DO BADGE (Fundo Branco, Texto Azul) */}
               <View
                 style={[
                   styles.moduleNumberBadge,
-                  { backgroundColor: theme.cardText }, // Era theme.text (azul)
+                  { backgroundColor: theme.cardText },
                 ]}
               >
                 <AccessibleText
                   baseSize={22}
-                  style={[styles.moduleNumberText, { color: theme.text }]} // Era theme.card (azul)
+                  style={[styles.moduleNumberText, { color: theme.text }]}
                 >
                   {moduleNumber}
                 </AccessibleText>
               </View>
 
               <View>
-                {/* ✅ CORREÇÃO 1 (Texto Branco) */}
                 <AccessibleText
                   baseSize={20}
-                  style={[styles.moduleTitle, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.moduleTitle, { color: theme.cardText }]}
                 >
                   Módulo {moduleNumber}
                 </AccessibleText>
 
-                {/* ✅ CORREÇÃO 2 (Texto Branco) */}
                 <AccessibleText
                   baseSize={13}
-                  style={[styles.moduleSubtitle, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.moduleSubtitle, { color: theme.cardText }]}
                 >
                   {totalQuestions}{" "}
                   {totalQuestions === 1 ? "questão" : "questões"}
                 </AccessibleText>
 
                 {formattedDate && (
-                  /* ✅ CORREÇÃO 3 (Texto Branco) */
                   <AccessibleText
                     baseSize={11}
-                    style={[styles.dateText, { color: theme.cardText }]} // Era theme.text
+                    style={[styles.dateText, { color: theme.cardText }]}
                   >
                     Última tentativa: {formattedDate}
                   </AccessibleText>
@@ -241,21 +282,23 @@ export const ModuleCard = React.memo(
                 size={18}
                 color={accuracyInfo.color}
               />
-              {/* ✅ CORREÇÃO 4 (Texto Branco) */}
               <AccessibleText
                 baseSize={14}
-                style={[styles.accuracyLabel, { color: theme.cardText }]} // Era theme.text
+                style={[styles.accuracyLabel, { color: theme.cardText }]}
               >
                 {accuracyInfo.text}
               </AccessibleText>
             </View>
           </View>
 
+          {/* ScrollView interno marcado como não importante para acessibilidade 
+              pois o pai já leu o conteúdo */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={true}
             style={styles.statsScrollContainer}
             contentContainerStyle={styles.statsScrollContent}
+            importantForAccessibility="no-hide-descendants"
           >
             <View
               style={[styles.moduleStatsGrid, { borderTopColor: theme.border }]}
@@ -266,17 +309,15 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#4CAF50"
                 />
-                {/* ✅ CORREÇÃO 5 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxValue, { color: theme.cardText }]}
                 >
                   {correctAnswers}
                 </AccessibleText>
-                {/* ✅ CORREÇÃO 6 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxLabel, { color: theme.cardText }]}
                 >
                   Acertos
                 </AccessibleText>
@@ -288,17 +329,15 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#F44336"
                 />
-                {/* ✅ CORREÇÃO 7 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxValue, { color: theme.cardText }]}
                 >
                   {wrongAnswers}
                 </AccessibleText>
-                {/* ✅ CORREÇÃO 8 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxLabel, { color: theme.cardText }]}
                 >
                   Erros
                 </AccessibleText>
@@ -310,17 +349,15 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#2196F3"
                 />
-                {/* ✅ CORREÇÃO 9 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxValue, { color: theme.cardText }]}
                 >
                   {formattedTime}
                 </AccessibleText>
-                {/* ✅ CORREÇÃO 10 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxLabel, { color: theme.cardText }]}
                 >
                   Tempo
                 </AccessibleText>
@@ -332,17 +369,15 @@ export const ModuleCard = React.memo(
                   size={24}
                   color="#9C27B0"
                 />
-                {/* ✅ CORREÇÃO 11 (Texto Branco) */}
                 <AccessibleText
                   baseSize={18}
-                  style={[styles.statBoxValue, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxValue, { color: theme.cardText }]}
                 >
                   {accuracy}%
                 </AccessibleText>
-                {/* ✅ CORREÇÃO 12 (Texto Branco) */}
                 <AccessibleText
                   baseSize={12}
-                  style={[styles.statBoxLabel, { color: theme.cardText }]} // Era theme.text
+                  style={[styles.statBoxLabel, { color: theme.cardText }]}
                 >
                   Precisão
                 </AccessibleText>
@@ -351,20 +386,18 @@ export const ModuleCard = React.memo(
           </ScrollView>
 
           <View style={[styles.moduleFooter, { borderTopColor: theme.border }]}>
-            {/* ✅ CORREÇÃO 13 (Texto Branco) */}
             <AccessibleText
               baseSize={14}
-              style={[styles.viewDetailsText, { color: theme.cardText }]} // Era theme.text
+              style={[styles.viewDetailsText, { color: theme.cardText }]}
             >
               {wrongAnswers > 0
                 ? "Ver erros detalhados"
                 : "Desempenho perfeito!"}
             </AccessibleText>
-            {/* ✅ CORREÇÃO 14 (Ícone Branco) */}
             <MaterialCommunityIcons
               name="chevron-right"
               size={20}
-              color={theme.cardText} // Era theme.text
+              color={theme.cardText}
             />
           </View>
         </TouchableOpacity>

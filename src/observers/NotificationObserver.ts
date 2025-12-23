@@ -20,10 +20,10 @@ class NotificationObserver {
   public async update(data: ModuleCompletionData): Promise<void> {
     if (data.passed) {
       console.log(
-        `[NotificationObserver] 🔔 Módulo ${data.moduleNumber} passou. Disparando eventos.`
+        `[NotificationObserver] Módulo ${data.moduleNumber} passou. Disparando eventos.`
       );
 
-      const title = "🎉 Módulo Concluído!";
+      const title = "Módulo Concluído!";
       const body = `Parabéns! Você completou o Módulo ${data.moduleNumber} com ${data.accuracy}% de acerto!`;
 
       try {
@@ -49,11 +49,11 @@ class NotificationObserver {
         useModalStore.getState().showModal(title, body);
 
         console.log(
-          "[NotificationObserver] ✅ Notificação do OS e Modal In-App disparados"
+          "[NotificationObserver] Notificação do OS e Modal In-App disparados"
         );
       } catch (error) {
         console.warn(
-          "[NotificationObserver] ⚠️ Erro ao exibir notificação:",
+          "[NotificationObserver] Erro ao exibir notificação:",
           error
         );
       }
@@ -64,7 +64,7 @@ class NotificationObserver {
     }
   }
 
-  // ❌ Função cleanup removida
+  //  Função cleanup removida
 }
 
 export const notificationObserver = new NotificationObserver();

@@ -1,4 +1,3 @@
-// src/screens/learning/AlphabetLessonScreen.tsx
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
@@ -19,11 +18,6 @@ import { Audio } from "expo-av";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme, ContrastMode } from "../../types/contrast";
-import {
-  AccessibleView,
-  AccessibleHeader,
-  AccessibleText,
-} from "../../components/AccessibleComponents";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { RootStackParamList } from "../../navigation/types";
 import { ALL_BRAILLE_CHARS } from "../../navigation/brailleLetters";
@@ -40,7 +34,7 @@ const getDotDescription = (dots: number[]): string => {
   return `Pontos ${sorted.join(", ")} e ${last} levantados.`;
 };
 
-// Componente da Cela Braille
+// Componente da Cela Braille (Puramente Visual dentro do card acessível)
 const BrailleCell = ({
   dots,
   styles,
@@ -55,7 +49,6 @@ const BrailleCell = ({
         <View
           style={[styles.dot, isActive ? styles.dotActive : styles.dotInactive]}
         >
-          {/* Aplica estilo específico para o número se o ponto estiver ativo */}
           <Text style={[styles.dotNumber, isActive && styles.dotNumberActive]}>
             {dotNum}
           </Text>
@@ -65,7 +58,7 @@ const BrailleCell = ({
   };
 
   return (
-    <View style={styles.brailleCell} accessibilityElementsHidden={true}>
+    <View style={styles.brailleCell}>
       <View style={styles.brailleColumn}>{[1, 2, 3].map(renderDot)}</View>
       <View style={styles.brailleColumn}>{[4, 5, 6].map(renderDot)}</View>
     </View>
@@ -81,6 +74,7 @@ const BrailleCard = ({
   styles: ReturnType<typeof createStyles>;
   translateX: Animated.Value;
 }) => {
+  // Label completa para o Box do Card
   const accessibilityLabel = `${item.letter}. ${item.description}`;
 
   return (
@@ -92,23 +86,26 @@ const BrailleCard = ({
         },
       ]}
     >
-      <AccessibleView accessibilityText={accessibilityLabel}>
-        <View style={styles.cardInner}>
-          <AccessibleHeader level={2} style={styles.letter}>
-            {item.letter}
-          </AccessibleHeader>
+      {/* --- BOX ACESSÍVEL ÚNICO --- */}
+      <View
+        style={{ width: "100%", alignItems: "center" }}
+        accessible={true} // Define como um grupo
+        focusable={true} // Garante foco via Tab/Teclado
+        accessibilityLabel={accessibilityLabel} // Lê tudo de uma vez
+      >
+        {/* Esconde os filhos visuais para não fragmentar a leitura */}
+        <View
+          style={styles.cardInner}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden={true}
+        >
+          <Text style={styles.letter}>{item.letter}</Text>
 
           <BrailleCell dots={item.dots} styles={styles} />
 
-          <AccessibleText
-            style={styles.descriptionText}
-            baseSize={18}
-            accessibilityText=""
-          >
-            {item.description}
-          </AccessibleText>
+          <Text style={styles.descriptionText}>{item.description}</Text>
         </View>
-      </AccessibleView>
+      </View>
     </Animated.View>
   );
 };
@@ -125,26 +122,33 @@ const CongratsCard = ({
   isVisible: boolean;
 }) => {
   return (
-    <AccessibleView
+    <TouchableOpacity
       style={styles.congratsCard}
-      accessibilityText={`Parabéns, você completou a ${item.title}! Toque duas vezes para voltar.`}
+      onPress={onReturn}
+      activeOpacity={0.9}
+      // Box único de Parabéns
+      accessible={true}
+      focusable={true}
+      accessibilityLabel={`Parabéns, você completou a ${item.title}! Toque duas vezes para voltar.`}
+      accessibilityRole="button"
     >
       {isVisible && (
         <ConfettiCannon count={200} origin={{ x: -10, y: 0 }} fadeOut={true} />
       )}
-      <View style={styles.cardInner}>
+      {/* Conteúdo visual escondido */}
+      <View
+        style={styles.cardInner}
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden={true}
+      >
         <MaterialCommunityIcons name="party-popper" size={80} color="#FFD700" />
-        <AccessibleHeader level={1} style={styles.congratsTitle}>
-          Parabéns!
-        </AccessibleHeader>
-        <AccessibleText style={styles.congratsSubtitle} baseSize={18}>
-          Você concluiu: {item.title}
-        </AccessibleText>
-        <TouchableOpacity style={styles.button} onPress={onReturn}>
+        <Text style={styles.congratsTitle}>Parabéns!</Text>
+        <Text style={styles.congratsSubtitle}>Você concluiu: {item.title}</Text>
+        <View style={styles.button}>
           <Text style={styles.buttonText}>Voltar às Sessões</Text>
-        </TouchableOpacity>
+        </View>
       </View>
-    </AccessibleView>
+    </TouchableOpacity>
   );
 };
 
@@ -364,9 +368,21 @@ export default function AlphabetLessonScreen() {
               styles={styles}
               translateX={translateX}
             />
-            <Text style={styles.pageIndicator}>
-              {pageNumber} / {totalPages}
-            </Text>
+
+            {/* ---------------------------------------------------------
+                AQUI ESTÁ A CORREÇÃO SOLICITADA:
+                Ocultar completamente o "1 / 13" da acessibilidade
+               --------------------------------------------------------- */}
+            <View
+              style={{ marginTop: 18 }}
+              // Estas duas propriedades garantem que o leitor de tela IGNORE este bloco
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden={true}
+            >
+              <Text style={styles.pageIndicator}>
+                {pageNumber} / {totalPages}
+              </Text>
+            </View>
 
             <View style={styles.navigationButtons}>
               <TouchableOpacity
@@ -376,7 +392,10 @@ export default function AlphabetLessonScreen() {
                 ]}
                 onPress={handlePrevious}
                 disabled={currentPageIndex === 0}
+                accessible={true}
+                focusable={true}
                 accessibilityLabel="Voltar para a lição anterior"
+                accessibilityRole="button"
               >
                 <MaterialCommunityIcons
                   name="chevron-left"
@@ -388,11 +407,14 @@ export default function AlphabetLessonScreen() {
               <TouchableOpacity
                 style={styles.navButton}
                 onPress={handleNext}
+                accessible={true}
+                focusable={true}
                 accessibilityLabel={
                   currentPageIndex === totalPages - 1
                     ? "Finalizar sessão"
                     : "Próxima lição"
                 }
+                accessibilityRole="button"
               >
                 <MaterialCommunityIcons
                   name={
@@ -406,8 +428,21 @@ export default function AlphabetLessonScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Dica de Gesto (opcionalmente visível ou não, deixei acessível pois é útil, mas pode remover se quiser) */}
             {Platform.OS !== "web" && (
-              <Text style={styles.gestureHint}>← Arraste para navegar →</Text>
+              <View
+                accessible={true}
+                focusable={true}
+                accessibilityLabel="Dica: Arraste para navegar"
+              >
+                <Text
+                  style={styles.gestureHint}
+                  importantForAccessibility="no-hide-descendants"
+                  accessibilityElementsHidden={true}
+                >
+                  ← Arraste para navegar →
+                </Text>
+              </View>
             )}
           </>
         )}
@@ -433,24 +468,19 @@ const createStyles = (
   letterSpacing: number,
   isDyslexiaFont: boolean
 ) => {
-  // ✅ Lógica de Cores da Sela Braille
   let activeDotBg: string;
   let activeDotText: string;
 
   if (contrastMode === "white_black") {
-    // CLARO: Ponto Preto, Número Branco
     activeDotBg = "#000000";
     activeDotText = "#FFFFFF";
   } else if (contrastMode === "sepia") {
-    // SÉPIA: Ponto Marrom, Número Branco
     activeDotBg = "#5B4636";
     activeDotText = "#FFFFFF";
   } else if (contrastMode === "blue_yellow") {
-    // ✅ AZUL ESCURO: Ponto Amarelo, Número Azul
-    activeDotBg = "#FFC700"; // Amarelo
-    activeDotText = "#191970"; // Azul Escuro
+    activeDotBg = "#FFC700";
+    activeDotText = "#191970";
   } else {
-    // Padrão do app (Outros modos)
     activeDotBg = theme.button ?? theme.text;
     activeDotText = theme.buttonText ?? theme.background;
   }
@@ -466,7 +496,6 @@ const createStyles = (
       justifyContent: "center",
     },
     pageIndicator: {
-      marginTop: 18,
       color: theme.text,
       opacity: 0.85,
       fontSize: 13 * fontMultiplier,
@@ -593,7 +622,6 @@ const createStyles = (
       borderColor: theme.cardText,
       opacity: 0.2,
     },
-    // ✅ Aplicação da cor de fundo dinâmica
     dotActive: {
       backgroundColor: activeDotBg,
       borderColor: "transparent",
@@ -604,7 +632,6 @@ const createStyles = (
       opacity: 0.7,
       fontWeight: "bold",
     },
-    // ✅ Aplicação da cor do texto dinâmica para pontos ativos
     dotNumberActive: {
       color: activeDotText,
       opacity: 1,

@@ -1,4 +1,3 @@
-// src/screens/settings/SettingsScreen.tsx
 import React, { useEffect, useRef } from "react";
 import {
   View,
@@ -10,6 +9,7 @@ import {
   Platform,
   ScrollView,
   Animated,
+  TouchableOpacity,
 } from "react-native";
 import CommunitySlider from "@react-native-community/slider";
 import { useNavigation } from "@react-navigation/native";
@@ -18,7 +18,6 @@ import { useContrast } from "../../hooks/useContrast";
 import {
   AccessibleText,
   AccessibleHeader,
-  AccessibleButton,
 } from "../../components/AccessibleComponents";
 import ScreenHeader from "../../components/layout/ScreenHeader";
 import { Theme } from "../../types/contrast";
@@ -43,14 +42,6 @@ export default function SettingsScreen() {
     isDyslexiaFontEnabled,
     toggleDyslexiaFont,
   } = useSettings();
-
-  console.log("[SettingsScreen] Estado atual:", {
-    fontSize: fontSizeMultiplier,
-    bold: isBoldTextEnabled,
-    lineHeight: lineHeightMultiplier,
-    letterSpacing: letterSpacing,
-    dyslexia: isDyslexiaFontEnabled,
-  });
 
   const MAX_FONT_SIZE_MULTIPLIER = 1.4;
 
@@ -92,25 +83,6 @@ export default function SettingsScreen() {
           .onEnd(() => navigation.navigate("Home" as never))
       : undefined;
 
-  useEffect(() => {
-    if (fontSizeMultiplier > MAX_FONT_SIZE_MULTIPLIER) {
-      setFontSizeMultiplier(MAX_FONT_SIZE_MULTIPLIER);
-    }
-    if (lineHeightMultiplier < 1.0) {
-      setLineHeightMultiplier(1.0);
-    }
-    if (letterSpacing < 0) {
-      setLetterSpacing(0);
-    }
-  }, [
-    fontSizeMultiplier,
-    setFontSizeMultiplier,
-    lineHeightMultiplier,
-    setLineHeightMultiplier,
-    letterSpacing,
-    setLetterSpacing,
-  ]);
-
   const styles = createStyles(
     theme,
     fontSizeMultiplier,
@@ -120,25 +92,19 @@ export default function SettingsScreen() {
     isDyslexiaFontEnabled
   );
 
-  const SettingCard = ({
-    children,
-    fadeAnim,
-    scaleAnim,
-  }: {
-    children: React.ReactNode;
-    fadeAnim: Animated.Value;
-    scaleAnim: Animated.Value;
-  }) => (
+  const SettingCard = ({ children, fadeAnim, scaleAnim, style }: any) => (
     <Animated.View
       style={[
         styles.card,
         { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+        style,
       ]}
     >
       {children}
     </Animated.View>
   );
 
+  // --- SLIDER CORRIGIDO ---
   const SliderCard = ({
     label,
     value,
@@ -150,68 +116,46 @@ export default function SettingsScreen() {
     fadeAnim,
     scaleAnim,
   }: any) => {
-    const handleWebChange = (direction: "increase" | "decrease") => {
-      let newValue = value;
-      if (direction === "increase") {
-        newValue = Math.min(value + step, max);
-      } else {
-        newValue = Math.max(value - step, min);
-      }
-      onValueChange(newValue);
-    };
+    const displayValue =
+      unit === "%" ? (value * 100).toFixed(0) : value.toFixed(1);
+    const infoLabel = `${label}. Valor atual: ${displayValue}${unit}.`;
 
     return (
       <SettingCard fadeAnim={fadeAnim} scaleAnim={scaleAnim}>
-        <View style={styles.cardHeader}>
-          <AccessibleText baseSize={24} style={styles.cardLabel}>
-            {label}
-          </AccessibleText>
-          {Platform.OS !== "web" && (
-            <View style={styles.valueBadge}>
-              <Text style={styles.valueText}>
-                {unit === "%" ? (value * 100).toFixed(0) : value.toFixed(1)}
-                {unit}
-              </Text>
-            </View>
-          )}
+        {/* PARTE 1: LABEL E VALOR (Apenas Informativo) */}
+        <View
+          accessible={true}
+          focusable={true} // Permite TAB
+          importantForAccessibility="yes"
+          accessibilityLabel={infoLabel}
+          style={styles.cardHeader}
+        >
+          <View
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <AccessibleText baseSize={24} style={styles.cardLabel}>
+              {label}
+            </AccessibleText>
+            {Platform.OS !== "web" && (
+              <View style={styles.valueBadge}>
+                <Text style={styles.valueText}>
+                  {displayValue}
+                  {unit}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
-        {Platform.OS === "web" ? (
-          <View style={styles.webSliderContainer}>
-            <AccessibleButton
-              onPress={() => handleWebChange("decrease")}
-              accessibilityText={`Diminuir ${label}`}
-              disabled={value <= min}
-            >
-              <View
-                style={[
-                  styles.webSliderButton,
-                  value <= min && styles.webSliderButtonDisabled,
-                ]}
-              >
-                <Text style={styles.webSliderButtonText}>-</Text>
-              </View>
-            </AccessibleButton>
-            <Text style={styles.webSliderValue}>
-              {unit === "%" ? (value * 100).toFixed(0) : value.toFixed(1)}
-              {unit}
-            </Text>
-            <AccessibleButton
-              onPress={() => handleWebChange("increase")}
-              accessibilityText={`Aumentar ${label}`}
-              disabled={value >= max}
-            >
-              <View
-                style={[
-                  styles.webSliderButton,
-                  value >= max && styles.webSliderButtonDisabled,
-                ]}
-              >
-                <Text style={styles.webSliderButtonText}>+</Text>
-              </View>
-            </AccessibleButton>
-          </View>
-        ) : (
+        {/* PARTE 2: O SLIDER EM SI (Interativo) */}
+        {/* NÃO coloque accessible={true} na View pai do slider, isso mata o slider no Android */}
+        <View style={{ width: "100%", height: 50, justifyContent: "center" }}>
           <CommunitySlider
             style={styles.slider}
             minimumValue={min}
@@ -222,12 +166,20 @@ export default function SettingsScreen() {
             minimumTrackTintColor={styles.sliderActive.backgroundColor}
             maximumTrackTintColor={styles.sliderInactive.backgroundColor}
             thumbTintColor={styles.sliderThumb.backgroundColor}
+            // ACESSIBILIDADE DIRETA NO SLIDER
+            accessible={true}
+            focusable={true} // Essencial para Tab
+            accessibilityLabel={`Controle deslizante para ${label}`}
+            accessibilityRole="adjustable"
+            accessibilityValue={{ min, max, now: value }}
+            importantForAccessibility="yes"
           />
-        )}
+        </View>
       </SettingCard>
     );
   };
 
+  // --- SWITCH CORRIGIDO ---
   const SwitchCard = ({
     label,
     value,
@@ -235,28 +187,50 @@ export default function SettingsScreen() {
     fadeAnim,
     scaleAnim,
   }: any) => {
+    const a11yLabel = `${label}. Estado: ${
+      value ? "Ativado" : "Desativado"
+    }. Toque duas vezes para alternar.`;
+
     return (
-      <SettingCard fadeAnim={fadeAnim} scaleAnim={scaleAnim}>
-        <View style={styles.switchRow}>
-          <AccessibleText baseSize={24} style={styles.cardLabel}>
-            {label}
-          </AccessibleText>
-          <Switch
-            value={value}
-            onValueChange={onValueChange}
-            trackColor={{
-              false: styles.switchTrackOff.backgroundColor,
-              true: styles.switchTrackOn.backgroundColor,
-            }}
-            thumbColor={
-              value
-                ? styles.switchThumbOn.backgroundColor
-                : styles.switchThumbOff.backgroundColor
-            }
-            ios_backgroundColor={styles.switchTrackOff.backgroundColor}
-          />
-        </View>
-      </SettingCard>
+      <Animated.View
+        style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}
+      >
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => onValueChange(!value)}
+          activeOpacity={0.8}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: value }}
+          accessibilityLabel={a11yLabel}
+          importantForAccessibility="yes"
+        >
+          <View
+            style={styles.switchRow}
+            importantForAccessibility="no-hide-descendants"
+          >
+            <AccessibleText baseSize={24} style={styles.cardLabel}>
+              {label}
+            </AccessibleText>
+            <View pointerEvents="none">
+              <Switch
+                value={value}
+                trackColor={{
+                  false: styles.switchTrackOff.backgroundColor,
+                  true: styles.switchTrackOn.backgroundColor,
+                }}
+                thumbColor={
+                  value
+                    ? styles.switchThumbOn.backgroundColor
+                    : styles.switchThumbOff.backgroundColor
+                }
+                ios_backgroundColor={styles.switchTrackOff.backgroundColor}
+              />
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
@@ -267,6 +241,7 @@ export default function SettingsScreen() {
         backgroundColor={theme.background}
       />
       <ScreenHeader title="Acessibilidade" onBackPress={handleGoBack} />
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -276,6 +251,7 @@ export default function SettingsScreen() {
           <AccessibleHeader level={2} style={styles.sectionTitle}>
             📝 Texto
           </AccessibleHeader>
+
           <SliderCard
             label="Tamanho da Fonte"
             value={fontSizeMultiplier}
@@ -323,27 +299,40 @@ export default function SettingsScreen() {
             scaleAnim={scaleAnims[4]}
           />
         </View>
+
         <View style={styles.section}>
           <AccessibleHeader level={2} style={styles.sectionTitle}>
             🖥️ Tela
           </AccessibleHeader>
-          <SettingCard fadeAnim={fadeAnims[5]} scaleAnim={scaleAnims[5]}>
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
+
+          <Animated.View
+            style={{
+              opacity: fadeAnims[5],
+              transform: [{ scale: scaleAnims[5] }],
+            }}
+          >
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => navigation.navigate("Contrast" as never)}
+              accessible={true}
+              focusable={true}
+              accessibilityRole="button"
+              accessibilityLabel={`Modo de Contraste. Atual: ${contrastMode}. Toque duas vezes para alterar.`}
+              importantForAccessibility="yes"
+            >
+              <View
+                style={styles.switchRow}
+                importantForAccessibility="no-hide-descendants"
+              >
                 <AccessibleText baseSize={24} style={styles.cardLabel}>
                   Modo de Contraste
                 </AccessibleText>
-              </View>
-              <AccessibleButton
-                onPress={() => navigation.navigate("Contrast" as never)}
-                accessibilityText={`Alterar modo de contraste. Modo atual: ${contrastMode}`}
-              >
                 <View style={styles.changeButton}>
                   <Text style={styles.changeButtonText}>Alterar</Text>
                 </View>
-              </AccessibleButton>
-            </View>
-          </SettingCard>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -355,7 +344,6 @@ export default function SettingsScreen() {
       <GestureDetector gesture={flingRight}>{renderContent()}</GestureDetector>
     );
   }
-
   return renderContent();
 }
 
@@ -367,42 +355,24 @@ const createStyles = (
   letterSpacing: number,
   isDyslexiaFont: boolean
 ) => {
-  // Sistema de cores alternativas para evitar conflitos
-  const getAlternativeColors = () => {
-    // Se o fundo é azul escuro, use amarelo/laranja para elementos interativos
-    const isBlueTheme =
-      theme.background.toLowerCase().includes("blue") ||
-      theme.background === "#000033" ||
-      theme.background === "#001a33";
+  const isBlueTheme =
+    theme.background.toLowerCase().includes("blue") ||
+    theme.background === "#000033" ||
+    theme.background === "#001a33";
 
-    return {
-      // Badge de valor - cor contrastante
-      badgeBackground: isBlueTheme ? "#FFA500" : theme.button,
-      badgeText: isBlueTheme ? "#000000" : theme.buttonText,
-
-      // Slider - cores bem contrastantes
-      sliderActive: isBlueTheme ? "#FFD700" : theme.button,
-      sliderInactive: isBlueTheme ? "#4A4A4A" : theme.card,
-      sliderThumb: isBlueTheme ? "#FFA500" : theme.button,
-
-      // Switch - cores distintas
-      switchTrackOn: isBlueTheme ? "#32CD32" : theme.button,
-      switchTrackOff: isBlueTheme ? "#696969" : "#B8860B",
-      switchThumbOn: isBlueTheme ? "#90EE90" : theme.card,
-      switchThumbOff: isBlueTheme ? "#D3D3D3" : "#FFE066",
-
-      // Botões Web Slider
-      buttonBackground: isBlueTheme ? "#FFA500" : theme.button,
-      buttonText: isBlueTheme ? "#000000" : theme.buttonText,
-      buttonDisabled: isBlueTheme ? "#666666" : theme.card,
-
-      // Botão de mudança
-      changeButtonBg: isBlueTheme ? "#32CD32" : theme.button,
-      changeButtonText: isBlueTheme ? "#000000" : theme.buttonText,
-    };
+  const colors = {
+    badgeBackground: isBlueTheme ? "#FFA500" : theme.button,
+    badgeText: isBlueTheme ? "#000000" : theme.buttonText,
+    sliderActive: isBlueTheme ? "#FFD700" : theme.button,
+    sliderInactive: isBlueTheme ? "#4A4A4A" : theme.card,
+    sliderThumb: isBlueTheme ? "#FFA500" : theme.button,
+    switchTrackOn: isBlueTheme ? "#32CD32" : theme.button,
+    switchTrackOff: isBlueTheme ? "#696969" : "#B8860B",
+    switchThumbOn: isBlueTheme ? "#90EE90" : theme.card,
+    switchThumbOff: isBlueTheme ? "#D3D3D3" : "#FFE066",
+    changeButtonBg: isBlueTheme ? "#32CD32" : theme.button,
+    changeButtonText: isBlueTheme ? "#000000" : theme.buttonText,
   };
-
-  const colors = getAlternativeColors();
 
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.background },
@@ -425,7 +395,7 @@ const createStyles = (
       padding: 16,
       marginBottom: 12,
       borderWidth: 2,
-      borderColor: theme.text + "20", // Borda sutil para melhor definição
+      borderColor: theme.text + "20",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
@@ -492,42 +462,6 @@ const createStyles = (
       fontWeight: isBold ? "800" : "700",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
       lineHeight: 20 * fontMultiplier * lineHeightMultiplier,
-      letterSpacing: letterSpacing,
-    },
-    webSliderContainer: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      alignItems: "center",
-      paddingVertical: 8,
-    },
-    webSliderButton: {
-      backgroundColor: colors.buttonBackground,
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      justifyContent: "center",
-      alignItems: "center",
-      borderWidth: 2,
-      borderColor: "#000000",
-    },
-    webSliderButtonDisabled: {
-      backgroundColor: colors.buttonDisabled,
-      opacity: 0.5,
-    },
-    webSliderButtonText: {
-      color: colors.buttonText,
-      fontSize: 24,
-      fontWeight: "bold",
-      lineHeight: 26,
-    },
-    webSliderValue: {
-      color: theme.cardText,
-      fontSize: 20 * fontMultiplier,
-      fontWeight: isBold ? "800" : "700",
-      fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      minWidth: 80,
-      textAlign: "center",
-      lineHeight: 24 * fontMultiplier * lineHeightMultiplier,
       letterSpacing: letterSpacing,
     },
   });

@@ -11,6 +11,7 @@ import {
   TextStyle,
   FlatList,
   Dimensions,
+  TouchableOpacity, // Usando componente nativo para acessibilidade robusta
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -22,24 +23,18 @@ import progressService from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
-import {
-  AccessibleHeader,
-  AccessibleButton,
-  AccessibleText,
-} from "../../components/AccessibleComponents";
+// Nota: Removemos AccessibleButton/Header daqui para usar componentes nativos configurados manualmente
 import { DEFAULT_MODULES } from "../../navigation/moduleTypes";
 import { useModalStore } from "../../store/useModalStore";
 import { useNotificationQueueStore } from "../../store/useNotificationQueueStore";
 
 const { width } = Dimensions.get("window");
-const BOX_SIZE = 80; // Aumentei levemente para preencher melhor o centro
+const BOX_SIZE = 80;
 const SCREEN_PADDING = 16;
 const GAP_SIZE = 12;
-// Cálculo ajustado para features
 const FEATURE_BUTTON_WIDTH = (width - SCREEN_PADDING * 2 - GAP_SIZE) / 2;
 const FEATURE_BUTTON_HEIGHT = 115;
 
-// ✅ Cache do usuário (Mantido para performance)
 let userCache: APIt.User | null = null;
 let userCacheTime = 0;
 const USER_CACHE_TTL = 20000;
@@ -70,28 +65,30 @@ interface FeatureButtonProps {
   styles: HomeScreenStyles;
 }
 
-// ✅ COMPONENTES MEMOIZADOS
-
+// ✅ 1. STAT CARD (Apenas Informativo, mas focável via TAB)
 const StatCard = React.memo<StatCardProps>(
   ({ iconName, value, label, styles }) => {
     const iconStyle = styles.statIcon as TextStyle;
     return (
       <View
         style={styles.statCard}
+        // Acessibilidade e Tab
         accessible={true}
-        accessibilityLabel={`${label}: ${value}`}
-        accessibilityRole="text"
+        focusable={true} // Permite TAB parar aqui
+        accessibilityRole="text" // Leitor entende como informação de texto
+        accessibilityLabel={`Estatística: ${label}. Valor atual: ${value}.`}
       >
+        {/* Filhos ocultos para leitura limpa no pai */}
         <MaterialCommunityIcons
           name={iconName}
           size={iconStyle.fontSize}
           color={iconStyle.color}
-          accessible={false}
+          importantForAccessibility="no"
         />
-        <Text style={styles.statValue} accessible={false}>
+        <Text style={styles.statValue} importantForAccessibility="no">
           {value}
         </Text>
-        <Text style={styles.statLabel} accessible={false}>
+        <Text style={styles.statLabel} importantForAccessibility="no">
           {label}
         </Text>
       </View>
@@ -99,6 +96,7 @@ const StatCard = React.memo<StatCardProps>(
   }
 );
 
+// ✅ 2. FEATURE BUTTON (Botão de Navegação)
 const FeatureButton = React.memo<FeatureButtonProps>(
   ({ title, subtitle, iconName, gradientType, onPress, styles }) => {
     const iconStyle = styles.featureIcon as TextStyle;
@@ -116,32 +114,37 @@ const FeatureButton = React.memo<FeatureButtonProps>(
     }, [gradientType, styles]);
 
     return (
-      <AccessibleButton
-        accessibilityText={`${title}. ${subtitle}`}
+      <TouchableOpacity
         onPress={onPress}
         style={styles.featureButton}
+        activeOpacity={0.7}
+        // Configuração de Acessibilidade/Tab
+        accessible={true}
+        focusable={true}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${subtitle}.`}
+        accessibilityHint="Toque duas vezes para abrir."
       >
-        <View style={[styles.featureIconContainer, bgStyle]} accessible={false}>
+        <View
+          style={[styles.featureIconContainer, bgStyle]}
+          importantForAccessibility="no"
+        >
           <MaterialCommunityIcons
             name={iconName}
             size={iconStyle.fontSize}
             color="#FFFFFF"
-            accessible={false}
           />
         </View>
-        <View accessible={false}>
-          <Text style={styles.featureTitle} accessible={false}>
-            {title}
-          </Text>
-          <Text style={styles.featureSubtitle} accessible={false}>
-            {subtitle}
-          </Text>
+        <View importantForAccessibility="no">
+          <Text style={styles.featureTitle}>{title}</Text>
+          <Text style={styles.featureSubtitle}>{subtitle}</Text>
         </View>
-      </AccessibleButton>
+      </TouchableOpacity>
     );
   }
 );
 
+// ✅ 3. MODULE ITEM (Item de Lista Interativo)
 const ModuleItem = React.memo<ModuleItemProps>(
   ({ module, completed, isLocked, onPress, styles }) => {
     const iconStyle = styles.moduleIcon as TextStyle;
@@ -159,31 +162,38 @@ const ModuleItem = React.memo<ModuleItemProps>(
       : "Disponível";
 
     return (
-      <AccessibleButton
-        accessibilityText={`Módulo ${module.moduleId}. ${statusText}.`}
+      <TouchableOpacity
         onPress={onPress}
         disabled={isLocked}
         style={[styles.moduleItem, isLocked && { opacity: 0.6 }]}
+        activeOpacity={0.7}
+        // Configuração de Acessibilidade/Tab
+        accessible={true}
+        focusable={!isLocked} // Só foca se não estiver bloqueado (opcional) ou true sempre
+        accessibilityRole="button"
+        accessibilityLabel={`Módulo ${module.moduleId}. Status: ${statusText}.`}
+        accessibilityHint={
+          isLocked
+            ? "Complete o módulo anterior para desbloquear."
+            : "Toque duas vezes para iniciar."
+        }
       >
-        <View style={styles.moduleIconContainer} accessible={false}>
+        <View style={styles.moduleIconContainer} importantForAccessibility="no">
           <MaterialCommunityIcons
             name={iconName}
             size={iconStyle.fontSize}
             color={iconStyle.color}
-            accessible={false}
           />
         </View>
-        <View style={styles.moduleTextContainer} accessible={false}>
-          <Text style={styles.moduleTitle} accessible={false}>
-            Módulo {module.moduleId}
-          </Text>
+        <View style={styles.moduleTextContainer} importantForAccessibility="no">
+          <Text style={styles.moduleTitle}>Módulo {module.moduleId}</Text>
         </View>
         {isLocked ? (
           <MaterialCommunityIcons
             name="lock-outline"
             size={lockIconStyle.fontSize}
             color={lockIconStyle.color}
-            accessible={false}
+            importantForAccessibility="no"
           />
         ) : (
           <View
@@ -191,10 +201,10 @@ const ModuleItem = React.memo<ModuleItemProps>(
               styles.moduleStatusIndicator,
               { backgroundColor: completed ? "#4CD964" : "#FFCC00" },
             ]}
-            accessible={false}
+            importantForAccessibility="no"
           />
         )}
-      </AccessibleButton>
+      </TouchableOpacity>
     );
   }
 );
@@ -253,7 +263,7 @@ const HomeScreen: React.FC<
     if (dbUser && !welcomeMessageShown && !pendingNotification) {
       const timer = setTimeout(() => {
         showModal(
-          `🎉 Seja Bem-Vindo(a)!`,
+          ` Seja Bem-Vindo(a)!`,
           `Olá, ${dbUser.name}! Estamos felizes em ver você por aqui.`
         );
         setWelcomeMessageShown(true);
@@ -421,28 +431,45 @@ const HomeScreen: React.FC<
     );
   }
 
-  // Header com Stats centralizados
+  // ✅ 4. HEADER DA LISTA (Título e Botões de Topo)
   const ListHeader = (
     <>
       <View style={styles.header}>
-        <View>
-          <AccessibleHeader level={1} style={styles.headerTitle}>
+        {/* Título Saudação - Informativo */}
+        <View
+          accessible={true}
+          focusable={true}
+          accessibilityRole="header"
+          accessibilityLabel={`Olá, ${
+            dbUser.name ?? user?.name ?? "Usuário"
+          }! Continue aprendendo com ASAC.`}
+        >
+          <Text style={styles.headerTitle} importantForAccessibility="no">
             Olá, {dbUser.name ?? user?.name ?? "Usuário"}!
-          </AccessibleHeader>
-          <AccessibleText baseSize={16} style={styles.headerSubtitle}>
+          </Text>
+          <Text style={styles.headerSubtitle} importantForAccessibility="no">
             Continue aprendendo com ASAC
-          </AccessibleText>
+          </Text>
         </View>
-        <AccessibleButton onPress={handleLogout} style={styles.headerIcon}>
+
+        {/* Botão Sair */}
+        <TouchableOpacity
+          onPress={handleLogout}
+          style={styles.headerIcon}
+          accessible={true}
+          focusable={true}
+          accessibilityRole="button"
+          accessibilityLabel="Sair da conta"
+        >
           <MaterialCommunityIcons
             name="logout"
             size={22}
             color={theme.buttonText ?? "#FFFFFF"}
+            importantForAccessibility="no"
           />
-        </AccessibleButton>
+        </TouchableOpacity>
       </View>
 
-      {/* ✅ Centralização: Usando View simples com flex e justify */}
       <View style={styles.statsWrapper}>
         {statsData.map((stat, index) => (
           <StatCard
@@ -457,24 +484,32 @@ const HomeScreen: React.FC<
 
       <View style={styles.modulesSection}>
         <View style={styles.modulesSectionHeader}>
-          <Text style={styles.modulesTitle}>Seus Módulos</Text>
-          <AccessibleButton
+          {/* Título da Seção - Informativo */}
+          <View accessible={true} focusable={true} accessibilityRole="header">
+            <Text style={styles.modulesTitle}>Seus Módulos</Text>
+          </View>
+
+          {/* Botão Configurações */}
+          <TouchableOpacity
             onPress={() => navigation.navigate("Settings")}
             style={styles.smallButton}
-            accessibilityText="Configurações do aplicativo"
+            accessible={true}
+            focusable={true}
+            accessibilityRole="button"
+            accessibilityLabel="Configurações do aplicativo"
           >
             <MaterialCommunityIcons
               name="cog"
               size={(styles.smallIcon as TextStyle).fontSize}
               color={(styles.smallIcon as TextStyle).color}
+              importantForAccessibility="no"
             />
-          </AccessibleButton>
+          </TouchableOpacity>
         </View>
       </View>
     </>
   );
 
-  // Footer com Features
   const ListFooter = (
     <View style={styles.featuresSection}>
       <View style={styles.featuresRow}>
@@ -518,11 +553,12 @@ const HomeScreen: React.FC<
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={ListHeader}
         ListFooterComponent={ListFooter}
-        // Props de otimização
         removeClippedSubviews={Platform.OS === "android"}
         initialNumToRender={4}
         maxToRenderPerBatch={3}
         windowSize={5}
+        // Importante para evitar foco no container da lista
+        importantForAccessibility="no"
       />
     </View>
   );
@@ -570,12 +606,11 @@ const createStyles = (
       borderRadius: 10,
       padding: 6,
     },
-    // ✅ Estilo novo para centralizar Stats
     statsWrapper: {
       flexDirection: "row",
-      justifyContent: "center", // Centraliza horizontalmente
+      justifyContent: "center",
       alignItems: "center",
-      gap: 12, // Espaçamento entre os cards
+      gap: 12,
       marginVertical: 16,
       paddingHorizontal: 16,
     },
@@ -587,7 +622,6 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
       padding: 4,
-      // Sombra leve para destaque
       elevation: 2,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
@@ -679,7 +713,6 @@ const createStyles = (
       marginLeft: 8,
     } as TextStyle,
     featuresSection: { paddingHorizontal: 16, marginTop: 12 },
-    // Ajustado para wrap (quebra de linha) para usar com map
     featuresRow: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -693,7 +726,7 @@ const createStyles = (
       borderRadius: 16,
       padding: 12,
       justifyContent: "space-between",
-      marginBottom: GAP_SIZE, // Espaço vertical entre linhas
+      marginBottom: GAP_SIZE,
       elevation: 2,
     },
     featureIconContainer: {

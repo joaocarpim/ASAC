@@ -1,5 +1,3 @@
-// src/screens/session/LearningPathScreen.tsx (CORRIGIDO)
-
 import React, { useState } from "react";
 import {
   View,
@@ -56,19 +54,15 @@ export default function LearningPathScreen() {
         })
       : undefined;
 
-  const renderSessionCard = ({
-    item: session,
-    index,
-  }: {
-    item: any;
-    index: number;
-  }) => {
+  const renderSessionCard = ({ item: session }: { item: any }) => {
     const isLocked = false;
     const progress = userProgress.find((p) => p.sessionId === session.id);
 
     const accuracyText = progress
       ? `${(progress.accuracy * 100).toFixed(0)}%`
       : "Não iniciado";
+
+    // Texto que o TalkBack vai ler para o BLOCO INTEIRO
     const accuracyAccessibilityText = progress
       ? `${(progress.accuracy * 100).toFixed(0)}% de acerto`
       : "Não iniciado";
@@ -98,33 +92,41 @@ export default function LearningPathScreen() {
         style={[styles.card, isLocked && styles.cardLocked]}
         onPress={handlePress}
         activeOpacity={isLocked ? 1 : 0.7}
+        // --- BLINDAGEM DE BOX/DIV ---
         accessible={true}
+        focusable={true} // Força detecção via Tab/Teclado
         accessibilityLabel={accessibilityLabel}
+        accessibilityRole="button"
+        // -----------------------------
       >
-        {/* ✅ CORREÇÃO AQUI */}
-        <MaterialCommunityIcons
-          name={session.icon}
-          size={32}
-          // Corrigido de theme.text para theme.cardText
-          color={isLocked ? "#888" : theme.cardText}
-        />
-        <View style={styles.cardTextContainer}>
-          <Text style={[styles.cardTitle, isLocked && styles.textLocked]}>
-            {session.title}
-          </Text>
-          <Text style={[styles.cardProgress, isLocked && styles.textLocked]}>
-            {accuracyText}
-          </Text>
-        </View>
-        {isLocked && (
+        {/* ESCONDE OS FILHOS PARA NÃO PICOTAR A LEITURA */}
+        <View
+          style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden={true}
+        >
           <MaterialCommunityIcons
-            name="lock"
-            size={30}
-            color="#888"
-            style={styles.lockIcon}
-            accessibilityElementsHidden={true}
+            name={session.icon}
+            size={32}
+            color={isLocked ? "#888" : theme.cardText}
           />
-        )}
+          <View style={styles.cardTextContainer}>
+            <Text style={[styles.cardTitle, isLocked && styles.textLocked]}>
+              {session.title}
+            </Text>
+            <Text style={[styles.cardProgress, isLocked && styles.textLocked]}>
+              {accuracyText}
+            </Text>
+          </View>
+          {isLocked && (
+            <MaterialCommunityIcons
+              name="lock"
+              size={30}
+              color="#888"
+              style={styles.lockIcon}
+            />
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -135,9 +137,24 @@ export default function LearningPathScreen() {
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
-      <Text style={styles.headerTitle} accessibilityRole="header">
-        Jornada do Aprendiz
-      </Text>
+
+      {/* HEADER COMO BLOCO ÚNICO */}
+      <View
+        style={styles.headerContainer}
+        accessible={true}
+        focusable={true}
+        accessibilityRole="header"
+        accessibilityLabel="Título: Jornada do Aprendiz"
+      >
+        <Text
+          style={styles.headerTitle}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden={true}
+        >
+          Jornada do Aprendiz
+        </Text>
+      </View>
+
       <FlatList
         data={LEARNING_PATH_SESSIONS}
         renderItem={renderSessionCard}
@@ -163,12 +180,15 @@ const createStyles = (
 ) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
+    headerContainer: {
+      width: "100%",
+      alignItems: "center",
+      paddingVertical: 20,
+    },
     headerTitle: {
       fontSize: 28 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       color: theme.text,
-      padding: 20,
-      paddingTop: 40,
       textAlign: "center",
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
@@ -194,13 +214,6 @@ const createStyles = (
       color: theme.cardText,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-    cardDescription: {
-      fontSize: 13 * fontMultiplier,
-      color: theme.cardText,
-      opacity: 0.8,
-      marginTop: 2,
-      fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
     cardProgress: {
       fontSize: 12 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
@@ -210,9 +223,6 @@ const createStyles = (
     },
     textLocked: { color: "#888" },
     lockIcon: {
-      position: "absolute",
-      right: 20,
-      top: "50%",
-      transform: [{ translateY: -15 }],
+      marginLeft: 10,
     },
   });

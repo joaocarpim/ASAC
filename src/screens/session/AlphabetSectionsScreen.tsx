@@ -32,19 +32,17 @@ export default function AlphabetSectionsScreen() {
   );
   const navigation = useNavigation<NavigationProps>();
 
-  // Configuração do gesto de arrastar para voltar
   const panGesture = useMemo(
     () =>
       Platform.OS !== "web"
         ? Gesture.Pan()
-            .activeOffsetX([-20, 20]) // Reduz sensibilidade vertical
+            .activeOffsetX([-20, 20])
             .onEnd((event) => {
-              // Se arrastar mais de 60px para a direita, volta
               if (event.translationX > 60) {
                 navigation.goBack();
               }
             })
-        : Gesture.Pan(), // Gesto vazio para web
+        : Gesture.Pan(),
     [navigation]
   );
 
@@ -53,7 +51,10 @@ export default function AlphabetSectionsScreen() {
   }: {
     item: (typeof LEARNING_PATH_SESSIONS)[0];
   }) => {
-    const accessibilityLabel = `${session.title}. ${session.description}. Toque duas vezes para iniciar a aula.`;
+    // Label completa para o Box
+    const accessibilityLabel = `${session.title}. ${
+      session.description || ""
+    }. Toque duas vezes para iniciar a aula.`;
 
     const handlePress = () => {
       navigation.navigate("AlphabetLesson", {
@@ -67,21 +68,27 @@ export default function AlphabetSectionsScreen() {
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.7}
+        // --- BLINDAGEM DE BOX ---
         accessible={true}
+        focusable={true} // Garante que o TAB do teclado pare aqui
         accessibilityLabel={accessibilityLabel}
         accessibilityRole="button"
+        // ------------------------
       >
-        <MaterialCommunityIcons
-          name={session.icon}
-          size={32}
-          // ✅ CORREÇÃO: Usar cardText para garantir contraste dentro do card
-          color={theme.cardText}
-          importantForAccessibility="no"
-        />
-        <View style={styles.cardTextContainer}>
-          <Text style={styles.cardTitle}>{session.title}</Text>
-          {/* Opcional: Adicionar descrição visualmente se desejar */}
-          {/* <Text style={styles.cardDescription}>{session.description}</Text> */}
+        {/* Esconde conteúdo interno do leitor para não fragmentar */}
+        <View
+          style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden={true}
+        >
+          <MaterialCommunityIcons
+            name={session.icon}
+            size={32}
+            color={theme.cardText}
+          />
+          <View style={styles.cardTextContainer}>
+            <Text style={styles.cardTitle}>{session.title}</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -93,7 +100,6 @@ export default function AlphabetSectionsScreen() {
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
-      {/* Header com botão de voltar padrão */}
       <ScreenHeader
         title="Aprender o Alfabeto"
         onBackPress={() => navigation.goBack()}
@@ -108,7 +114,6 @@ export default function AlphabetSectionsScreen() {
     </View>
   );
 
-  // Aplica o gesto apenas se não for web
   if (Platform.OS !== "web") {
     return (
       <GestureDetector gesture={panGesture}>{renderContent()}</GestureDetector>
@@ -149,13 +154,6 @@ const createStyles = (
       fontSize: 17 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       color: theme.cardText,
-      fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
-    cardDescription: {
-      fontSize: 13 * fontMultiplier,
-      color: theme.cardText,
-      opacity: 0.8,
-      marginTop: 2,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
   });

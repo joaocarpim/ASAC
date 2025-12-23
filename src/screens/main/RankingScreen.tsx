@@ -1,6 +1,6 @@
-// src/screens/module/RankingScreen.tsx
+// src/screens/main/RankingScreen.tsx
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,16 +12,13 @@ import {
   ImageSourcePropType,
   ActivityIndicator,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
-import {
-  AccessibleView,
-  AccessibleButton,
-  AccessibleHeader,
-} from "../../components/AccessibleComponents";
+// Substituímos AccessibleButton por TouchableOpacity nativo para controle total das props de foco
 import { useSettings } from "../../hooks/useSettings";
 import {
   Gesture,
@@ -30,6 +27,7 @@ import {
 } from "react-native-gesture-handler";
 import { getAllUsers } from "../../services/progressService";
 
+// --- Tipos e Helpers ---
 type RankingItemData = {
   id: string;
   name: string;
@@ -41,21 +39,19 @@ type RankingItemData = {
   streak?: number;
 };
 
-// ✅ FUNÇÃO PARA DEFINIR COR DO TEXTO BASEADO NO TEMA
 const getDynamicTextColor = (mode: string) => {
   switch (mode) {
     case "sepia":
-      return "#3E2723"; // Marrom
+      return "#3E2723";
     case "grayscale":
-      return "#2D2D2D"; // Cinza Escuro
+      return "#2D2D2D";
     case "white_black":
-      return "#000000"; // Preto
+      return "#000000";
     default:
-      return "#FFFFFF"; // Branco (Padrão para Azul, Dark, etc)
+      return "#FFFFFF";
   }
 };
 
-// ✅ FUNÇÃO PARA DEFINIR COR DA BORDA/ELEMENTOS
 const getDynamicBorderColor = (mode: string) => {
   switch (mode) {
     case "sepia":
@@ -64,9 +60,11 @@ const getDynamicBorderColor = (mode: string) => {
     case "white_black":
       return "#000000";
     default:
-      return "#FFFFFF40"; // Translúcido Branco
+      return "#FFFFFF40";
   }
 };
+
+// --- COMPONENTES INTERNOS (Refatorados para Boxes) ---
 
 const PodiumItem = ({
   data,
@@ -85,14 +83,27 @@ const PodiumItem = ({
   const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
   const height = podiumHeights[rank as keyof typeof podiumHeights];
 
-  const accessibilityText = `${rank}º lugar: ${data.name}, Nível ${
-    data.level
-  }. ${data.points.toLocaleString("pt-BR")} pontos.`;
+  // Texto completo para o leitor de tela
+  const label = `${rank}º lugar: ${data.name}. Nível ${data.level || 0}. ${
+    data.points
+  } pontos.`;
 
   return (
-    <AccessibleView accessibilityText={accessibilityText}>
-      <View style={[styles.podiumItem, { height, borderColor }]}>
-        <Text selectable={false} style={styles.podiumMedal}>
+    <View
+      style={[styles.podiumItem, { height, borderColor }]}
+      // --- ACESSIBILIDADE BOX ---
+      accessible={true}
+      focusable={true} // Permite TAB no Android
+      importantForAccessibility="yes"
+      accessibilityRole="text" // Trata como um bloco de texto informativo
+      accessibilityLabel={label}
+    >
+      {/* Esconde os filhos para leitura única */}
+      <View
+        importantForAccessibility="no-hide-descendants"
+        style={{ alignItems: "center", width: "100%" }}
+      >
+        <Text style={styles.podiumMedal}>
           {medals[rank as keyof typeof medals]}
         </Text>
 
@@ -101,12 +112,10 @@ const PodiumItem = ({
           style={[styles.podiumAvatar, { borderColor: textColor }]}
         />
 
-        {/* Sessão de Nível */}
         {data.level && (
           <View
             style={[styles.podiumLevelBadge, { backgroundColor: textColor }]}
           >
-            {/* Texto do nível inverte a cor (cor do card) */}
             <Text
               style={[
                 styles.podiumLevelText,
@@ -118,10 +127,7 @@ const PodiumItem = ({
           </View>
         )}
 
-        <Text
-          selectable={false}
-          style={[styles.podiumName, { color: textColor }]}
-        >
+        <Text style={[styles.podiumName, { color: textColor }]}>
           {data.name}
         </Text>
 
@@ -131,10 +137,7 @@ const PodiumItem = ({
             color="#FFD700"
             size={12}
           />
-          <Text
-            selectable={false}
-            style={[styles.podiumStatsText, { color: textColor }]}
-          >
+          <Text style={[styles.podiumStatsText, { color: textColor }]}>
             {data.points.toLocaleString("pt-BR")}
           </Text>
         </View>
@@ -142,15 +145,10 @@ const PodiumItem = ({
         <View
           style={[styles.podiumBase, { backgroundColor: textColor + "20" }]}
         >
-          <Text
-            selectable={false}
-            style={[styles.podiumRank, { color: textColor }]}
-          >
-            {rank}º
-          </Text>
+          <Text style={[styles.podiumRank, { color: textColor }]}>{rank}º</Text>
         </View>
       </View>
-    </AccessibleView>
+    </View>
   );
 };
 
@@ -167,33 +165,34 @@ const RankingListItem = ({
   textColor: string;
   borderColor: string;
 }) => {
-  const accessibilityText = `Posição ${rank}º: ${data.name}. Status: ${
-    data.coins
-  } moedas, ${data.points.toLocaleString("pt-BR")} pontos, ${
-    data.modules
-  } módulos concluídos${data.level ? `, nível ${data.level}` : ""}${
-    data.streak ? `, sequência de ${data.streak} dias` : ""
-  }.`;
+  const label = `Posição ${rank}: ${data.name}. ${data.points} pontos, ${data.coins} moedas.`;
 
   return (
-    <AccessibleView accessibilityText={accessibilityText}>
-      <View style={[styles.listItem, { borderColor }]}>
+    <View
+      style={[styles.listItem, { borderColor }]}
+      // --- ACESSIBILIDADE BOX ---
+      accessible={true}
+      focusable={true} // Permite TAB no Android
+      importantForAccessibility="yes"
+      accessibilityRole="button" // Indica que é um item interativo (se fosse clicável) ou item de lista
+      accessibilityLabel={label}
+    >
+      <View
+        style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}
+        importantForAccessibility="no-hide-descendants"
+      >
         <View style={[styles.rankBadge, { backgroundColor: textColor + "15" }]}>
-          <Text
-            selectable={false}
-            style={[styles.rankNumber, { color: textColor }]}
-          >
-            {rank}
-          </Text>
+          <Text style={[styles.rankNumber, { color: textColor }]}>{rank}</Text>
         </View>
+
         <Image
           source={data.avatar}
           style={[styles.avatar, { borderColor: textColor }]}
         />
+
         <View style={styles.playerInfo}>
           <View style={styles.playerHeader}>
             <Text
-              selectable={false}
               style={[styles.playerName, { color: textColor }]}
               numberOfLines={1}
             >
@@ -202,7 +201,6 @@ const RankingListItem = ({
             {data.level && (
               <View style={[styles.levelBadge, { backgroundColor: textColor }]}>
                 <Text
-                  selectable={false}
                   style={[
                     styles.levelText,
                     { color: styles.listItem.backgroundColor },
@@ -213,6 +211,7 @@ const RankingListItem = ({
               </View>
             )}
           </View>
+
           <View style={styles.playerStats}>
             <View style={styles.statItem}>
               <MaterialCommunityIcons
@@ -220,10 +219,7 @@ const RankingListItem = ({
                 color="#FFD700"
                 size={14}
               />
-              <Text
-                selectable={false}
-                style={[styles.statText, { color: textColor }]}
-              >
+              <Text style={[styles.statText, { color: textColor }]}>
                 {data.points.toLocaleString("pt-BR")}
               </Text>
             </View>
@@ -233,48 +229,22 @@ const RankingListItem = ({
                 color={textColor}
                 size={14}
               />
-              <Text
-                selectable={false}
-                style={[styles.statText, { color: textColor }]}
-              >
+              <Text style={[styles.statText, { color: textColor }]}>
                 {data.coins}
               </Text>
             </View>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons
-                name="book-open-variant"
-                color={textColor}
-                size={14}
-              />
-              <Text
-                selectable={false}
-                style={[styles.statText, { color: textColor }]}
-              >
-                {data.modules}
-              </Text>
-            </View>
-
-            {(data.streak || 0) > 0 && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons name="fire" color="#FF6B35" size={14} />
-                <Text
-                  selectable={false}
-                  style={[styles.statText, { color: textColor }]}
-                >
-                  {data.streak}
-                </Text>
-              </View>
-            )}
           </View>
         </View>
       </View>
-    </AccessibleView>
+    </View>
   );
 };
 
+// --- TELA PRINCIPAL ---
+
 export default function RankingScreen() {
   const navigation = useNavigation();
-  const { theme, contrastMode } = useContrast(); // ✅ Pegamos o modo aqui
+  const { theme, contrastMode } = useContrast();
   const {
     fontSizeMultiplier,
     isBoldTextEnabled,
@@ -283,7 +253,6 @@ export default function RankingScreen() {
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  // ✅ Calculamos as cores dinâmicas
   const dynamicTextColor = getDynamicTextColor(contrastMode);
   const dynamicBorderColor = getDynamicBorderColor(contrastMode);
 
@@ -303,8 +272,6 @@ export default function RankingScreen() {
     setLoading(true);
     try {
       const users = await getAllUsers();
-
-      // ✅ FILTRO ADICIONADO: Remove Renata do ranking
       const filteredUsers = (users || []).filter(
         (u: any) => u.email !== "docente.asac@gmail.com"
       );
@@ -319,9 +286,7 @@ export default function RankingScreen() {
           const modulesCompleted = Array.isArray(user.modulesCompleted)
             ? user.modulesCompleted.filter(Boolean).length
             : 0;
-
           const level = Math.floor((Number(user.points) || 0) / 1000) + 1;
-
           return {
             id: user.id,
             name: user.name || "Usuário",
@@ -350,17 +315,13 @@ export default function RankingScreen() {
     }, [fetchRanking])
   );
 
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+  const handleGoBack = () => navigation.goBack();
 
   const flingRight =
     Platform.OS !== "web"
       ? Gesture.Fling()
           .direction(Directions.RIGHT)
-          .onEnd(() => {
-            navigation.navigate("Home" as never);
-          })
+          .onEnd(() => navigation.navigate("Home" as never))
       : undefined;
 
   const renderContent = () => (
@@ -369,80 +330,171 @@ export default function RankingScreen() {
         barStyle={theme.statusBarStyle}
         backgroundColor={theme.background}
       />
+
+      {/* HEADER - BLOCO 1 E 2 */}
       <View style={styles.header}>
-        <AccessibleButton
+        <TouchableOpacity
           onPress={handleGoBack}
-          accessibilityText="Voltar para a tela anterior"
+          // ACESSIBILIDADE
+          accessible={true}
+          focusable={true}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          accessibilityHint="Retorna para a tela anterior"
+          style={{ padding: 10, margin: -10 }} // Aumenta área de toque
         >
           <MaterialCommunityIcons
             name="arrow-left"
             size={28}
             color={theme.text}
           />
-        </AccessibleButton>
-        <AccessibleHeader level={1} style={styles.headerTitle}>
-          Classificação Geral
-        </AccessibleHeader>
-        <View style={styles.headerIconPlaceholder} />
+        </TouchableOpacity>
+
+        <View
+          // ACESSIBILIDADE TÍTULO
+          accessible={true}
+          focusable={true}
+          importantForAccessibility="yes"
+          accessibilityRole="header"
+          accessibilityLabel="Título: Classificação Geral"
+        >
+          <Text style={styles.headerTitle} importantForAccessibility="no">
+            Classificação Geral
+          </Text>
+        </View>
+
+        <View
+          style={styles.headerIconPlaceholder}
+          importantForAccessibility="no"
+        />
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <View
+          style={styles.loadingContainer}
+          accessible={true}
+          focusable={true}
+          accessibilityLabel="Carregando classificação, aguarde."
+        >
           <ActivityIndicator size="large" color={theme.text} />
-          <Text style={styles.loadingText}>Carregando ranking...</Text>
+          <Text style={styles.loadingText}>Carregando...</Text>
         </View>
       ) : rankingData.length > 0 ? (
         <>
+          {/* BOX 3: ESTATÍSTICAS DO TOPO */}
           <View style={styles.statsCard}>
             <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <MaterialCommunityIcons
-                  name="account-group"
-                  size={24}
-                  color="#7C3AED"
-                />
-                <Text style={[styles.statValue, { color: dynamicTextColor }]}>
-                  {rankingData.length}
-                </Text>
-                <Text style={[styles.statLabel, { color: dynamicTextColor }]}>
-                  Jogadores
-                </Text>
+              {/* ITEM: JOGADORES */}
+              <View
+                style={styles.statBox}
+                accessible={true}
+                focusable={true}
+                importantForAccessibility="yes"
+                accessibilityRole="text"
+                accessibilityLabel={`Total de jogadores: ${rankingData.length}`}
+              >
+                <View
+                  importantForAccessibility="no-hide-descendants"
+                  style={{ alignItems: "center" }}
+                >
+                  <MaterialCommunityIcons
+                    name="account-group"
+                    size={24}
+                    color="#7C3AED"
+                  />
+                  <Text style={[styles.statValue, { color: dynamicTextColor }]}>
+                    {rankingData.length}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: dynamicTextColor }]}>
+                    Jogadores
+                  </Text>
+                </View>
               </View>
-              <View style={styles.statBox}>
-                <MaterialCommunityIcons
-                  name="trophy"
-                  size={24}
-                  color="#FFD700"
-                />
-                <Text style={[styles.statValue, { color: dynamicTextColor }]}>
-                  {rankingData[0]?.points.toLocaleString("pt-BR") || "0"}
-                </Text>
-                <Text style={[styles.statLabel, { color: dynamicTextColor }]}>
-                  Recorde
-                </Text>
+
+              {/* ITEM: RECORDE */}
+              <View
+                style={styles.statBox}
+                accessible={true}
+                focusable={true}
+                importantForAccessibility="yes"
+                accessibilityRole="text"
+                accessibilityLabel={`Recorde atual: ${
+                  rankingData[0]?.points || 0
+                } pontos`}
+              >
+                <View
+                  importantForAccessibility="no-hide-descendants"
+                  style={{ alignItems: "center" }}
+                >
+                  <MaterialCommunityIcons
+                    name="trophy"
+                    size={24}
+                    color="#FFD700"
+                  />
+                  <Text style={[styles.statValue, { color: dynamicTextColor }]}>
+                    {rankingData[0]?.points.toLocaleString("pt-BR") || "0"}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: dynamicTextColor }]}>
+                    Recorde
+                  </Text>
+                </View>
               </View>
-              <View style={styles.statBox}>
-                <MaterialCommunityIcons
-                  name="chart-line"
-                  size={24}
-                  color="#4CAF50"
-                />
-                <Text style={[styles.statValue, { color: dynamicTextColor }]}>
-                  {Math.round(
-                    rankingData.reduce((sum, u) => sum + u.points, 0) /
-                      rankingData.length
-                  ).toLocaleString("pt-BR")}
-                </Text>
-                <Text style={[styles.statLabel, { color: dynamicTextColor }]}>
-                  Média
-                </Text>
+
+              {/* ITEM: MÉDIA */}
+              <View
+                style={styles.statBox}
+                accessible={true}
+                focusable={true}
+                importantForAccessibility="yes"
+                accessibilityRole="text"
+                accessibilityLabel={`Média da turma: ${Math.round(
+                  rankingData.reduce((sum, u) => sum + u.points, 0) /
+                    rankingData.length
+                )} pontos`}
+              >
+                <View
+                  importantForAccessibility="no-hide-descendants"
+                  style={{ alignItems: "center" }}
+                >
+                  <MaterialCommunityIcons
+                    name="chart-line"
+                    size={24}
+                    color="#4CAF50"
+                  />
+                  <Text style={[styles.statValue, { color: dynamicTextColor }]}>
+                    {Math.round(
+                      rankingData.reduce((sum, u) => sum + u.points, 0) /
+                        rankingData.length
+                    ).toLocaleString("pt-BR")}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: dynamicTextColor }]}>
+                    Média
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
 
+          {/* BOX 4: TÍTULO TOP 3 */}
           {rankingData.length >= 3 && (
             <View style={styles.podiumSection}>
-              <Text style={styles.sectionTitle}>🏆 Top 3</Text>
+              <View
+                accessible={true}
+                focusable={true}
+                importantForAccessibility="yes"
+                accessibilityRole="header"
+                accessibilityLabel="Seção: Top 3 Jogadores"
+                style={{ marginBottom: 8 }}
+              >
+                <Text
+                  style={styles.sectionTitle}
+                  importantForAccessibility="no"
+                >
+                  🏆 Top 3
+                </Text>
+              </View>
+
+              {/* BOX 5, 6, 7: PODIUM ITEMS */}
               <View style={styles.podiumContainer}>
                 <View style={styles.podiumWrapper}>
                   {rankingData[1] && (
@@ -455,6 +507,7 @@ export default function RankingScreen() {
                     />
                   )}
                 </View>
+
                 <View style={styles.podiumWrapper}>
                   {rankingData[0] && (
                     <PodiumItem
@@ -466,6 +519,7 @@ export default function RankingScreen() {
                     />
                   )}
                 </View>
+
                 <View style={styles.podiumWrapper}>
                   {rankingData[2] && (
                     <PodiumItem
@@ -481,12 +535,28 @@ export default function RankingScreen() {
             </View>
           )}
 
+          {/* BOX 8: TÍTULO LISTA COMPLETA */}
           <View style={styles.listSection}>
-            <Text style={styles.sectionTitle}>📊 Classificação Completa</Text>
+            <View
+              accessible={true}
+              focusable={true}
+              importantForAccessibility="yes"
+              accessibilityRole="header"
+              accessibilityLabel="Seção: Classificação Completa"
+              style={{ marginBottom: 8 }}
+            >
+              <Text style={styles.sectionTitle} importantForAccessibility="no">
+                📊 Classificação Completa
+              </Text>
+            </View>
+
+            {/* BOX 9+: ITENS DA LISTA */}
             <ScrollView
               style={styles.carouselContainer}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.carouselContent}
+              // O container do Scroll não deve roubar foco, apenas os itens
+              importantForAccessibility="no"
             >
               {rankingData.map((item, index) => (
                 <View key={item.id} style={styles.carouselItem}>
@@ -503,7 +573,13 @@ export default function RankingScreen() {
           </View>
         </>
       ) : (
-        <View style={styles.emptyContainer}>
+        <View
+          style={styles.emptyContainer}
+          accessible={true}
+          focusable={true}
+          importantForAccessibility="yes"
+          accessibilityLabel="Lista vazia. Nenhum usuário no ranking ainda."
+        >
           <MaterialCommunityIcons
             name="account-group"
             size={60}
@@ -523,7 +599,6 @@ export default function RankingScreen() {
       </GestureDetector>
     );
   }
-
   return renderContent();
 }
 
@@ -572,16 +647,15 @@ const createStyles = (
     statBox: {
       alignItems: "center",
       flex: 1,
+      paddingVertical: 4,
     },
     statValue: {
-      // Cor dinâmica aplicada via style inline
       fontSize: 18 * fontMultiplier,
       fontWeight: "bold",
       marginTop: 6,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     statLabel: {
-      // Cor dinâmica aplicada via style inline
       fontSize: 11 * fontMultiplier,
       opacity: 0.7,
       marginTop: 2,
@@ -595,7 +669,6 @@ const createStyles = (
       color: theme.text,
       fontSize: 16 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
-      marginBottom: 8,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     podiumContainer: {
@@ -617,7 +690,6 @@ const createStyles = (
       justifyContent: "flex-end",
       width: "100%",
       borderWidth: 2,
-      // Border color dinâmica via style inline
     },
     podiumAvatar: {
       width: 45,
@@ -625,27 +697,23 @@ const createStyles = (
       borderRadius: 25,
       marginBottom: 4,
       borderWidth: 3,
-      // Border color dinâmica via style inline
     },
     podiumMedal: {
       fontSize: 22,
       marginBottom: 2,
     },
     podiumLevelBadge: {
-      // Bg color dinâmica via style inline
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 8,
       marginBottom: 4,
     },
     podiumLevelText: {
-      // Color dinâmica via style inline
       fontSize: 9 * fontMultiplier,
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     podiumName: {
-      // Color dinâmica via style inline
       fontSize: 12 * fontMultiplier,
       fontWeight: "bold",
       textAlign: "center",
@@ -660,20 +728,17 @@ const createStyles = (
       marginBottom: 6,
     },
     podiumStatsText: {
-      // Color dinâmica via style inline
       fontSize: 10 * fontMultiplier,
       fontWeight: "600",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     podiumBase: {
-      // Bg color dinâmica via style inline
       borderRadius: 8,
       paddingVertical: 4,
       paddingHorizontal: 12,
       marginTop: 2,
     },
     podiumRank: {
-      // Color dinâmica via style inline
       fontSize: 13 * fontMultiplier,
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -699,10 +764,8 @@ const createStyles = (
       alignItems: "center",
       gap: 12,
       borderWidth: 1,
-      // Border color dinâmica via style inline
     },
     rankBadge: {
-      // Bg color dinâmica via style inline
       width: 36,
       height: 36,
       borderRadius: 18,
@@ -710,7 +773,6 @@ const createStyles = (
       alignItems: "center",
     },
     rankNumber: {
-      // Color dinâmica via style inline
       fontSize: 16 * fontMultiplier,
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -720,7 +782,6 @@ const createStyles = (
       height: 48,
       borderRadius: 24,
       borderWidth: 2,
-      // Border color dinâmica via style inline
     },
     playerInfo: {
       flex: 1,
@@ -732,7 +793,6 @@ const createStyles = (
       marginBottom: 6,
     },
     playerName: {
-      // Color dinâmica via style inline
       fontSize: 15 * fontMultiplier,
       fontWeight: isBold ? "bold" : "700",
       flex: 1,
@@ -741,13 +801,11 @@ const createStyles = (
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
     },
     levelBadge: {
-      // Bg color dinâmica via style inline
       paddingHorizontal: 8,
       paddingVertical: 2,
       borderRadius: 10,
     },
     levelText: {
-      // Color dinâmica via style inline
       fontSize: 10 * fontMultiplier,
       fontWeight: "bold",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
@@ -763,12 +821,7 @@ const createStyles = (
       alignItems: "center",
       gap: 4,
     },
-    statIcon: {
-      // Color dinâmica via style inline
-      opacity: 0.7,
-    },
     statText: {
-      // Color dinâmica via style inline
       fontSize: 12 * fontMultiplier,
       fontWeight: isBold ? "bold" : "600",
       lineHeight: 12 * fontMultiplier * lineHeight,

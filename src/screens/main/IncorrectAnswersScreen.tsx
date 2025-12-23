@@ -1,4 +1,5 @@
-// src/screens/main/IncorrectAnswersScreen.tsx - OTIMIZADO
+// src/screens/main/IncorrectAnswersScreen.tsx
+
 import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
@@ -51,7 +52,7 @@ function isColorDark(color: ColorValue | undefined): boolean {
   return luminance < 149;
 }
 
-// ✅ OTIMIZAÇÃO 1: Card sem animações pesadas
+// ✅ OTIMIZAÇÃO: Card Unificado para Acessibilidade
 const IncorrectAnswerCard = React.memo<{
   item: IncorrectAnswer;
   styles: ReturnType<typeof createStyles>;
@@ -59,8 +60,34 @@ const IncorrectAnswerCard = React.memo<{
 }>(({ item, styles, theme }) => {
   const questionNum = item.questionNumber.toString().split("-").pop() || "?";
 
+  // 1. Montamos o texto completo que o leitor deve falar de uma vez só
+  const accessibilityFullText = `
+    Questão ${questionNum}. 
+    ${item.questionText}. 
+    Sua resposta incorreta foi: ${item.userAnswer}. 
+    A resposta correta seria: ${item.correctAnswer}.
+  `
+    .replace(/\s+/g, " ")
+    .trim(); // Remove espaços extras e quebras de linha
+
   return (
-    <View style={styles.card}>
+    <View
+      style={styles.card}
+      // 2. Define que este componente inteiro é UM único elemento focável
+      accessible={true}
+      // 3. Permite navegação via Teclado/Tab (Android/Web)
+      focusable={true}
+      // 4. Define o texto exato que será lido
+      accessibilityLabel={accessibilityFullText}
+      // 5. Dica opcional para o usuário saber que é um item de lista
+      accessibilityHint="Toque duas vezes para ouvir detalhes se necessário"
+    >
+      {/* NOTA: Como o pai tem accessible={true} e accessibilityLabel definido,
+         o React Native automaticamente ignora os elementos de texto internos 
+         para fins de leitura, focando apenas no container pai.
+         Não precisamos colocar accessible={false} nos filhos, o comportamento é padrão.
+      */}
+
       <View style={styles.cardHeader}>
         <View style={styles.questionNumberBadge}>
           <Text style={styles.questionNumber}>{questionNum}</Text>
@@ -140,7 +167,6 @@ export default function IncorrectAnswersScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  // ✅ OTIMIZAÇÃO 2: Memoizar estilos
   const styles = useMemo(
     () =>
       createStyles(
@@ -183,7 +209,6 @@ export default function IncorrectAnswersScreen({
           Array.isArray(progress.errorDetails) ? progress.errorDetails : []
         ) as any[];
 
-        // ✅ OTIMIZAÇÃO 3: Processar erros de forma mais eficiente
         const aggregatedErrors = errors.map((err: any, idx: number) => ({
           id: `${progress.id}-${idx}`,
           moduleNumber: moduleNumber,
@@ -225,9 +250,6 @@ export default function IncorrectAnswersScreen({
     }, [fetchIncorrectAnswers])
   );
 
-  const handleGoBack = () => navigation.goBack();
-
-  // ✅ OTIMIZAÇÃO 4: Renderizar card com useCallback
   const renderCard = useCallback(
     ({ item }: { item: IncorrectAnswer }) => (
       <IncorrectAnswerCard item={item} styles={styles} theme={theme} />
@@ -235,10 +257,24 @@ export default function IncorrectAnswersScreen({
     [styles, theme]
   );
 
-  // ✅ OTIMIZAÇÃO 5: Header memoizado
   const ListHeaderComponent = useMemo(
     () => (
-      <View style={styles.statsCard}>
+      <View
+        style={styles.statsCard}
+        accessible={true}
+        focusable={true}
+        accessibilityRole="header"
+        // Leitura unificada do cabeçalho também
+        accessibilityLabel={`Resumo: ${incorrectAnswers.length} ${
+          incorrectAnswers.length === 1
+            ? "Erro encontrado"
+            : "Erros encontrados"
+        }. ${
+          incorrectAnswers.length === 0
+            ? "Parabéns, você acertou tudo."
+            : "Revise os detalhes abaixo."
+        }`}
+      >
         <View style={styles.statsIconContainer}>
           {incorrectAnswers.length === 0 ? (
             <MaterialCommunityIcons
@@ -270,7 +306,12 @@ export default function IncorrectAnswersScreen({
 
   const ListEmptyComponent = useMemo(
     () => (
-      <View style={styles.emptyContainer}>
+      <View
+        style={styles.emptyContainer}
+        accessible={true}
+        focusable={true}
+        accessibilityLabel="Lista vazia. Excelente trabalho! Continue assim."
+      >
         <MaterialCommunityIcons name="trophy" size={80} color="#FFD700" />
         <Text style={styles.emptyText}>Excelente trabalho!</Text>
         <Text style={styles.emptySubtext}>
@@ -289,7 +330,12 @@ export default function IncorrectAnswersScreen({
           backgroundColor={theme.background}
         />
         <ScreenHeader title={`Módulo ${moduleNumber} - Erros`} />
-        <View style={styles.loadingContainer}>
+        <View
+          style={styles.loadingContainer}
+          accessible={true}
+          focusable={true}
+          accessibilityLabel="Carregando informações, por favor aguarde."
+        >
           <ActivityIndicator size="large" color={theme.text} />
           <Text style={{ color: theme.text, marginTop: 10 }}>
             Carregando...
@@ -311,7 +357,6 @@ export default function IncorrectAnswersScreen({
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={ListEmptyComponent}
         contentContainerStyle={styles.scrollContainer}
-        // ✅ OTIMIZAÇÃO 6: Props de performance
         removeClippedSubviews={Platform.OS === "android"}
         maxToRenderPerBatch={3}
         updateCellsBatchingPeriod={50}

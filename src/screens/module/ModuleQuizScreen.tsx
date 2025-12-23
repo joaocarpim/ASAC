@@ -1,5 +1,13 @@
-// src/screens/module/ModuleQuizScreen.tsx - OTIMIZADO
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+// src/screens/module/ModuleQuizScreen.tsx
+// ✅ VERSÃO COM TALKBACK/TAB NAVIGATION OTIMIZADO
+
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -13,36 +21,31 @@ import {
   Platform,
   SafeAreaView,
   TouchableOpacity,
+  AccessibilityInfo,
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
+import { Audio } from "expo-av";
+
 import { RootStackScreenProps } from "../../navigation/types";
 import { useAuthStore } from "../../store/authStore";
 import { useProgressStore } from "../../store/progressStore";
 import progressService, { ErrorDetail } from "../../services/progressService";
 import { useContrast } from "../../hooks/useContrast";
 import { Theme } from "../../types/contrast";
-import {
-  AccessibleButton,
-  AccessibleHeader,
-} from "../../components/AccessibleComponents";
 import { useAccessibility } from "../../context/AccessibilityProvider";
 import {
   getQuizByModuleId,
   QuizQuestion,
 } from "../../navigation/moduleQuestionTypes";
 import { useSettings } from "../../hooks/useSettings";
-import { Audio } from "expo-av";
 import { ExplanationSubject } from "../../services/ExplanationSubject";
 import { ExplanationObserver } from "../../observers/ExplanationObserver";
 
-const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
-const wp = (percentage: number) => (WINDOW_WIDTH * percentage) / 100;
-const hp = (percentage: number) => (WINDOW_HEIGHT * percentage) / 100;
-const normalize = (size: number) => {
-  const scale = WINDOW_WIDTH / 375;
-  return Math.round(size * scale);
-};
+const wp = (p: number) => (width * p) / 100;
+const hp = (p: number) => (height * p) / 100;
+const normalize = (s: number) => Math.round(s * (width / 375));
 
 const playSound = async (sound: Audio.Sound | null) => {
   if (!sound) return;
@@ -52,11 +55,18 @@ const playSound = async (sound: Audio.Sound | null) => {
   } catch {}
 };
 
+const focusForAccessibility = (ref: React.RefObject<any>) => {
+  if (Platform.OS === "web") return;
+  if (!ref.current) return;
+  AccessibilityInfo.setAccessibilityFocus(ref.current);
+};
+
 export default function ModuleQuizScreen({
   route,
   navigation,
 }: RootStackScreenProps<"ModuleQuiz">) {
   const { moduleId } = route.params;
+
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -68,8 +78,17 @@ export default function ModuleQuizScreen({
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const correctCountRef = useRef(0);
+  const wrongCountRef = useRef(0);
+  const errorDetailsRef = useRef<ErrorDetail[]>([]);
+
   const [correctSound, setCorrectSound] = useState<Audio.Sound | null>(null);
   const [wrongSound, setWrongSound] = useState<Audio.Sound | null>(null);
+  const [notificationSound, setNotificationSound] =
+    useState<Audio.Sound | null>(null);
+
+  const questionRef = useRef<View>(null);
+  const buttonRef = useRef<View>(null);
 
   const { user } = useAuthStore();
   const { activeProgressId, setActive, stopTimer } = useProgressStore();
@@ -83,7 +102,6 @@ export default function ModuleQuizScreen({
     isDyslexiaFontEnabled,
   } = useSettings();
 
-  // ✅ OTIMIZAÇÃO 1: Memoizar estilos
   const styles = useMemo(
     () =>
       getStyles(
@@ -104,25 +122,24 @@ export default function ModuleQuizScreen({
     ]
   );
 
-  // ✅ OTIMIZAÇÃO 2: Carregar sons de forma assíncrona
   useEffect(() => {
-    const loadSounds = async () => {
-      try {
-        const [correctRes, wrongRes] = await Promise.all([
-          Audio.Sound.createAsync(require("../../../assets/som/correct.mp3")),
-          Audio.Sound.createAsync(require("../../../assets/som/incorrect.mp3")),
-        ]);
-        setCorrectSound(correctRes.sound);
-        setWrongSound(wrongRes.sound);
-      } catch (err) {
-        console.warn("Erro ao carregar sons:", err);
-      }
+    const load = async () => {
+      const [c, w, n] = await Promise.all([
+        Audio.Sound.createAsync(require("../../../assets/som/correct.mp3")),
+        Audio.Sound.createAsync(require("../../../assets/som/incorrect.mp3")),
+        Audio.Sound.createAsync(
+          require("../../../assets/som/notification.mp3")
+        ),
+      ]);
+      setCorrectSound(c.sound);
+      setWrongSound(w.sound);
+      setNotificationSound(n.sound);
     };
-    loadSounds();
-
+    load();
     return () => {
       correctSound?.unloadAsync();
       wrongSound?.unloadAsync();
+      notificationSound?.unloadAsync();
     };
   }, []);
 
@@ -130,11 +147,18 @@ export default function ModuleQuizScreen({
     const init = async () => {
       setIsLoading(true);
 
-      const moduleObj = getQuizByModuleId(parseInt(String(moduleId), 10));
+      const moduleObj = getQuizByModuleId(Number(moduleId));
       if (!moduleObj) {
         Alert.alert("Erro", "Quiz não encontrado.");
         return navigation.goBack();
       }
+
+      correctCountRef.current = 0;
+      wrongCountRef.current = 0;
+      errorDetailsRef.current = [];
+      setCorrectCount(0);
+      setWrongCount(0);
+      setErrorDetails([]);
 
       setQuestions(moduleObj.questions);
 
@@ -151,77 +175,44 @@ export default function ModuleQuizScreen({
     };
 
     init();
-  }, [moduleId, user?.userId, navigation, setActive]);
+  }, [moduleId, user?.userId]);
 
+  // ✅ MELHORADO: Foco e anúncio para TalkBack
   useEffect(() => {
-    if (!isLoading && speakText && questions[currentQuestionIndex]) {
-      speakText(
-        `Pergunta ${currentQuestionIndex + 1}: ${
-          questions[currentQuestionIndex].question
+    if (!isLoading && questions[currentQuestionIndex]) {
+      // Aguarda um pouco mais para garantir renderização
+      setTimeout(() => {
+        focusForAccessibility(questionRef);
+
+        // Anúncio explícito para TalkBack
+        const announcement = `Pergunta ${currentQuestionIndex + 1} de ${
+          questions.length
+        }. ${questions[currentQuestionIndex].question}`;
+
+        if (Platform.OS === "android") {
+          AccessibilityInfo.announceForAccessibility(announcement);
+        }
+
+        speakText?.(announcement);
+      }, 500);
+    }
+  }, [currentQuestionIndex, questions, isLoading]);
+
+  const handleSelect = (idx: number) => {
+    if (isAnswerChecked) return;
+    setSelectedAnswer(idx);
+
+    // ✅ Anúncio para TalkBack ao selecionar
+    if (Platform.OS === "android") {
+      AccessibilityInfo.announceForAccessibility(
+        `Alternativa ${idx + 1} selecionada: ${
+          questions[currentQuestionIndex].options[idx]
         }`
       );
     }
-  }, [currentQuestionIndex, questions, isLoading, speakText]);
 
-  const handleSelect = useCallback(
-    (index: number) => {
-      if (!isAnswerChecked) setSelectedAnswer(index);
-    },
-    [isAnswerChecked]
-  );
-
-  const handleConfirm = useCallback(() => {
-    if (selectedAnswer === null) return;
-
-    const q = questions[currentQuestionIndex];
-    setIsAnswerChecked(true);
-    setIsNextButtonLocked(true);
-
-    const isCorrect = selectedAnswer === q.correctAnswer;
-
-    if (isCorrect) {
-      playSound(correctSound);
-      Vibration.vibrate(70);
-      setCorrectCount((p) => p + 1);
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 1200);
-    } else {
-      playSound(wrongSound);
-      Vibration.vibrate([0, 80, 50, 80]);
-      setWrongCount((p) => p + 1);
-      setErrorDetails((prev) => [
-        ...prev,
-        {
-          questionId: q.id,
-          questionText: q.question,
-          userAnswer: q.options[selectedAnswer],
-          expectedAnswer: q.options[q.correctAnswer],
-        },
-      ]);
-    }
-
-    setTimeout(() => {
-      const title = isCorrect ? "Correto! 🎉" : "Atenção! 🧐";
-      const message =
-        q.explanation || (isCorrect ? "Você acertou!" : "Resposta incorreta.");
-      const type = isCorrect ? "success" : "info";
-
-      ExplanationSubject.notify({
-        title,
-        message,
-        type,
-        onDismiss: () => {
-          setIsNextButtonLocked(false);
-        },
-      });
-    }, 500);
-  }, [
-    selectedAnswer,
-    currentQuestionIndex,
-    questions,
-    correctSound,
-    wrongSound,
-  ]);
+    setTimeout(() => focusForAccessibility(buttonRef), 200);
+  };
 
   const handleNext = useCallback(() => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -233,146 +224,239 @@ export default function ModuleQuizScreen({
     }
 
     const timeSpent = stopTimer ? stopTimer() : 0;
-    const accuracy = Math.round((correctCount / questions.length) * 100);
-    const moduleObj = getQuizByModuleId(parseInt(String(moduleId), 10));
-    const coinsEarned = correctCount * (moduleObj?.coinsPerCorrect ?? 0);
+    const totalCorrect = correctCountRef.current;
+    const totalWrong = wrongCountRef.current;
+
+    const accuracy = Math.round((totalCorrect / questions.length) * 100);
+
+    const moduleObj = getQuizByModuleId(Number(moduleId));
+    const coinsEarned = totalCorrect * (moduleObj?.coinsPerCorrect ?? 0);
 
     navigation.replace("ModuleResult", {
       moduleId,
-      correctAnswers: correctCount,
-      wrongAnswers: wrongCount,
+      correctAnswers: totalCorrect,
+      wrongAnswers: totalWrong,
       totalQuestions: questions.length,
       accuracy,
       timeSpent,
       coinsEarned,
       pointsEarned: 12250,
-      passed: correctCount >= (moduleObj?.passingScore ?? 0),
+      passed: totalCorrect >= (moduleObj?.passingScore ?? 0),
       progressId: activeProgressId ?? undefined,
-      errorDetails: JSON.stringify(errorDetails),
+      errorDetails: JSON.stringify(errorDetailsRef.current),
     });
-  }, [
-    currentQuestionIndex,
-    correctCount,
-    wrongCount,
-    questions.length,
-    navigation,
-    moduleId,
-    errorDetails,
-    stopTimer,
-    activeProgressId,
-  ]);
+  }, [currentQuestionIndex, questions.length]);
 
-  // ✅ OTIMIZAÇÃO 3: Memoizar questão atual
-  const current = useMemo(
-    () => questions[currentQuestionIndex],
-    [questions, currentQuestionIndex]
-  );
+  const handleConfirm = useCallback(() => {
+    if (selectedAnswer === null) return;
 
-  if (isLoading)
+    const q = questions[currentQuestionIndex];
+    setIsAnswerChecked(true);
+    setIsNextButtonLocked(true);
+
+    const isCorrect = selectedAnswer === q.correctAnswer;
+
+    if (isCorrect) {
+      correctCountRef.current += 1;
+      setCorrectCount(correctCountRef.current);
+      playSound(correctSound);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 1200);
+    } else {
+      wrongCountRef.current += 1;
+      setWrongCount(wrongCountRef.current);
+
+      const error: ErrorDetail = {
+        questionId: q.id,
+        questionText: q.question,
+        userAnswer: q.options[selectedAnswer],
+        expectedAnswer: q.options[q.correctAnswer],
+      };
+
+      errorDetailsRef.current.push(error);
+      setErrorDetails([...errorDetailsRef.current]);
+      playSound(wrongSound);
+    }
+
+    setTimeout(() => {
+      playSound(notificationSound);
+      ExplanationSubject.notify({
+        title: isCorrect ? "Correto!" : "Atenção!",
+        message:
+          q.explanation ||
+          (isCorrect ? "Você acertou!" : "Resposta incorreta."),
+        type: isCorrect ? "success" : "info",
+        onDismiss: () => {
+          setIsNextButtonLocked(false);
+          setTimeout(handleNext, 200);
+        },
+      });
+    }, 400);
+  }, [selectedAnswer, currentQuestionIndex, questions, handleNext]);
+
+  const getOptionStyle = (idx: number): any[] => {
+    const baseStyle: any[] = [styles.option];
+
+    if (!isAnswerChecked) {
+      if (selectedAnswer === idx) {
+        baseStyle.push(styles.optionSelected);
+      }
+      return baseStyle;
+    }
+
+    const correctIdx = current.correctAnswer;
+
+    if (idx === correctIdx) {
+      baseStyle.push(styles.optionCorrect);
+    } else if (idx === selectedAnswer && selectedAnswer !== correctIdx) {
+      baseStyle.push(styles.optionWrong);
+    }
+
+    return baseStyle;
+  };
+
+  const current = questions[currentQuestionIndex];
+  if (isLoading || !current)
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.text} />
-        <Text style={styles.loadingText}>Carregando quiz...</Text>
-      </SafeAreaView>
-    );
-
-  if (!current)
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Nenhuma pergunta encontrada.</Text>
+      <SafeAreaView style={styles.loading}>
+        <ActivityIndicator size="large" />
       </SafeAreaView>
     );
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
-
+      <StatusBar barStyle="light-content" />
       <ExplanationObserver />
 
       <ScrollView
-        style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        accessibilityRole="none"
       >
-        <View style={styles.questionCard}>
-          <AccessibleHeader style={styles.questionText}>
-            {current.question}
-          </AccessibleHeader>
+        {/* ✅ CARD DA PERGUNTA COM ACESSIBILIDADE OTIMIZADA */}
+        <TouchableOpacity
+          ref={questionRef}
+          style={styles.card}
+          accessible={true}
+          accessibilityRole="header"
+          accessibilityLabel={`Pergunta ${currentQuestionIndex + 1} de ${
+            questions.length
+          }: ${current.question}`}
+          accessibilityHint="Enunciado da questão"
+          importantForAccessibility="yes"
+          activeOpacity={1}
+          onPress={() => {}}
+        >
+          {/* ✅ TEXTO COM MELHOR DETECÇÃO PELO TALKBACK */}
+          <Text style={styles.questionNumber} accessible={false}>
+            Pergunta {currentQuestionIndex + 1} de {questions.length}
+          </Text>
 
-          <View style={styles.optionsContainer}>
-            {current.options.map((opt, idx) => (
+          <Text style={styles.question} accessible={false}>
+            {current.question}
+          </Text>
+        </TouchableOpacity>
+
+        {/* ✅ LISTA DE ALTERNATIVAS */}
+        <View
+          accessible={false}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Alternativas de resposta"
+        >
+          {current.options.map((opt, idx) => {
+            const isSelected = selectedAnswer === idx;
+            const isCorrect = isAnswerChecked && idx === current.correctAnswer;
+            const isWrong =
+              isAnswerChecked && isSelected && idx !== current.correctAnswer;
+
+            let accessibilityLabel = `Alternativa ${idx + 1}: ${opt}`;
+            if (isAnswerChecked) {
+              if (isCorrect) {
+                accessibilityLabel += ". Esta é a resposta correta";
+              } else if (isWrong) {
+                accessibilityLabel += ". Resposta incorreta selecionada";
+              }
+            } else if (isSelected) {
+              accessibilityLabel += ". Atualmente selecionada";
+            }
+
+            return (
               <TouchableOpacity
                 key={idx}
+                style={getOptionStyle(idx)}
                 onPress={() => handleSelect(idx)}
-                activeOpacity={0.7}
                 disabled={isAnswerChecked}
-                style={[
-                  styles.option,
-                  selectedAnswer === idx && styles.optionSelected,
-                  isAnswerChecked &&
-                    idx === current.correctAnswer &&
-                    styles.optionCorrect,
-                  isAnswerChecked &&
-                    selectedAnswer === idx &&
-                    idx !== current.correctAnswer &&
-                    styles.optionWrong,
-                ]}
-                accessibilityLabel={`Opção ${idx + 1}: ${opt}`}
+                accessible={true}
+                accessibilityRole="radio"
+                accessibilityLabel={accessibilityLabel}
+                accessibilityState={{
+                  selected: isSelected,
+                  disabled: isAnswerChecked,
+                  checked: isSelected,
+                }}
+                accessibilityHint={
+                  isAnswerChecked
+                    ? undefined
+                    : "Toque duas vezes para selecionar esta alternativa"
+                }
+                importantForAccessibility="yes"
               >
-                <View style={styles.optionNumber}>
-                  <Text style={styles.optionNumberText}>{idx + 1}</Text>
-                </View>
-                <Text style={styles.optionText}>{opt}</Text>
+                <Text style={styles.optionText} accessible={false}>
+                  {opt}
+                </Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            );
+          })}
         </View>
       </ScrollView>
 
+      {/* ✅ RODAPÉ COM BOTÃO */}
       <View style={styles.footer}>
-        <AccessibleButton
+        <TouchableOpacity
+          ref={buttonRef}
           style={[
             styles.button,
-            (selectedAnswer === null && !isAnswerChecked) ||
-            (isAnswerChecked && isNextButtonLocked)
-              ? styles.buttonDisabled
-              : {},
+            ((selectedAnswer === null && !isAnswerChecked) ||
+              (isAnswerChecked && isNextButtonLocked)) &&
+              styles.buttonDisabled,
           ]}
-          onPress={isAnswerChecked ? handleNext : handleConfirm}
           disabled={
             (selectedAnswer === null && !isAnswerChecked) ||
             (isAnswerChecked && isNextButtonLocked)
           }
-          accessibilityText={
-            !isAnswerChecked
-              ? "Confirmar Resposta"
-              : isNextButtonLocked
-              ? "Leia a explicação acima"
-              : "Próxima Pergunta"
-          }
-        >
-          <Text style={styles.buttonText}>
-            {isAnswerChecked
-              ? isNextButtonLocked
-                ? "Leia a Explicação ☝️"
-                : currentQuestionIndex === questions.length - 1
+          onPress={isAnswerChecked ? handleNext : handleConfirm}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isAnswerChecked
+              ? currentQuestionIndex === questions.length - 1
                 ? "Finalizar Quiz"
-                : "Próxima Pergunta →"
+                : "Próxima Pergunta"
+              : "Confirmar Resposta"
+          }
+          accessibilityHint={
+            selectedAnswer === null && !isAnswerChecked
+              ? "Selecione uma alternativa primeiro"
+              : "Toque duas vezes para continuar"
+          }
+          accessibilityState={{
+            disabled:
+              (selectedAnswer === null && !isAnswerChecked) ||
+              (isAnswerChecked && isNextButtonLocked),
+          }}
+          importantForAccessibility="yes"
+        >
+          <Text style={styles.buttonText} accessible={false}>
+            {isAnswerChecked
+              ? currentQuestionIndex === questions.length - 1
+                ? "Finalizar Quiz"
+                : "Próxima Pergunta"
               : "Confirmar Resposta"}
           </Text>
-        </AccessibleButton>
+        </TouchableOpacity>
       </View>
 
-      {/* Confetti reduzido */}
       {showConfetti && (
-        <View style={styles.confettiContainer} pointerEvents="none">
-          <ConfettiCannon
-            count={60}
-            origin={{ x: WINDOW_WIDTH / 2, y: -20 }}
-            fadeOut
-            fallSpeed={3000}
-          />
-        </View>
+        <ConfettiCannon count={50} origin={{ x: width / 2, y: -20 }} fadeOut />
       )}
     </SafeAreaView>
   );
@@ -387,142 +471,69 @@ const getStyles = (
   isDyslexia: boolean
 ) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.background,
-    },
-    loadingContainer: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.background,
-      paddingHorizontal: wp(5),
-    },
-    loadingText: {
-      color: theme.text,
-      fontSize: normalize(16),
-      marginTop: hp(2),
-      textAlign: "center",
-    },
-    scrollArea: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: wp(4),
-      paddingTop: hp(15),
-      paddingBottom: hp(3),
-    },
-    questionCard: {
+    container: { flex: 1, backgroundColor: theme.background },
+    loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+    scroll: { padding: wp(4), paddingTop: hp(12) },
+    card: {
       backgroundColor: theme.card,
-      borderRadius: 16,
       padding: wp(5),
-      ...Platform.select({
-        ios: {
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 10,
-        },
-        android: { elevation: 6 },
-      }),
-    },
-    questionText: {
-      fontSize: Math.min(normalize(17) * fontMultiplier, wp(5.2)),
-      fontWeight: isBold ? "bold" : "700",
-      color: theme.cardText,
+      borderRadius: 16,
       marginBottom: hp(3),
-      lineHeight: Math.min(normalize(24) * lineHeightMultiplier, wp(7)),
+    },
+    questionNumber: {
+      color: theme.cardText,
+      fontSize: normalize(13) * fontMultiplier,
+      fontWeight: isBold ? "bold" : "500",
+      marginBottom: hp(1),
+      opacity: 0.7,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-    optionsContainer: {
-      gap: hp(1.5),
+    question: {
+      color: theme.cardText,
+      fontSize: normalize(17) * fontMultiplier,
+      fontWeight: isBold ? "bold" : "600",
+      lineHeight: normalize(24) * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
+      fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
     option: {
-      flexDirection: "row",
-      alignItems: "center",
       padding: wp(4),
       borderRadius: 12,
       borderWidth: 2,
-      borderColor: "rgba(255,255,255,0.2)",
-      backgroundColor: "rgba(255,255,255,0.05)",
-      minHeight: hp(7),
+      borderColor: "#555",
+      marginBottom: hp(1.5),
     },
     optionSelected: {
-      backgroundColor: "rgba(33, 150, 243, 0.2)",
       borderColor: "#2196F3",
+      backgroundColor: "rgba(33,150,243,0.2)",
     },
     optionCorrect: {
-      backgroundColor: "rgba(76, 175, 80, 0.25)",
       borderColor: "#4CAF50",
-      borderWidth: 3,
+      backgroundColor: "rgba(76,175,80,0.25)",
     },
     optionWrong: {
-      backgroundColor: "rgba(244, 67, 54, 0.25)",
       borderColor: "#F44336",
-      borderWidth: 3,
-    },
-    optionNumber: {
-      width: wp(7),
-      height: wp(7),
-      borderRadius: wp(3.5),
-      backgroundColor: "rgba(255,255,255,0.15)",
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: wp(3),
-    },
-    optionNumberText: {
-      color: theme.cardText,
-      fontSize: normalize(12),
-      fontWeight: "bold",
+      backgroundColor: "rgba(244,67,54,0.25)",
     },
     optionText: {
-      flex: 1,
       color: theme.cardText,
-      fontSize: Math.min(normalize(15) * fontMultiplier, wp(4.2)),
-      lineHeight: Math.min(normalize(20), wp(5.5)),
+      fontSize: normalize(15) * fontMultiplier,
+      lineHeight: normalize(22) * lineHeightMultiplier,
+      letterSpacing: letterSpacing,
       fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
     },
-    footer: {
-      padding: wp(4),
-      paddingBottom: Platform.OS === "ios" ? hp(1) : hp(2),
-      backgroundColor: theme.background,
-      borderTopWidth: 1,
-      borderTopColor: "rgba(255,255,255,0.1)",
-    },
+    footer: { padding: wp(4), borderTopWidth: 1, borderTopColor: "#333" },
     button: {
       backgroundColor: theme.button,
-      marginBottom: 60,
       paddingVertical: hp(2),
       borderRadius: 12,
       alignItems: "center",
-      justifyContent: "center",
-      minHeight: hp(7),
-      ...Platform.select({
-        ios: {
-          shadowColor: theme.button,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 6,
-        },
-        android: { elevation: 4 },
-      }),
     },
-    buttonDisabled: {
-      opacity: 0.5,
-      backgroundColor: "#666",
-    },
+    buttonDisabled: { opacity: 0.5 },
     buttonText: {
       color: theme.buttonText,
-      fontSize: Math.min(normalize(15), wp(4.5)),
       fontWeight: "bold",
-      fontFamily: isDyslexia ? "OpenDyslexic-Regular" : undefined,
-    },
-    confettiContainer: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 999,
+      fontSize: normalize(16) * fontMultiplier,
+      fontFamily: isDyslexia ? "OpenDyslexic-Bold" : undefined,
     },
   });

@@ -190,12 +190,12 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-1",
         question: 'Como se escreve a palavra "CASA" em Braille?',
         options: [
-          "(1,4) (1) (2,3,4) (1)",
-          "(1,4) (1) (2,3,4) (1,3,5)",
-          "(1,4) (1) (1,3,5,6) (1)",
-          "(1,4) (1,3,5) (2,3,4) (1)",
+          "(1,4) (1) (2,3,4) (1,3,5)", // Errado
+          "(1,4) (1) (1,3,5,6) (1)", // Errado
+          "(1,4) (1) (2,3,4) (1)", // CORRETO (Índice 2)
+          "(1,4) (1,3,5) (2,3,4) (1)", // Errado
         ],
-        correctAnswer: 0,
+        correctAnswer: 2, // Aponta para a 3ª opção
         explanation: "CASA = C(1,4) + A(1) + S(2,3,4) + A(1).",
         order: 1,
         difficulty: "medium",
@@ -205,8 +205,13 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-2",
         question:
           "Qual palavra é formada pela sequência: (1,2,3) (2,4) (1,2,3,6) (1,2,3,5) (1,3,5)?",
-        options: ["LOBO", "LIVRO", "LUZ", "LAGO"],
-        correctAnswer: 1,
+        options: [
+          "LOBO", // Errado
+          "LUZ", // Errado
+          "LAGO", // Errado
+          "LIVRO", // CORRETO (Índice 3)
+        ],
+        correctAnswer: 3, // Aponta para a 4ª opção
         explanation: "A sequência forma a palavra LIVRO.",
         order: 2,
         difficulty: "hard",
@@ -216,12 +221,12 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-3",
         question: 'Como se escreve a palavra "GATO" em Braille?',
         options: [
-          "(1,2,4,5) (1) (2,3,4,5) (1,3,5)",
-          "(1,2,4,5) (1,5) (2,3,4,5) (1,3,5)",
-          "(1,2,4,5) (1) (1,4,5) (1,3,5)",
-          "(1,2,4,5) (1) (1,2,3,4) (1,3,5)",
+          "(1,2,4,5) (1,5) (2,3,4,5) (1,3,5)", // Errado
+          "(1,2,4,5) (1) (2,3,4,5) (1,3,5)", // CORRETO (Índice 1)
+          "(1,2,4,5) (1) (1,4,5) (1,3,5)", // Errado
+          "(1,2,4,5) (1) (1,2,3,4) (1,3,5)", // Errado
         ],
-        correctAnswer: 0,
+        correctAnswer: 1, // Aponta para a 2ª opção
         explanation: "GATO = G(1,2,4,5) + A(1) + T(2,3,4,5) + O(1,3,5).",
         order: 3,
         difficulty: "medium",
@@ -231,8 +236,13 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-4",
         question:
           "Qual palavra é formada pela sequência: (2,3,4) (1,3,5) (1,2,3)?",
-        options: ["SAL", "SOL", "SUL", "SAO"],
-        correctAnswer: 1,
+        options: [
+          "SOL", // CORRETO (Índice 0)
+          "SAL", // Errado
+          "SUL", // Errado
+          "SAO", // Errado
+        ],
+        correctAnswer: 0, // Aponta para a 1ª opção
         explanation: "A sequência forma a palavra SOL.",
         order: 4,
         difficulty: "easy",
@@ -242,14 +252,14 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-5",
         question: 'Como se escreve a palavra "PÃO" em Braille?',
         options: [
-          "(1,2,3,4) (1) (1,3,5)",
-          "(1,2,3,4) (1) (3,4,5) (1,3,5)",
-          "(1,2,3,4) (1,3,5) (1)",
-          "(1,2,3,4) (1,5) (1,3,5)",
+          "(1,2,3,4) (1) (1,3,5)", // Errado
+          "(1,2,3,4) (1,5) (1,3,5)", // Errado
+          "(1,2,3,4) (3,4,5) (1,3,5)", // CORRETO (Índice 2)
+          "(1,2,3,4) (1,3,5) (1)", // Errado
         ],
-        correctAnswer: 1,
+        correctAnswer: 2, // Aponta para a 3ª opção
         explanation:
-          "PÃO = P(1,2,3,4) + Ã(representado por A(1) e o sinal de til(3,4,5)). A resposta correta reflete a combinação para Ã.",
+          "PÃO = P(1,2,3,4) + Ã(representado por A(1) e o sinal de til(3,4,5)).",
         order: 5,
         difficulty: "hard",
         points: 15,
@@ -258,8 +268,13 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-6",
         question:
           "Qual palavra é formada pela sequência: (1,3,4) (1) (1,2,3,5)?",
-        options: ["MAO", "MAR", "MEU", "MAIS"],
-        correctAnswer: 1,
+        options: [
+          "MAO", // Errado
+          "MEU", // Errado
+          "MAIS", // Errado
+          "MAR", // CORRETO (Índice 3)
+        ],
+        correctAnswer: 3, // Aponta para a 4ª opção
         explanation: "A sequência forma a palavra MAR.",
         order: 6,
         difficulty: "easy",
@@ -269,14 +284,14 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-7",
         question: 'Como se escreve "EU GOSTO" em Braille?',
         options: [
-          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5)",
-          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,6)",
-          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1)",
-          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(2,4)",
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1)", // Errado
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,5)", // CORRETO (Índice 1)
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(1,3,6)", // Errado
+          "(1,5)(1,3,6) [espaço] (1,2,4,5)(1,3,5)(2,3,4)(2,3,4,5)(2,4)", // Errado
         ],
-        correctAnswer: 0,
+        correctAnswer: 1, // Aponta para a 2ª opção
         explanation:
-          "A sequência de células correta para 'EU GOSTO' é a primeira opção.",
+          "A sequência de células correta para 'EU GOSTO' é a segunda opção.",
         order: 7,
         difficulty: "hard",
         points: 15,
@@ -285,8 +300,13 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-8",
         question:
           "Qual palavra é formada pela sequência: (1,4,5) (1) (1,4,5) (1,3,5)?",
-        options: ["DADO", "DIA", "DEPOIS", "DOCE"],
-        correctAnswer: 0,
+        options: [
+          "DIA", // Errado
+          "DOCE", // Errado
+          "DADO", // CORRETO (Índice 2)
+          "DEPOIS", // Errado
+        ],
+        correctAnswer: 2, // Aponta para a 3ª opção
         explanation: "A sequência forma a palavra DADO.",
         order: 8,
         difficulty: "medium",
@@ -296,14 +316,14 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-9",
         question: 'Como se escreve "BOLA AZUL" em Braille?',
         options: [
-          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,3,5,6)(1,3,6)(1,2,3)",
-          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(2,3,4)(1,3,6)(1,2,3)",
-          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,2,3,6)(1,3,6)(1,2,3)",
-          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,4)(1,3,6)(1,2,3)",
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(2,3,4)(1,3,6)(1,2,3)", // Errado
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,2,3,6)(1,3,6)(1,2,3)", // Errado
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,4)(1,3,6)(1,2,3)", // Errado
+          "(1,2)(1,3,5)(1,2,3)(1) [espaço] (1)(1,3,5,6)(1,3,6)(1,2,3)", // CORRETO (Índice 3 - Z=1356, U=136, L=123)
         ],
-        correctAnswer: 0,
+        correctAnswer: 3, // Aponta para a 4ª opção
         explanation:
-          "A sequência de células correta para 'BOLA AZUL' é a primeira opção.",
+          "A sequência de células correta para 'BOLA AZUL' é a última opção.",
         order: 9,
         difficulty: "hard",
         points: 15,
@@ -312,8 +332,13 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q2-10",
         question:
           "Qual palavra é formada pela sequência: (1,4) (1) (1,2) (1,3,5)?",
-        options: ["CABO", "CAIXA", "CARRO", "CASA"],
-        correctAnswer: 0,
+        options: [
+          "CABO", // CORRETO (Índice 0)
+          "CAIXA", // Errado
+          "CARRO", // Errado
+          "CASA", // Errado
+        ],
+        correctAnswer: 0, // Aponta para a 1ª opção
         explanation: "A sequência forma a palavra CABO.",
         order: 10,
         difficulty: "medium",
@@ -382,12 +407,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q3-4",
         question: "Qual a representação em Braille do ponto final?",
-        options: [
-          "Pontos 3",
-          "Ponto 2",
-          "Pontos 2, 3, 6",
-          "Pontos 2, 3, 5",
-        ],
+        options: ["Pontos 3", "Ponto 2", "Pontos 2, 3, 6", "Pontos 2, 3, 5"],
         correctAnswer: 0,
         explanation:
           "O ponto final é representado pelos pontos 3 na célula Braille.",
@@ -465,15 +485,7 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
         id: "q3-9",
         question:
           'Ao escrever a frase "O aluno estuda.", qual sinal de pontuação deve ser usado no final?',
-        // ======================================================
-        // ✅ CORREÇÃO (Bug 2): Remove o "cheat"
-        // ======================================================
-        options: [
-          "Ponto 2",
-          "Pontos 2, 6",
-          "Pontos 3",
-          "Pontos 2, 3, 5, 6", // Esta opção está tecnicamente errada (é 2,3,5), mas mantemos para consistência
-        ],
+        options: ["Ponto 2", "Pontos 2, 6", "Pontos 3", "Pontos 2, 3, 5, 6"],
         correctAnswer: 2,
         explanation:
           "Uma frase afirmativa deve terminar com ponto final, representado pelos pontos 2, 5 e 6.",
@@ -484,9 +496,6 @@ export const DEFAULT_MODULE_QUIZZES: ModuleQuiz[] = [
       {
         id: "q3-10",
         question: "Qual a representação em Braille do ponto de interrogação?",
-        // ======================================================
-        // ✅ CORREÇÃO (Bug 2): Opções já estavam limpas
-        // ======================================================
         options: ["Pontos 2, 5, 6", "Ponto 2", "Pontos 2, 3, 6", "Pontos 2, 6"],
         correctAnswer: 3,
         explanation:

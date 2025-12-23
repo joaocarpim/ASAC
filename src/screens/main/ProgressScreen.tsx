@@ -6,7 +6,9 @@ import {
   StatusBar,
   ActivityIndicator,
   Animated,
-  PanResponder, // ✅ 1. Importado PanResponder
+  PanResponder,
+  Text,
+  // Removi TouchableOpacity para evitar conflito com o ModuleCard
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { RootStackScreenProps } from "../../navigation/types";
@@ -16,7 +18,6 @@ import { useAuthStore } from "../../store/authStore";
 import { generateClient } from "aws-amplify/api";
 import { listProgresses, getUser } from "../../graphql/queries";
 import { useContrast } from "../../hooks/useContrast";
-import { AccessibleText } from "../../components/AccessibleComponents";
 import { useSettings } from "../../hooks/useSettings";
 import { Theme } from "../../types/contrast";
 
@@ -33,7 +34,6 @@ type ProgressItem = {
   updatedAt: string;
 };
 
-// ... (Sua função getThemeColors permanece idêntica aqui, omitida para brevidade) ...
 const getThemeColors = (mode: string) => {
   const defaultIcons = {
     avg: "#FFC107",
@@ -89,7 +89,6 @@ const ProgressScreenComponent = ({
 
   const [moduleProgress, setModuleProgress] = useState<ProgressItem[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [totalCorrect, setTotalCorrect] = useState(0);
   const [totalWrong, setTotalWrong] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
@@ -105,7 +104,6 @@ const ProgressScreenComponent = ({
     letterSpacing,
     isDyslexiaFontEnabled,
   } = useSettings();
-
   const styles = createStyles(
     theme,
     fontSizeMultiplier,
@@ -115,7 +113,6 @@ const ProgressScreenComponent = ({
     isDyslexiaFontEnabled
   );
 
-  // ... (Sua função fetchProgressData permanece idêntica aqui) ...
   const fetchProgressData = useCallback(async () => {
     if (!user?.userId) {
       setLoading(false);
@@ -125,108 +122,94 @@ const ProgressScreenComponent = ({
     try {
       const client = generateClient();
       try {
-        const userQueryWithBuster = `
-          # CacheBuster: ${Date.now()}-${Math.random()}
-          ${getUser}
-        `;
         const userResult: any = await client.graphql({
-          query: userQueryWithBuster,
+          query: getUser,
           variables: { id: user.userId },
           authMode: "userPool",
         });
-        const freshUser = userResult.data?.getUser;
-        if (freshUser) {
-          setUserPoints(freshUser.points ?? 0);
-        }
-      } catch (userError) {
-        console.error("❌ Erro ao buscar dados do usuário:", userError);
-      }
+        if (userResult.data?.getUser)
+          setUserPoints(userResult.data.getUser.points ?? 0);
+      } catch (e) {}
+
       let allProgress: any[] = [];
       let nextToken: string | null = null;
       do {
-        const queryWithCacheBuster = `
-          # CacheBuster: ${Date.now()}-${Math.random()}
-          ${listProgresses}
-        `;
         const result: any = await client.graphql({
-          query: queryWithCacheBuster,
+          query: listProgresses,
           variables: {
             filter: { userId: { eq: user.userId } },
             limit: 1000,
-            nextToken: nextToken,
+            nextToken,
           },
           authMode: "userPool",
         });
-        const items = result?.data?.listProgresses?.items || [];
-        allProgress.push(...items);
+        allProgress.push(...(result?.data?.listProgresses?.items || []));
         nextToken = result?.data?.listProgresses?.nextToken || null;
       } while (nextToken);
 
-      const attemptedProgress = allProgress.filter(
-        (p) => p.timeSpent && p.timeSpent > 0
-      );
+      const attemptedProgress = allProgress.filter((p) => p.timeSpent > 0);
       const latestByModule: Record<number, any> = {};
+
       attemptedProgress.forEach((p: any) => {
-        const moduleNum = Number(p.moduleNumber ?? 0);
-        if (moduleNum === 0) return;
-        const timestamp = p?.updatedAt || p?.completedAt || p?.createdAt;
-        const currentTime = timestamp ? new Date(timestamp).getTime() : 0;
-        if (!latestByModule[moduleNum]) {
-          latestByModule[moduleNum] = p;
-        } else {
-          const existingTimestamp =
-            latestByModule[moduleNum]?.updatedAt ||
-            latestByModule[moduleNum]?.completedAt ||
-            latestByModule[moduleNum]?.createdAt;
-          const existingTime = existingTimestamp
-            ? new Date(existingTimestamp).getTime()
-            : 0;
-          if (currentTime > existingTime) {
-            latestByModule[moduleNum] = p;
-          }
+        const m = Number(p.moduleNumber || 0);
+        if (m === 0) return;
+        const t = new Date(p.updatedAt || p.createdAt).getTime();
+        if (
+          !latestByModule[m] ||
+          t >
+            new Date(
+              latestByModule[m].updatedAt || latestByModule[m].createdAt
+            ).getTime()
+        ) {
+          latestByModule[m] = p;
         }
       });
-      const latestProgress: ProgressItem[] = Object.values(latestByModule)
+
+      const latestProgress = Object.values(latestByModule)
         .map((p: any) => ({
           id: p.id,
-          moduleNumber: Number(p.moduleNumber ?? 0),
-          correctAnswers: Number(p.correctAnswers ?? 0),
-          wrongAnswers: Number(p.wrongAnswers ?? 0),
-          timeSpent: Number(p.timeSpent ?? 0),
-          accuracy: Number(p.accuracy ?? 0),
-          updatedAt: p.updatedAt ?? p.createdAt ?? new Date().toISOString(),
+          moduleNumber: Number(p.moduleNumber),
+          accuracy: Number(p.accuracy),
+          correctAnswers: Number(p.correctAnswers),
+          wrongAnswers: Number(p.wrongAnswers),
+          timeSpent: Number(p.timeSpent),
+          updatedAt: p.updatedAt || p.createdAt,
         }))
         .sort((a, b) => a.moduleNumber - b.moduleNumber);
+
       setModuleProgress(latestProgress);
+
       const totals = latestProgress.reduce(
-        (acc, p) => {
-          acc.sumCorrect += p.correctAnswers;
-          acc.sumWrong += p.wrongAnswers;
-          acc.sumTime += p.timeSpent;
-          acc.sumAccuracy += p.accuracy;
-          return acc;
-        },
+        (acc, p) => ({
+          sumCorrect: acc.sumCorrect + p.correctAnswers,
+          sumWrong: acc.sumWrong + p.wrongAnswers,
+          sumTime: acc.sumTime + p.timeSpent,
+          sumAccuracy: acc.sumAccuracy + p.accuracy,
+        }),
         { sumCorrect: 0, sumWrong: 0, sumTime: 0, sumAccuracy: 0 }
       );
-      const count = latestProgress.length;
-      const avgAccuracy =
-        count > 0 ? Math.round(totals.sumAccuracy / count) : 0;
+
       setTotalCorrect(totals.sumCorrect);
       setTotalWrong(totals.sumWrong);
       setTotalTime(totals.sumTime);
-      setAvgAccuracy(avgAccuracy);
+      setAvgAccuracy(
+        latestProgress.length > 0
+          ? Math.round(totals.sumAccuracy / latestProgress.length)
+          : 0
+      );
+
       Animated.timing(headerFadeAnim, {
         toValue: 1,
         duration: 800,
         useNativeDriver: true,
       }).start();
     } catch (error) {
-      console.error("❌ Erro ao buscar progresso:", error);
+      console.error(error);
       setModuleProgress([]);
     } finally {
       setLoading(false);
     }
-  }, [user?.userId, headerFadeAnim]);
+  }, [user?.userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -234,34 +217,31 @@ const ProgressScreenComponent = ({
     }, [fetchProgressData])
   );
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.round(seconds % 60);
-    if (hours > 0) return `${hours}h ${mins}m`;
-    if (mins > 0) return `${mins}m ${secs}s`;
-    return `${secs}s`;
+  const formatTime = (s: number) => {
+    const h = Math.floor(s / 3600),
+      m = Math.floor((s % 3600) / 60),
+      sec = Math.round(s % 60);
+    return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
   };
 
-  const handleGoBack = () => {
-    navigation.goBack();
+  const formatTimeAccessible = (s: number) => {
+    const h = Math.floor(s / 3600),
+      m = Math.floor((s % 3600) / 60),
+      sec = Math.round(s % 60);
+    let t = "";
+    if (h > 0) t += `${h} horas `;
+    if (m > 0) t += `${m} minutos `;
+    if (sec > 0 || t === "") t += `${sec} segundos`;
+    return t;
   };
 
-  // ✅ 2. Configuração do PanResponder para detectar o gesto de arrastar
+  const handleGoBack = () => navigation.goBack();
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Ativa se o movimento horizontal for maior que o vertical e maior que 20px
-        const isHorizontal =
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-        const isSwipeRight = gestureState.dx > 20; // Arrastando para direita
-        return isHorizontal && isSwipeRight;
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        // Se arrastou mais de 100px para a direita, volta
-        if (gestureState.dx > 100) {
-          handleGoBack();
-        }
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > Math.abs(g.dy) && g.dx > 20,
+      onPanResponderRelease: (_, g) => {
+        if (g.dx > 100) handleGoBack();
       },
     })
   ).current;
@@ -274,7 +254,11 @@ const ProgressScreenComponent = ({
           backgroundColor={theme.background}
         />
         <ScreenHeader title="Progresso" onBackPress={handleGoBack} />
-        <View style={styles.loadingContainer}>
+        <View
+          style={styles.loadingContainer}
+          accessible={true}
+          accessibilityLabel="Carregando dados."
+        >
           <ActivityIndicator size="large" color={theme.text} />
         </View>
       </View>
@@ -282,7 +266,6 @@ const ProgressScreenComponent = ({
   }
 
   return (
-    // ✅ 3. Adicionado {...panResponder.panHandlers} na View principal
     <View
       style={[styles.container, { backgroundColor: theme.background }]}
       {...panResponder.panHandlers}
@@ -305,127 +288,180 @@ const ProgressScreenComponent = ({
             },
           ]}
         >
-          <AccessibleText
-            baseSize={20}
-            style={[styles.sectionTitle, { color: colors.text }]}
+          {/* Título Resumo - Agrupado */}
+          <View
+            accessible={true}
+            focusable={true}
+            accessibilityRole="header"
+            style={{ marginBottom: 16 }}
           >
-            📊 Resumo Geral
-          </AccessibleText>
-
-          <AccessibleText
-            baseSize={12}
-            style={[
-              styles.sectionSubtitle,
-              { color: colors.text, opacity: 0.8 },
-            ]}
-          >
-            Baseado nas últimas tentativas de cada módulo
-          </AccessibleText>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text, fontSize: 20 * fontSizeMultiplier },
+              ]}
+            >
+              📊 Resumo Geral
+            </Text>
+            <Text
+              style={[
+                styles.sectionSubtitle,
+                {
+                  color: colors.text,
+                  opacity: 0.8,
+                  fontSize: 12 * fontSizeMultiplier,
+                },
+              ]}
+            >
+              Baseado nas últimas tentativas
+            </Text>
+          </View>
 
           <View style={styles.statsGrid}>
-            <StatItem
-              icon="target"
-              value={`${avgAccuracy}%`}
-              label="Precisão Média"
-              iconColor={colors.iconColors.avg}
-              textColor={colors.text}
-              backgroundColor={colors.itemBg}
-              delay={0}
-            />
-            <StatItem
-              icon="check-all"
-              value={totalCorrect.toString()}
-              label="Total Acertos"
-              iconColor={colors.iconColors.correct}
-              textColor={colors.text}
-              backgroundColor={colors.itemBg}
-              delay={100}
-            />
-            <StatItem
-              icon="close-circle"
-              value={totalWrong.toString()}
-              label="Total Erros"
-              iconColor={colors.iconColors.wrong}
-              textColor={colors.text}
-              backgroundColor={colors.itemBg}
-              delay={200}
-            />
-            <StatItem
-              icon="clock-time-eight-outline"
-              value={formatTime(totalTime)}
-              label="Tempo Total"
-              iconColor={colors.iconColors.time}
-              textColor={colors.text}
-              backgroundColor={colors.itemBg}
-              delay={300}
-            />
-            <StatItem
-              icon="book-open-variant"
-              value={moduleProgress.length.toString()}
-              label="Módulos Feitos"
-              iconColor={colors.iconColors.modules}
-              textColor={colors.text}
-              backgroundColor={colors.itemBg}
-              delay={400}
-            />
-            <StatItem
-              icon="trophy"
-              value={userPoints.toLocaleString("pt-BR")}
-              label="Pontos"
-              iconColor={colors.iconColors.points}
-              textColor={colors.text}
-              backgroundColor={colors.itemBg}
-              delay={500}
-            />
+            {[
+              {
+                icon: "target",
+                val: `${avgAccuracy}%`,
+                label: "Precisão",
+                color: colors.iconColors.avg,
+                delay: 0,
+                text: `Precisão média: ${avgAccuracy} por cento`,
+              },
+              {
+                icon: "check-all",
+                val: totalCorrect,
+                label: "Acertos",
+                color: colors.iconColors.correct,
+                delay: 100,
+                text: `Total de acertos: ${totalCorrect}`,
+              },
+              {
+                icon: "close-circle",
+                val: totalWrong,
+                label: "Erros",
+                color: colors.iconColors.wrong,
+                delay: 200,
+                text: `Total de erros: ${totalWrong}`,
+              },
+              {
+                icon: "clock-time-eight-outline",
+                val: formatTime(totalTime),
+                label: "Tempo",
+                color: colors.iconColors.time,
+                delay: 300,
+                text: `Tempo total: ${formatTimeAccessible(totalTime)}`,
+              },
+              {
+                icon: "book-open-variant",
+                val: moduleProgress.length,
+                label: "Módulos",
+                color: colors.iconColors.modules,
+                delay: 400,
+                text: `Módulos concluídos: ${moduleProgress.length}`,
+              },
+              {
+                icon: "trophy",
+                val: userPoints.toLocaleString("pt-BR"),
+                label: "Pontos",
+                color: colors.iconColors.points,
+                delay: 500,
+                text: `Total de pontos: ${userPoints}`,
+              },
+            ].map((item, i) => (
+              <View
+                key={i}
+                style={styles.statWrapper}
+                // Configuração Acessibilidade para os Boxes
+                accessible={true}
+                focusable={true}
+                accessibilityRole="text"
+                accessibilityLabel={item.text}
+              >
+                <StatItem
+                  icon={item.icon as any}
+                  value={String(item.val)}
+                  label={item.label}
+                  iconColor={item.color}
+                  textColor={colors.text}
+                  backgroundColor={colors.itemBg}
+                  delay={item.delay}
+                />
+              </View>
+            ))}
           </View>
         </Animated.View>
 
         <View style={styles.section}>
-          <AccessibleText
-            baseSize={20}
-            style={[styles.sectionTitleDark, { color: theme.text }]}
+          {/* Título Lista - Agrupado */}
+          <View
+            accessible={true}
+            focusable={true}
+            accessibilityRole="header"
+            style={{ marginBottom: 16 }}
           >
-            📘 Desempenho por Módulo
-          </AccessibleText>
-          <AccessibleText
-            baseSize={12}
-            style={[styles.sectionSubtitleDark, { color: theme.text }]}
-          >
-            Última tentativa de cada módulo — toque para ver mais detalhes
-          </AccessibleText>
+            <Text
+              style={[
+                styles.sectionTitleDark,
+                { color: theme.text, fontSize: 20 * fontSizeMultiplier },
+              ]}
+            >
+              📘 Desempenho
+            </Text>
+            <Text
+              style={[
+                styles.sectionSubtitleDark,
+                { color: theme.text, fontSize: 12 * fontSizeMultiplier },
+              ]}
+            >
+              Toque para ver detalhes
+            </Text>
+          </View>
 
           {moduleProgress.length > 0 ? (
             moduleProgress.map((p, index) => (
-              <ModuleCard
+              // ✅ CORREÇÃO: Usar View simples aqui. O ModuleCard já é clicável.
+              <View
                 key={`${p.moduleNumber}-${p.id}`}
-                moduleNumber={p.moduleNumber}
-                accuracy={p.accuracy}
-                correctAnswers={p.correctAnswers}
-                wrongAnswers={p.wrongAnswers}
-                timeSpent={p.timeSpent}
-                updatedAt={p.updatedAt}
-                index={index}
-                theme={theme}
-                onPress={() =>
-                  navigation.navigate("IncorrectAnswers", {
-                    moduleNumber: p.moduleNumber,
-                  })
-                }
-              />
+                style={{ marginBottom: 12 }}
+              >
+                <ModuleCard
+                  moduleNumber={p.moduleNumber}
+                  accuracy={p.accuracy}
+                  correctAnswers={p.correctAnswers}
+                  wrongAnswers={p.wrongAnswers}
+                  timeSpent={p.timeSpent}
+                  updatedAt={p.updatedAt}
+                  index={index}
+                  theme={theme}
+                  // Passamos a navegação aqui para o componente filho
+                  onPress={() =>
+                    navigation.navigate("IncorrectAnswers", {
+                      moduleNumber: p.moduleNumber,
+                    })
+                  }
+                />
+              </View>
             ))
           ) : (
-            <View style={styles.emptyContainer}>
+            <View
+              style={styles.emptyContainer}
+              accessible={true}
+              focusable={true}
+              accessibilityLabel="Nenhum módulo completado ainda."
+            >
               <MaterialCommunityIcons
                 name="book-outline"
                 size={64}
                 color={theme.text}
               />
-              <AccessibleText
-                baseSize={16}
-                style={[styles.emptyText, { color: theme.text }]}
+              <Text
+                style={[
+                  styles.emptyText,
+                  { color: theme.text, fontSize: 16 * fontSizeMultiplier },
+                ]}
               >
                 Você ainda não completou nenhum módulo
-              </AccessibleText>
+              </Text>
             </View>
           )}
         </View>
@@ -440,7 +476,6 @@ export default function ProgressScreen(
   return <ProgressScreenComponent {...props} />;
 }
 
-// ... (Seus estilos permanecem idênticos abaixo)
 const createStyles = (
   theme: Theme,
   fontMultiplier: number,
@@ -459,7 +494,7 @@ const createStyles = (
     },
     summaryCard: {
       borderRadius: 16,
-      padding: 20,
+      padding: 16,
       marginTop: 20,
       marginBottom: 20,
       elevation: 4,
@@ -469,41 +504,43 @@ const createStyles = (
       shadowRadius: 6,
     },
     sectionTitle: {
-      fontWeight: "bold",
+      fontWeight: isBold ? "bold" : "700",
       marginBottom: 4,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      letterSpacing: letterSpacing,
+      letterSpacing,
     },
     sectionSubtitle: {
-      marginBottom: 16,
+      marginBottom: 12,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      letterSpacing: letterSpacing,
+      letterSpacing,
     },
     sectionTitleDark: {
-      fontWeight: "bold",
+      fontWeight: isBold ? "bold" : "700",
       marginBottom: 4,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      letterSpacing: letterSpacing,
+      letterSpacing,
     },
     sectionSubtitleDark: {
       marginBottom: 16,
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      letterSpacing: letterSpacing,
+      letterSpacing,
     },
+
+    // ✅ GRID HARMONIOSO
     statsGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
       justifyContent: "space-between",
+      gap: 8,
     },
+    statWrapper: { width: "31%", marginBottom: 10 }, // 3 colunas perfeitas
+
     section: { marginBottom: 10 },
-    emptyContainer: {
-      alignItems: "center",
-      paddingVertical: 40,
-    },
+    emptyContainer: { alignItems: "center", paddingVertical: 40 },
     emptyText: {
       marginTop: 16,
       textAlign: "center",
       fontFamily: isDyslexiaFont ? "OpenDyslexic-Regular" : undefined,
-      letterSpacing: letterSpacing,
+      letterSpacing,
     },
   });
